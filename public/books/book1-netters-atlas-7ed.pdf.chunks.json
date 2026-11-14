@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "originalFilename": "book1-netters-atlas-7ed.pdf",
+  "originalRelativePath": "public/books/book1-netters-atlas-7ed.pdf",
+  "sizeBytes": 120610693,
+  "sha256": "a65035914c893839ed28071269e57258f97826a88a5b7f6cd3fc874110c15561",
+  "chunkSizeBytes": 85000000,
+  "parts": [
+    {
+      "index": 0,
+      "filename": "book1-netters-atlas-7ed.pdf.part0",
+      "sizeBytes": 85000000,
+      "sha256": "5bf87899f92d799f7c5c287d10d5bbe63f73384a761a14be411cb105787d3920"
+    },
+    {
+      "index": 1,
+      "filename": "book1-netters-atlas-7ed.pdf.part1",
+      "sizeBytes": 35610693,
+      "sha256": "2319d9d99f233b101fc365c0324c884edc47c37550cd33611aee01f1539641c1"
+    }
+  ]
+}

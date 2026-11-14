@@ -1,7 +1,21 @@
-# Anatomy Atlas 3D — Interactive Clinical & Biomedical Human Anatomy Platform
-# أطلس التشريح البشري ثلاثي الأبعاد — المنصة التفاعلية للتشريح السريري والطبية الحيوية
+# Anatomy Atlas 3D — Interactive Clinical Human Anatomy Platform
+# أطلس التشريح البشري ثلاثي الأبعاد — التحميل والتشغيل بضغطة واحدة
 
-A high-precision, interactive **3D Human Anatomy Atlas** built with **React 18**, **Three.js / React Three Fiber**, **WebGL2 custom clinical GLSL shaders**, **Tailwind CSS**, and offline **Electron (Windows `.exe`)** + **Capacitor (Android `.apk`)** packaging.
+---
+
+## تحميل البرنامج بضغطة واحدة (بدون خبرة تقنية أو GitHub) | One-Click Download
+
+اضغط على الزر بالأسفل لتحميل ملف واحد فقط (`AnatomyAtlas3D-Setup.exe`)، ثم اضغط عليه مرتين وسيقوم بتثبيت وتشغيل البرنامج بالكامل تلقائياً على جهازك دون أي إعدادات.
+
+| Platform / المنصة | One-Click Direct Download / رابط التحميل المباشر | How to Run / طريقة التشغيل |
+| :--- | :---: | :--- |
+| **Windows PC (64-bit)** | [![Download for Windows](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_Windows_Installer_(AnatomyAtlas3D--Setup.exe)-0ea5e9?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/AnatomyAtlas3D-Setup.exe) | **اضغط مرتين فقط على `AnatomyAtlas3D-Setup.exe`** — تثبيت صامت وتشغيل تلقائي + أيقونة على سطح المكتب بدون أي خطوات.<br>Double-click `AnatomyAtlas3D-Setup.exe` — silent 1-click install, creates Desktop shortcut, and opens automatically. |
+| **Android Mobile / Tablet** | [![Download for Android](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_Android_APK_(AnatomyAtlas3D--Android.apk)-10b981?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/AnatomyAtlas3D-Android.apk) | افتح ملف **`AnatomyAtlas3D-Android.apk`** على هاتفك لتثبيت التطبيق بالكامل مع دعم اللمس والتحريك ثنائي الأصابع.<br>Tap `AnatomyAtlas3D-Android.apk` on Android to install the full offline 3D atlas with touch navigation. |
+
+> **هل قمت بتحميل الكود عن طريق `Download ZIP` بالخطأ؟**
+> لا تقلق — افتح المجلد واضغط مرتين فقط على ملف **`Run_Anatomy_Atlas_3D.bat`** أو **`تشغيل_وتحميل_البرنامج_تلقائيا.bat`**، وسيقوم تلقائياً بتحميل وتشغيل البرنامج على جهازك!
+>
+> **Downloaded the repository ZIP by mistake?** Simply double-click **`Run_Anatomy_Atlas_3D.bat`** (or **`تشغيل_وتحميل_البرنامج_تلقائيا.bat`**) — it automatically launches the app or downloads `AnatomyAtlas3D-Setup.exe` directly to your Desktop and runs it for you.
 
 ---
 
@@ -12,14 +26,14 @@ A high-precision, interactive **3D Human Anatomy Atlas** built with **React 18**
    - **Biological Sex Dimorphism (`MALE ♂` / `FEMALE ♀`):** Strictly segregated reproductive and mammary anatomy with anatomical pose isolation and zero cross-dataset clipping.
    - **Surgical Dissection & Real-Time Cross-Section Slicer:** Interactive Axial, Sagittal, and Coronal WebGL clipping planes, **Cohesive Macro-Unit Explode View**, mesh peeling/isolation, and BVH-accelerated sub-millimeter raycasting.
    - **Clinical Relief GLSL Shader:** Real-time WebGL2 screen-space curvature and Fresnel relief shader (`src/utils/clinicalReliefShader.ts`) enhancing gyri/sulci, muscle striations, bone tuberosities, and vascular branching at 60 FPS.
-   - **Bilingual Inspector & Live References:** Supports English, **IFAA Terminologia Anatomica (TA98/TA2)** Latin nomenclature, and **WHO Unified Medical Dictionary** Arabic (`العربية`) clinical documentation, paired with textbook knowledge and live `AR Wiki ↗`, `EN Wiki ↗`, and `TA98 / Wikidata ↗` links.
+   - **Bilingual Inspector & Live References:** English, **IFAA Terminologia Anatomica (`TA98` / `TA2`)** Latin nomenclature, and **WHO Unified Medical Dictionary** Arabic (`العربية`) clinical documentation, paired with textbook knowledge and live `AR Wiki ↗`, `EN Wiki ↗`, and `TA98 / Wikidata ↗` links.
 
 2. **Tab 2 — `Live 3D Explorer` (المستكشف ثلاثي الأبعاد المباشر)**
    - Unified catalog explorer across local Z-Anatomy, **NIH HRA & BodyParts3D**, **NIH 3D Biomedical Portal**, and **Sketchfab** medical assets.
    - **3-Stage Hybrid Thumbnail Engine** pairing Wikimedia REST anatomical imagery with an offscreen Three.js `.glb` 3D thumbnail baker (`src/utils/glbThumbnailBaker.ts`).
 
 3. **Tab 3 — `Reference Books (PDF)` (الكتب المرجعية الطبية)**
-   - Full-viewport side-by-side dual PDF reference textbook reader powered by local book discovery (`npm run setup:books`) with indexed textbook lookup integrated into the Clinical Inspector.
+   - Full-viewport side-by-side dual PDF reference textbook reader bundling both reference atlases (`Netter's Atlas of Human Anatomy 7ed` & `Gray's Anatomy for Students 4th Edition`), seamlessly reassembled during installation/build via `scripts/reassembleLargeAssets.mjs`.
 
 ---
 
@@ -36,87 +50,54 @@ npm run audit:medical
 
 ---
 
-## Development & Cross-Platform Packaging / التطوير وبناء النسخ التنفيذية
+## Developer Guide & GitHub Safe Asset Splitting / دليل المطورين
 
-### Prerequisites / المتطلبات الأساسية
-- **Node.js 20+** and **npm 10+**
-- *(Optional for Android local builds)* **JDK 21** + **Android SDK**
-- *(Optional for local PDF Textbooks)* Place your licensed anatomy PDFs in the project root directory and run `npm run setup:books`.
+Files exceeding `95 MB` inside `public/books/` or `public/models/` are split into `< 90 MB` `.partN` chunks + `.chunks.json` manifests by `scripts/prepareGitSafeAssets.mjs` (staying under GitHub's `100 MB` file push limit without Git LFS). `scripts/reassembleLargeAssets.mjs` automatically runs during `npm install` (`postinstall`) and `npm run build` (`prebuild`) to reassemble every binary with SHA-256 verification before Vite bundles `dist/`.
 
-### 1. Web Development / تشغيل بيئة الويب
+### Local Commands
 
 ```bash
+# Install dependencies (automatically reassembles split PDF textbooks)
 npm install
+
+# Run web dev server
 npm run dev
-```
 
-### 2. Verification & Production Build / التحقق والبناء الإنتاجي
-
-```bash
+# Reassemble split assets, typecheck, and build production bundle
 npm run typecheck
 npm run build
 npm run audit:medical
-```
 
-### 3. Windows Desktop App (Electron) / تطبيق سطح المكتب لنظام ويندوز
+# Build 1-click Windows installer into release/AnatomyAtlas3D-Setup.exe
+npm run electron:pack
 
-```bash
+# Build Android APK (requires JDK 21 + Android SDK)
 npm run build
-npm run electron:dev     # Launch Desktop App locally using Vite dist/
-npm run electron:pack    # Build NSIS Installer & Portable Windows .exe into release/
-```
-
-Desktop binaries output to `release/`:
-- `AnatomyAtlas3D-Windows-x64-Setup.exe` (NSIS installer)
-- `AnatomyAtlas3D-Windows-x64.exe` (Standalone portable executable)
-
-### 4. Android Mobile App (Capacitor) / تطبيق أندرويد
-
-```bash
-npm run build
-npx cap add android      # First-time native Android workspace setup
+npx cap add android
 npx cap sync android
 node scripts/configureAndroidGradle.mjs
 cd android && ./gradlew assembleDebug
 ```
 
-Touch navigation on mobile is mapped directly to Three.js `OrbitControls`:
-- **1-finger drag:** Rotate 3D anatomy camera
-- **2-finger pinch / drag:** Zoom & pan
-- **Tap mesh:** Select anatomical structure & open bilingual Clinical Inspector
+### Triggering Automated `.exe` & `.apk` GitHub Releases
 
----
+Push a version tag to trigger [`.github/workflows/build-release.yml`](./.github/workflows/build-release.yml) and automatically publish **`AnatomyAtlas3D-Setup.exe`** and **`AnatomyAtlas3D-Android.apk`** to **Releases → Latest**:
 
-## Automated GitHub Releases (`.exe` & `.apk`) / الإصدارات التلقائية عبر GitHub Actions
-
-This repository includes an automated CI/CD workflow in [`.github/workflows/build-release.yml`](./.github/workflows/build-release.yml) with three jobs:
-1. **`build-windows-exe`** (`windows-latest`) — Builds NSIS Installer & Portable Windows `.exe`.
-2. **`build-android-apk`** (`ubuntu-latest`) — Syncs Capacitor Android workspace, applies Gradle memory & `noCompress` `.glb` optimizations, and compiles `.apk` builds.
-3. **`publish-github-release`** — Automatically publishes a GitHub Release with all 4 downloadable installers (`AnatomyAtlas3D-Windows-x64.exe`, `AnatomyAtlas3D-Windows-x64-Setup.exe`, `AnatomyAtlas3D-Android.apk`, `AnatomyAtlas3D-Android-unsigned.apk`).
-
-### Triggering a New Release / كيفية إصدار نسخة جديدة
-
-**Option A — Push a version tag (recommended / نشر وسم إصدار):**
 ```bash
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-**Option B — Manual workflow dispatch (التشغيل اليدوي من GitHub Actions):**
-- Open **Actions → Build & Publish Cross-Platform Releases → Run workflow** to build downloadable `.exe` and `.apk` workflow artifacts from any branch.
+Or open **Actions → Build & Publish Cross-Platform Releases → Run workflow** to build downloadable artifacts manually.
 
 ---
 
 ## Scientific Data & 3D Asset Attributions / حقوق الملكية والمصادر العلمية
 
-This software respects all upstream open biomedical asset licenses:
-
 - **Z-Anatomy Open 3D Human Anatomy Atlas:** Licensed under [**CC BY-SA 4.0**](https://creativecommons.org/licenses/by-sa/4.0/) (Gauthier Kervyn & Z-Anatomy contributors).
 - **BodyParts3D (DBCLS — Database Center for Life Science):** Licensed under [**CC BY-SA 2.1 JP / CC BY-SA 4.0**](https://creativecommons.org/licenses/by-sa/4.0/).
 - **NIH Human Reference Atlas (HRA / HuBMAP CCF Reference Organs):** Licensed under [**CC BY 4.0**](https://creativecommons.org/licenses/by/4.0/).
 - **Terminology Standards:** IFAA *Terminologia Anatomica* (`TA98` / `TA2`) & WHO Unified Medical Dictionary (UMD Arabic).
-
-> Note: User-supplied copyrighted PDF textbooks (`/*.pdf`, `public/books/*.pdf`) and environment secrets (`.env*`) are strictly excluded from version control via `.gitignore`.
 
 ---
 

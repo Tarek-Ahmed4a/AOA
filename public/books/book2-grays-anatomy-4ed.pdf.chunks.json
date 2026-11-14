@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "originalFilename": "book2-grays-anatomy-4ed.pdf",
+  "originalRelativePath": "public/books/book2-grays-anatomy-4ed.pdf",
+  "sizeBytes": 198719430,
+  "sha256": "152b7640c81b840f5fa13dab0f1d17ae839b29b5787cdb1c9d067740596d5634",
+  "chunkSizeBytes": 85000000,
+  "parts": [
+    {
+      "index": 0,
+      "filename": "book2-grays-anatomy-4ed.pdf.part0",
+      "sizeBytes": 85000000,
+      "sha256": "17d0bdae148fd782ffda6ac19073239e45b207838289a4ce431e2e932de0150a"
+    },
+    {
+      "index": 1,
+      "filename": "book2-grays-anatomy-4ed.pdf.part1",
+      "sizeBytes": 85000000,
+      "sha256": "0763bc376bd8fdabe14aacd3348eab7bc3f44e050a563121a82155713af78196"
+    },
+    {
+      "index": 2,
+      "filename": "book2-grays-anatomy-4ed.pdf.part2",
+      "sizeBytes": 28719430,
+      "sha256": "de78d343773b2f356b39b11ce12b79a4a0383fef88567a2c31c9957d629eeb75"
+    }
+  ]
+}

@@ -22,10 +22,12 @@ yarn-debug.log*
 yarn-error.log*
 .DS_Store
 
-# Generated linked PDF assets & large copyrighted local root textbooks/archives
-public/books/*.pdf
+# Generated linked root archives/PDFs & unused legacy female Sketchfab GLBs
 /*.pdf
 Z-Anatomy-Beta.zip
-
-# Unused legacy female Sketchfab GLBs (not mounted at runtime)
 public/models/female/*.glb
+
+# >>> AUTO-MANAGED LARGE ASSETS (>95 MB) SPLIT INTO GIT-SAFE CHUNKS >>>
+/public/books/book1-netters-atlas-7ed.pdf
+/public/books/book2-grays-anatomy-4ed.pdf
+# <<< AUTO-MANAGED LARGE ASSETS <<<

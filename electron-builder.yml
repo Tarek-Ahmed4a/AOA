@@ -5,6 +5,8 @@ directories:
   output: release
 files:
   - dist/**/*
+  - '!dist/**/*.part*'
+  - '!dist/**/*.chunks.json'
   - electron/**/*
   - package.json
 asar: true
@@ -17,13 +19,11 @@ win:
     - target: nsis
       arch:
         - x64
-    - target: portable
-      arch:
-        - x64
 nsis:
-  oneClick: false
+  oneClick: true
   perMachine: false
-  allowToChangeInstallationDirectory: true
-  artifactName: AnatomyAtlas3D-Windows-${arch}-Setup.${ext}
-portable:
-  artifactName: AnatomyAtlas3D-Windows-${arch}.exe
+  runAfterFinish: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Anatomy Atlas 3D
+  artifactName: AnatomyAtlas3D-Setup.exe
