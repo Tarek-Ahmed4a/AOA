@@ -1,0 +1,1176 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { type OfficialAtlasPresetId } from '../../store/useAnatomyStore';
+import {
+  DEFAULT_PDF_BOOKS,
+  usePdfSessionStore,
+} from '../../store/usePdfSessionStore';
+import { AnatomicalSearchBar } from './AnatomicalSearchBar';
+
+interface AtlasPresetOption {
+  id: OfficialAtlasPresetId;
+  label: string;
+  shortLabel: string;
+}
+
+const ATLAS_PRESET_OPTIONS: AtlasPresetOption[] = [
+  { id: 'zanatomy-full-body', label: 'Full Body (All Systems)', shortLabel: 'Full Body' },
+  { id: 'zanatomy-skeletal', label: 'Skeletal System', shortLabel: 'Skeletal' },
+  { id: 'zanatomy-muscular', label: 'Muscular System', shortLabel: 'Muscular' },
+  { id: 'zanatomy-visceral', label: 'Visceral Organs', shortLabel: 'Visceral' },
+  {
+    id: 'zanatomy-cardiovascular',
+    label: 'Cardiovascular System',
+    shortLabel: 'Cardiovascular',
+  },
+  { id: 'zanatomy-nervous', label: 'Nervous System', shortLabel: 'Nervous' },
+  {
+    id: 'zanatomy-integumentary',
+    label: 'Surface Regions',
+    shortLabel: 'Surface Regions',
+  },
+  {
+    id: 'nih-visible-human',
+    label: 'NIH Visible Human (CT/Cryosection)',
+    shortLabel: 'NIH Visible Human',
+  },
+];
+import {
+  Activity,
+  Bone,
+  Brain,
+  Crosshair,
+  Dumbbell,
+  Eye,
+  EyeOff,
+  FlipHorizontal2,
+  Focus,
+  HeartPulse,
+  Layers,
+  RotateCcw,
+  Scan,
+  Scissors,
+  Shield,
+  SlidersHorizontal,
+  Sparkles,
+  Undo2,
+  X,
+} from 'lucide-react';
+import {
+  ANATOMICAL_SYSTEMS,
+  SYSTEM_DISPLAY_ORDER,
+} from '../../config/anatomicalSystems';
+import { cn } from '../../lib/utils';
+import {
+  cursorCoords,
+  useAnatomyStore,
+  type AnatomicalSystem,
+  type SlicingPlaneAxis,
+} from '../../store/useAnatomyStore';
+
+const SYSTEM_ICONS: Record<
+  AnatomicalSystem,
+  React.ComponentType<{ className?: string }>
+> = {
+  integumentary: Shield,
+  skeletal: Bone,
+  muscular: Dumbbell,
+  visceral: Activity,
+  cardiovascular: HeartPulse,
+  nervous: Brain,
+};
+
+const SLICE_PLANES: { id: SlicingPlaneAxis; label: string; axis: string }[] = [
+  { id: 'sagittal', label: 'Sagittal', axis: 'X' },
+  { id: 'coronal', label: 'Coronal', axis: 'Z' },
+  { id: 'axial', label: 'Axial', axis: 'Y' },
+];
+
+export const MinimalHud: React.FC = () => {
+  const [mobileDockOpen, setMobileDockOpen] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+
+  const hoveredPart = useAnatomyStore((s) => s.hoveredPart);
+  const selectedPart = useAnatomyStore((s) => s.selectedPart);
+  const isTouchInteraction = useAnatomyStore((s) => s.isTouchInteraction);
+  const activeSystems = useAnatomyStore((s) => s.activeSystems);
+  const systemOpacity = useAnatomyStore((s) => s.systemOpacity);
+  const showLayerManager = useAnatomyStore((s) => s.showLayerManager);
+  const cameraPresetView = useAnatomyStore((s) => s.cameraPresetView);
+
+  const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
+  const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
+  const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
+  const slicing = useAnatomyStore((s) => s.slicing);
+  const activeTab = useAnatomyStore((s) => s.activeTab);
+
+  const toggleSystem = useAnatomyStore((s) => s.toggleSystem);
+  const toggleLayerManager = useAnatomyStore((s) => s.toggleLayerManager);
+  const resetView = useAnatomyStore((s) => s.resetView);
+  const selectPart = useAnatomyStore((s) => s.selectPart);
+  const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
+  const setActiveTab = useAnatomyStore((s) => s.setActiveTab);
+
+  const peelSelectedPart = useAnatomyStore((s) => s.peelSelectedPart);
+  const undoLastPeel = useAnatomyStore((s) => s.undoLastPeel);
+  const restoreAllParts = useAnatomyStore((s) => s.restoreAllParts);
+  const toggleIsolateSelected = useAnatomyStore((s) => s.toggleIsolateSelected);
+  const toggleXrayGhost = useAnatomyStore((s) => s.toggleXrayGhost);
+  const setExplodeFactor = useAnatomyStore((s) => s.setExplodeFactor);
+  const updateSlicing = useAnatomyStore((s) => s.updateSlicing);
+  const resetSlicing = useAnatomyStore((s) => s.resetSlicing);
+
+  // Global surgical keyboard shortcuts (ignoring browser modifier combos and text inputs)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable ||
+          (target.tagName === 'INPUT' &&
+            (target as HTMLInputElement).type !== 'range'))
+      ) {
+        return;
+      }
+
+      const state = useAnatomyStore.getState();
+      if (state.activeTab !== 'master-atlas') return;
+      const key = e.key.toLowerCase();
+
+      if (key === 'f' && state.selectedPart) {
+        e.preventDefault();
+        state.focusSelectedPart();
+      } else if (e.key === 'Escape') {
+        if (state.showLayerManager) {
+          e.preventDefault();
+          state.setShowLayerManager(false);
+        } else if (state.selectedPart) {
+          e.preventDefault();
+          state.selectPart(null);
+        }
+      } else if (key === 'i') {
+        e.preventDefault();
+        state.toggleIsolateSelected();
+      } else if (key === 'h' && state.selectedPart) {
+        e.preventDefault();
+        state.peelSelectedPart();
+      } else if (key === 'z') {
+        e.preventDefault();
+        state.undoLastPeel();
+      } else if (key === 'x') {
+        e.preventDefault();
+        state.toggleXrayGhost();
+      } else if (key === 's') {
+        e.preventDefault();
+        state.updateSlicing({ enabled: !state.slicing.enabled });
+      } else if (key === 'r') {
+        e.preventDefault();
+        state.restoreAllParts();
+      } else if (key === 'l') {
+        e.preventDefault();
+        state.toggleLayerManager();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const handlePointerMove = (e: PointerEvent) => {
+      cursorCoords.x = e.clientX;
+      cursorCoords.y = e.clientY;
+      if (tooltipRef.current) {
+        const x = Math.max(8, Math.min(e.clientX + 14, window.innerWidth - 250));
+        const y = Math.max(8, Math.min(e.clientY + 14, window.innerHeight - 96));
+        tooltipRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      }
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handlePointerMove);
+  }, []);
+
+  const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
+  const setActiveAtlasPreset = useAnatomyStore((s) => s.setActiveAtlasPreset);
+  const customGlbUrl = useAnatomyStore((s) => s.customGlbUrl);
+  const pdfReferenceTarget = useAnatomyStore((s) => s.pdfReferenceTarget);
+  const medicalProfile = useAnatomyStore((s) => s.medicalProfile);
+  const clearPdfReference = useAnatomyStore((s) => s.clearPdfReference);
+
+  const pdfBooks = usePdfSessionStore((s) => s.books);
+  const pdfViewMode = usePdfSessionStore((s) => s.viewMode);
+  const pdfBook1Page = usePdfSessionStore((s) => s.book1Page);
+  const pdfBook2Page = usePdfSessionStore((s) => s.book2Page);
+  const dismissedStructureKey = usePdfSessionStore(
+    (s) => s.dismissedStructureKey
+  );
+  const ensurePdfManifestLoaded = usePdfSessionStore(
+    (s) => s.ensureManifestLoaded
+  );
+  const setPdfViewMode = usePdfSessionStore((s) => s.setViewMode);
+  const jumpBook1 = usePdfSessionStore((s) => s.jumpBook1);
+  const jumpBook2 = usePdfSessionStore((s) => s.jumpBook2);
+  const jumpActiveBook = usePdfSessionStore((s) => s.jumpActiveBook);
+  const loadLocalPdf = usePdfSessionStore((s) => s.loadLocalPdf);
+  const dismissStructureBadge = usePdfSessionStore(
+    (s) => s.dismissStructureBadge
+  );
+
+  const [presetMenuOpen, setPresetMenuOpen] = useState(false);
+  const presetMenuRef = useRef<HTMLDivElement>(null);
+  const pdfFileInputRef = useRef<HTMLInputElement>(null);
+  const [pdfPageInput, setPdfPageInput] = useState(String(pdfBook1Page));
+
+  useEffect(() => {
+    if (activeTab === 'pdf-books') {
+      ensurePdfManifestLoaded();
+    }
+  }, [activeTab, ensurePdfManifestLoaded]);
+
+  useEffect(() => {
+    setPdfPageInput(
+      String(pdfViewMode === 'book2' ? pdfBook2Page : pdfBook1Page)
+    );
+  }, [pdfViewMode, pdfBook1Page, pdfBook2Page]);
+
+  useEffect(() => {
+    if (!presetMenuOpen) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (
+        presetMenuRef.current &&
+        !presetMenuRef.current.contains(e.target as Node)
+      ) {
+        setPresetMenuOpen(false);
+      }
+    };
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setPresetMenuOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', handleOutside);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      window.removeEventListener('pointerdown', handleOutside);
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [presetMenuOpen]);
+
+  const activePresetOption =
+    ATLAS_PRESET_OPTIONS.find((opt) => opt.id === activeAtlasPreset) ??
+    ATLAS_PRESET_OPTIONS[0];
+
+  const activeSelectedPart = useAnatomyStore((s) => s.selectedPart);
+  const pdfBook1 =
+    pdfBooks.find((b) => b.id === 'book1' || b.role === 'atlas') ??
+    DEFAULT_PDF_BOOKS[0];
+  const pdfBook2 =
+    pdfBooks.find((b) => b.id === 'book2' || b.role === 'textbook') ??
+    DEFAULT_PDF_BOOKS[1];
+
+  const focusedPdfLabel =
+    pdfReferenceTarget?.query ||
+    activeSelectedPart?.cleanName ||
+    medicalProfile?.cleanNameEn ||
+    '';
+  const focusedPdfPage =
+    pdfReferenceTarget?.book2Page ??
+    pdfReferenceTarget?.book1Page ??
+    (pdfReferenceTarget?.book1Plate
+      ? (pdfBook1.plateToPage?.[String(pdfReferenceTarget.book1Plate)] ??
+        pdfReferenceTarget.book1Plate + (pdfBook1.plateOffsetEstimate ?? 36))
+      : undefined);
+  const focusedBadgeKey = `${focusedPdfLabel}:${focusedPdfPage ?? ''}:${pdfReferenceTarget?.trigger ?? ''}`;
+  const showFocusedPdfBadge =
+    Boolean(focusedPdfLabel) && dismissedStructureKey !== focusedBadgeKey;
+
+  const handlePdfPageSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const parsed = Number.parseInt(pdfPageInput, 10);
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      jumpActiveBook(parsed);
+    }
+  };
+  const isHoveringSelected = Boolean(
+    hoveredPart &&
+      activeSelectedPart &&
+      (hoveredPart.meshUuid === activeSelectedPart.meshUuid ||
+        hoveredPart.rawName === activeSelectedPart.rawName ||
+        hoveredPart.cleanName.trim().toLowerCase() ===
+          activeSelectedPart.cleanName.trim().toLowerCase() ||
+        (Boolean(hoveredPart.organGroupId) &&
+          hoveredPart.organGroupId === activeSelectedPart.organGroupId))
+  );
+  const showFloatingTooltip =
+    Boolean(hoveredPart) && !isTouchInteraction && !isHoveringSelected;
+  const maxTooltipX =
+    typeof window !== 'undefined'
+      ? window.innerWidth - 250
+      : cursorCoords.x + 14;
+  const maxTooltipY =
+    typeof window !== 'undefined'
+      ? window.innerHeight - 96
+      : cursorCoords.y + 14;
+  const initialTooltipX = Math.max(8, Math.min(cursorCoords.x + 14, maxTooltipX));
+  const initialTooltipY = Math.max(8, Math.min(cursorCoords.y + 14, maxTooltipY));
+
+  const isSelectedIsolated =
+    Boolean(selectedPart) &&
+    (isolatedPartId === selectedPart?.meshUuid ||
+      isolatedPartId === selectedPart?.rawName);
+  const hasAnyDissectionActive =
+    hiddenPartIds.length > 0 ||
+    isolatedPartId !== null ||
+    xrayGhostMode ||
+    explodeFactor > 0;
+
+  return (
+    <>
+      {/* Single Unified Top Header Bar (h-11 in PDF mode, 1 horizontal row) */}
+      <header
+        aria-label="Primary Studio Top Navigation"
+        className={cn(
+          'pointer-events-none fixed left-3 right-3 z-50 flex items-center justify-between gap-2',
+          activeTab === 'pdf-books' ? 'top-2 h-11' : 'top-3 h-12'
+        )}
+      >
+        {/* Top-Left Zone */}
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5">
+          {activeTab === 'pdf-books' ? (
+            <>
+              <div
+                role="group"
+                aria-label="Reference Book Layout Selector"
+                className="flex h-8 shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-xl backdrop-blur-md"
+              >
+                <button
+                  type="button"
+                  onClick={() => setPdfViewMode('book1')}
+                  aria-pressed={pdfViewMode === 'book1'}
+                  className={cn(
+                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    pdfViewMode === 'book1'
+                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
+                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
+                  )}
+                >
+                  <span>📘 Book 1</span>
+                  <span className="hidden xl:inline">: Atlas</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPdfViewMode('book2')}
+                  aria-pressed={pdfViewMode === 'book2'}
+                  className={cn(
+                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    pdfViewMode === 'book2'
+                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
+                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
+                  )}
+                >
+                  <span>📗 Book 2</span>
+                  <span className="hidden xl:inline">: Text</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPdfViewMode('split')}
+                  aria-pressed={pdfViewMode === 'split'}
+                  className={cn(
+                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    pdfViewMode === 'split'
+                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
+                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
+                  )}
+                >
+                  ⚖️ Split View
+                </button>
+              </div>
+
+              {showFocusedPdfBadge && (
+                <div className="flex h-8 min-w-0 max-w-[190px] items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 text-[10.5px] font-medium text-emerald-300 shadow-lg backdrop-blur-md">
+                  <span aria-hidden="true" className="shrink-0">
+                    📍
+                  </span>
+                  <span className="truncate text-white">
+                    {focusedPdfLabel}
+                    {focusedPdfPage ? ` (p.${focusedPdfPage})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearPdfReference();
+                      dismissStructureBadge(focusedBadgeKey);
+                    }}
+                    aria-label="Clear focused organ pill"
+                    className="ml-0.5 shrink-0 rounded-full p-0.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
+                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                <span className="whitespace-nowrap font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-200">
+                  ATLAS 3D
+                </span>
+              </div>
+
+              {activeTab === 'master-atlas' && !customGlbUrl && (
+                <div ref={presetMenuRef} className="relative min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => setPresetMenuOpen((v) => !v)}
+                    aria-haspopup="listbox"
+                    aria-expanded={presetMenuOpen}
+                    aria-label="Atlas Preset Selector"
+                    className={cn(
+                      'flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border bg-[#0a0a0c]/90 px-3 font-mono text-[10px] shadow-2xl backdrop-blur-md transition-colors',
+                      presetMenuOpen
+                        ? 'border-sky-500/45 text-white ring-1 ring-sky-500/20'
+                        : 'border-white/10 text-zinc-300 hover:border-white/20 hover:text-white'
+                    )}
+                  >
+                    <span className="hidden text-zinc-400 xl:inline">
+                      Atlas Preset:
+                    </span>
+                    <span className="max-w-[130px] truncate font-semibold text-sky-400 2xl:max-w-none">
+                      {activePresetOption.shortLabel}
+                    </span>
+                    <svg
+                      viewBox="0 0 16 16"
+                      fill="none"
+                      aria-hidden="true"
+                      className={cn(
+                        'h-3 w-3 shrink-0 text-zinc-400 transition-transform duration-150',
+                        presetMenuOpen && 'rotate-180 text-sky-400'
+                      )}
+                    >
+                      <path
+                        d="M4 6l4 4 4-4"
+                        stroke="currentColor"
+                        strokeWidth="1.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+
+                  {presetMenuOpen && (
+                    <div
+                      role="listbox"
+                      aria-label="Official 3D Atlas Module Switcher"
+                      className="absolute left-0 top-[calc(100%+6px)] z-50 w-64 overflow-hidden rounded-xl border border-white/15 bg-[#0a0a0c]/95 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.95)] backdrop-blur-xl"
+                    >
+                      <div className="mb-1 border-b border-white/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-400">
+                        Official 3D Atlas Presets
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {ATLAS_PRESET_OPTIONS.map((preset) => {
+                          const active = activeAtlasPreset === preset.id;
+                          return (
+                            <button
+                              key={preset.id}
+                              type="button"
+                              role="option"
+                              aria-selected={active}
+                              onClick={() => {
+                                setActiveAtlasPreset(preset.id);
+                                setPresetMenuOpen(false);
+                              }}
+                              className={cn(
+                                'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left font-mono text-[10px] font-medium transition-all',
+                                active
+                                  ? 'border-sky-500/40 bg-sky-500/15 text-sky-300'
+                                  : 'border-transparent text-zinc-300 hover:bg-white/5 hover:text-white'
+                              )}
+                            >
+                              <span className="truncate">{preset.label}</span>
+                              {active && (
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  fill="none"
+                                  aria-hidden="true"
+                                  className="h-3 w-3 shrink-0 text-sky-400"
+                                >
+                                  <path
+                                    d="M3.5 8.5l3 3 6-6.5"
+                                    stroke="currentColor"
+                                    strokeWidth="1.75"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* Top-Center Zone: 3-Tab Minimalist Cockpit Switcher ONLY */}
+        <nav
+          role="tablist"
+          aria-label="Workspace View Switcher"
+          dir="ltr"
+          className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-1 shadow-2xl backdrop-blur-md"
+        >
+          {(
+            [
+              { id: 'master-atlas', label: '3D Master Atlas' },
+              { id: 'cloud-explorer', label: 'Live 3D Explorer' },
+              { id: 'pdf-books', label: 'Reference Books (PDF)' },
+            ] as const
+          ).map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-all active:scale-95',
+                  isActive
+                    ? 'border-sky-500/40 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.16)]'
+                    : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Top-Right Zone */}
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">
+          {activeTab === 'master-atlas' && <AnatomicalSearchBar />}
+          {activeTab === 'pdf-books' && (
+            <>
+              <form
+                onSubmit={handlePdfPageSubmit}
+                className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2 shadow-xl backdrop-blur-md"
+              >
+                <label
+                  htmlFor="header-pdf-page-jump"
+                  className="font-mono text-[10px] uppercase tracking-wider text-zinc-400"
+                >
+                  Pg
+                </label>
+                <input
+                  id="header-pdf-page-jump"
+                  type="number"
+                  min={1}
+                  value={pdfPageInput}
+                  onChange={(e) => setPdfPageInput(e.target.value)}
+                  aria-label="Quick Page Jump"
+                  className="w-11 bg-transparent text-center font-mono text-[11px] tabular-nums text-white outline-none"
+                />
+                <button
+                  type="submit"
+                  className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] font-medium text-zinc-200 transition-colors hover:bg-sky-500/20 hover:text-sky-300"
+                >
+                  Go
+                </button>
+              </form>
+
+              <select
+                aria-label="Jump to PDF chapter"
+                value=""
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (!val) return;
+                  const [slot, pageStr] = val.split(':');
+                  const pageNum = Number.parseInt(pageStr, 10);
+                  if (!Number.isFinite(pageNum) || pageNum < 1) return;
+                  if (slot === 'book2') {
+                    jumpBook2(pageNum);
+                  } else {
+                    jumpBook1(pageNum);
+                  }
+                }}
+                className="h-8 max-w-[125px] rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] text-zinc-300 shadow-xl outline-none backdrop-blur-md transition-colors hover:border-white/25 focus:border-sky-500/50 xl:max-w-[165px]"
+              >
+                <option value="" disabled>
+                  Chapters...
+                </option>
+                {(pdfViewMode === 'book1' || pdfViewMode === 'split') &&
+                  pdfBook1.chapters &&
+                  pdfBook1.chapters.length > 0 && (
+                    <optgroup label="Book 1: Atlas">
+                      {pdfBook1.chapters.map((ch) => (
+                        <option
+                          key={`b1-${ch.title}-${ch.page}`}
+                          value={`book1:${ch.page}`}
+                        >
+                          {ch.title} (p.{ch.page})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                {(pdfViewMode === 'book2' || pdfViewMode === 'split') &&
+                  pdfBook2.chapters &&
+                  pdfBook2.chapters.length > 0 && (
+                    <optgroup label="Book 2: Text">
+                      {pdfBook2.chapters.map((ch) => (
+                        <option
+                          key={`b2-${ch.title}-${ch.page}`}
+                          value={`book2:${ch.page}`}
+                        >
+                          {ch.title} (p.{ch.page})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+              </select>
+
+              <input
+                ref={pdfFileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const slot = pdfViewMode === 'book2' ? 'book2' : 'book1';
+                  loadLocalPdf(slot, e.target.files?.[0]);
+                  e.target.value = '';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => pdfFileInputRef.current?.click()}
+                title="Open a local .pdf file into active reader pane"
+                className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
+              >
+                <span aria-hidden="true">📂</span>
+                <span className="hidden lg:inline">Open PDF</span>
+              </button>
+            </>
+          )}
+        </div>
+      </header>
+
+      {activeTab === 'master-atlas' && (
+      <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-3 pt-16 sm:p-4 sm:pt-16">
+      {/* Floating Cursor Tooltip (Mouse Hover Only) */}
+      {showFloatingTooltip && hoveredPart && (
+        <div
+          ref={tooltipRef}
+          style={{
+            transform: `translate3d(${initialTooltipX}px, ${initialTooltipY}px, 0)`,
+          }}
+          className="pointer-events-none fixed left-0 top-0 z-30 w-56 rounded-lg border border-white/15 bg-zinc-950/90 px-3 py-2 shadow-2xl backdrop-blur-md"
+        >
+          <div className="truncate text-xs font-semibold text-white">
+            {hoveredPart.cleanName}
+          </div>
+          <div className="truncate font-serif text-[11px] italic text-zinc-400">
+            {hoveredPart.latinName}
+          </div>
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <span className="inline-flex items-center gap-1 rounded bg-white/10 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-zinc-200">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{
+                  backgroundColor:
+                    ANATOMICAL_SYSTEMS[hoveredPart.system].accentColor,
+                }}
+              />
+              {ANATOMICAL_SYSTEMS[hoveredPart.system].label}
+            </span>
+            <span className="rounded border border-sky-400/20 bg-sky-500/15 px-1.5 py-0.5 font-mono text-[9px] text-sky-300">
+              {hoveredPart.laterality === 'Median / Unpaired'
+                ? 'Median'
+                : hoveredPart.laterality}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Left Column: Surgical Dissection & Slicer Dock cleanly at top-16 left-3 */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex flex-col items-start gap-2">
+          {/* Left-Docked Surgical Dissection & Cross-Section Slicer Suite */}
+          <div
+            className={cn(
+              'pointer-events-auto w-[260px] sm:w-[276px] max-h-[calc(100dvh-152px)] overflow-y-auto touch-pan-y flex-col gap-2',
+              mobileDockOpen ? 'flex' : 'hidden sm:flex'
+            )}
+          >
+            {/* Surgical Dissection Bar */}
+            <section
+              aria-label="Surgical Dissection Suite"
+              className="rounded-xl border border-white/15 bg-zinc-950/80 p-3 backdrop-blur-md shadow-2xl"
+            >
+              <div className="mb-2 flex items-center justify-between">
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                  Surgical Dissection
+                </span>
+                {hiddenPartIds.length > 0 && (
+                  <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] text-amber-200">
+                    Hidden: {hiddenPartIds.length}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* Isolate Organ [I] */}
+                <button
+                  type="button"
+                  onClick={toggleIsolateSelected}
+                  disabled={!selectedPart && isolatedPartId === null}
+                  title="Isolate selected organ [I]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    isSelectedIsolated || isolatedPartId !== null
+                      ? 'border-sky-400/50 bg-sky-500/20 text-sky-100'
+                      : selectedPart
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Focus className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {isolatedPartId ? 'Unisolate' : 'Isolate'}
+                    </span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">I</kbd>
+                </button>
+
+                {/* Peel / Hide [H] */}
+                <button
+                  type="button"
+                  onClick={peelSelectedPart}
+                  disabled={!selectedPart}
+                  title="Peel / hide selected structure [H]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    selectedPart
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:border-rose-400/40 hover:bg-rose-500/15 hover:text-rose-100'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Peel</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">H</kbd>
+                </button>
+
+                {/* Undo Peel [Z] */}
+                <button
+                  type="button"
+                  onClick={undoLastPeel}
+                  disabled={hiddenPartIds.length === 0}
+                  title="Undo last peel [Z]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    hiddenPartIds.length > 0
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Undo Peel</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">Z</kbd>
+                </button>
+
+                {/* X-Ray Context [X] */}
+                <button
+                  type="button"
+                  onClick={toggleXrayGhost}
+                  aria-pressed={xrayGhostMode}
+                  title="Toggle translucent X-Ray anatomical context [X]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    xrayGhostMode
+                      ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-100'
+                      : 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Scan className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">X-Ray</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">X</kbd>
+                </button>
+
+                {/* Slice Tool [S] */}
+                <button
+                  type="button"
+                  onClick={() => updateSlicing({ enabled: !slicing.enabled })}
+                  aria-pressed={slicing.enabled}
+                  title="Toggle Cross-Section Slice Tool [S]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    slicing.enabled
+                      ? 'border-sky-400/55 bg-sky-500/25 text-white shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                      : 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Scissors className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Slice Tool</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">S</kbd>
+                </button>
+
+                {/* Restore All [R] */}
+                <button
+                  type="button"
+                  onClick={restoreAllParts}
+                  disabled={!hasAnyDissectionActive}
+                  title="Restore all hidden, isolated & exploded structures [R]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    hasAnyDissectionActive
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/15 hover:text-emerald-100'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Sparkles className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Restore All</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">R</kbd>
+                </button>
+              </div>
+
+              {/* Explode Slider */}
+              <div className="mt-2.5 border-t border-white/10 pt-2">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400">
+                    <Layers className="h-3 w-3 text-sky-400" />
+                    Explode View
+                  </span>
+                  <span className="font-mono text-[10px] text-zinc-200">
+                    {Math.round(explodeFactor * 100)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={explodeFactor}
+                  onChange={(e) => setExplodeFactor(parseFloat(e.target.value))}
+                  aria-label="Explode View Factor"
+                  className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-sky-400"
+                />
+              </div>
+            </section>
+
+            {/* Cross-Section Slicer Panel */}
+            {slicing.enabled && (
+              <section
+                aria-label="Cross-Section Slicer"
+                className="rounded-xl border border-sky-400/25 bg-zinc-950/90 p-3 backdrop-blur-md shadow-2xl"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">
+                    <Scissors className="h-3 w-3" />
+                    Cross-Section Slicer
+                  </span>
+                  <button
+                    type="button"
+                    onClick={resetSlicing}
+                    title="Reset & close slicer"
+                    className="rounded px-1.5 py-0.5 font-mono text-[10px] text-zinc-400 transition-colors hover:bg-white/10 hover:text-white"
+                  >
+                    Off
+                  </button>
+                </div>
+
+                {/* Plane Selector */}
+                <div className="grid grid-cols-3 gap-1">
+                  {SLICE_PLANES.map((p) => {
+                    const active = slicing.plane === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => updateSlicing({ plane: p.id })}
+                        className={cn(
+                          'rounded-lg border px-1.5 py-1 text-[10px] font-medium transition-all',
+                          active
+                            ? 'border-sky-400/50 bg-sky-500/25 text-white'
+                            : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                        )}
+                      >
+                        {p.label}{' '}
+                        <span className="font-mono text-[9px] text-sky-300">
+                          ({p.axis})
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Scope Toggle */}
+                <div className="mt-2 grid grid-cols-2 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => updateSlicing({ scope: 'all' })}
+                    className={cn(
+                      'rounded-lg border px-2 py-1 text-[10px] font-medium transition-all',
+                      slicing.scope === 'all'
+                        ? 'border-sky-400/50 bg-sky-500/20 text-white'
+                        : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                    )}
+                  >
+                    Whole Body
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateSlicing({ scope: 'selected' })}
+                    className={cn(
+                      'rounded-lg border px-2 py-1 text-[10px] font-medium transition-all',
+                      slicing.scope === 'selected'
+                        ? 'border-sky-400/50 bg-sky-500/20 text-white'
+                        : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                    )}
+                  >
+                    Selected Organ
+                  </button>
+                </div>
+
+                {slicing.scope === 'selected' && !selectedPart && (
+                  <p className="mt-1.5 font-mono text-[9px] text-amber-300/90">
+                    Select any structure to slice locally.
+                  </p>
+                )}
+
+                {/* Cut Depth Slider */}
+                <div className="mt-2.5">
+                  <div className="flex items-center justify-between font-mono text-[10px]">
+                    <span className="uppercase tracking-wider text-zinc-400">
+                      Cut Depth
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sky-300">
+                        {slicing.offset >= 0 ? '+' : ''}
+                        {slicing.offset.toFixed(2)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => updateSlicing({ offset: 0 })}
+                        className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 text-[9px] text-zinc-300 hover:bg-white/15 hover:text-white"
+                      >
+                        Center (0)
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={-1}
+                    max={1}
+                    step={0.01}
+                    value={slicing.offset}
+                    onChange={(e) =>
+                      updateSlicing({ offset: parseFloat(e.target.value) })
+                    }
+                    aria-label="Cut Depth Offset"
+                    className="mt-1.5 h-1.5 w-full cursor-pointer appearance-none rounded-lg bg-zinc-800 accent-sky-400"
+                  />
+                </div>
+
+                {/* Flip Cut Direction + Show Laser Plane */}
+                <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-white/10 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => updateSlicing({ invert: !slicing.invert })}
+                    aria-pressed={slicing.invert}
+                    className={cn(
+                      'inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-medium transition-all',
+                      slicing.invert
+                        ? 'border-sky-400/50 bg-sky-500/20 text-sky-100'
+                        : 'border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10'
+                    )}
+                  >
+                    <FlipHorizontal2 className="h-3 w-3" />
+                    <span>Invert</span>
+                  </button>
+
+                  <label className="flex cursor-pointer items-center gap-1.5 text-[10px] text-zinc-300 select-none">
+                    <input
+                      type="checkbox"
+                      checked={slicing.showHelper}
+                      onChange={(e) =>
+                        updateSlicing({ showHelper: e.target.checked })
+                      }
+                      className="h-3 w-3 rounded border-white/20 bg-zinc-900 accent-sky-400"
+                    />
+                    <Eye className="h-3 w-3 text-sky-400" />
+                    <span>Laser Plane</span>
+                  </label>
+                </div>
+              </section>
+            )}
+
+            {/* Compact Locked / Hovered Structure Quick Target (only when active, docked below Slicer) */}
+            {(selectedPart || hoveredPart) && (
+              <div className="rounded-xl border border-white/10 bg-zinc-950/85 px-3 py-2 backdrop-blur-md shadow-xl">
+                {hoveredPart && (
+                  <div className="flex items-baseline gap-2 font-mono text-[11px]">
+                    <span className="text-[9px] uppercase tracking-wider text-zinc-500">
+                      HOVER
+                    </span>
+                    <span className="truncate font-medium text-sky-300">
+                      {hoveredPart.cleanName}
+                    </span>
+                  </div>
+                )}
+                {selectedPart && (
+                  <div
+                    className={cn(
+                      'flex items-center justify-between gap-2',
+                      hoveredPart && 'mt-1.5 border-t border-white/10 pt-1.5'
+                    )}
+                  >
+                    <div className="flex min-w-0 items-center gap-1.5 font-mono text-[11px]">
+                      <span className="text-[9px] uppercase tracking-wider text-sky-400">
+                        LOCK
+                      </span>
+                      <span className="truncate font-semibold text-white">
+                        {selectedPart.cleanName}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={focusSelectedPart}
+                        title="Focus camera on selected organ (F)"
+                        className="inline-flex items-center gap-1 rounded border border-sky-400/35 bg-sky-500/15 px-1.5 py-0.5 font-mono text-[9px] font-medium text-sky-200 transition-all hover:bg-sky-500/25 hover:text-white active:scale-95"
+                      >
+                        <Crosshair className="h-2.5 w-2.5" />
+                        <span>F</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => selectPart(null)}
+                        title="Deselect [Esc]"
+                        className="rounded p-0.5 text-zinc-500 transition-colors hover:bg-white/10 hover:text-white"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Drawer Trigger (top-right on narrow screens) */}
+        <button
+          type="button"
+          onClick={() => setMobileDockOpen((v) => !v)}
+          className={cn(
+            'pointer-events-auto sm:hidden flex items-center gap-1.5 rounded-xl border px-3 py-2 font-mono text-[11px] font-medium backdrop-blur-md shadow-xl transition-colors',
+            mobileDockOpen || slicing.enabled || hasAnyDissectionActive
+              ? 'border-sky-400/40 bg-zinc-950/90 text-sky-200'
+              : 'border-white/15 bg-zinc-950/80 text-zinc-200'
+          )}
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          <span>Dissect</span>
+        </button>
+      </div>
+
+      {/* Bottom-Center Floating System Control Bar */}
+      <div className="flex justify-center pb-1 sm:pb-2">
+        <nav
+          aria-label="Anatomical Systems Control"
+          className="pointer-events-auto flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 rounded-2xl sm:rounded-full border border-white/15 bg-zinc-950/80 p-1.5 backdrop-blur-md shadow-2xl"
+        >
+          {SYSTEM_DISPLAY_ORDER.map((systemId) => {
+            const sys = ANATOMICAL_SYSTEMS[systemId];
+            const isActive = activeSystems[systemId];
+            const opacityVal = systemOpacity[systemId];
+            const Icon = SYSTEM_ICONS[systemId];
+
+            return (
+              <button
+                key={systemId}
+                type="button"
+                onClick={() => toggleSystem(systemId)}
+                aria-pressed={isActive}
+                title={`Toggle ${sys.label} System (${Math.round(
+                  opacityVal * 100
+                )}% opacity)`}
+                className={cn(
+                  'group flex items-center gap-1.5 rounded-full px-2.5 py-1.5 sm:px-3 text-xs font-medium transition-all duration-150',
+                  isActive
+                    ? 'bg-white/15 text-white border border-white/20 shadow-sm'
+                    : 'bg-transparent text-zinc-500 border border-transparent hover:text-zinc-300 hover:bg-white/5'
+                )}
+              >
+                <span
+                  className="inline-block h-2 w-2 rounded-full transition-opacity"
+                  style={{
+                    backgroundColor: sys.accentColor,
+                    opacity: isActive ? Math.max(0.25, opacityVal) : 0.2,
+                  }}
+                />
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden sm:inline">{sys.label}</span>
+                <span className="sm:hidden font-mono text-[10px] tracking-wider">
+                  {sys.shortLabel}
+                </span>
+              </button>
+            );
+          })}
+
+          <div className="mx-0.5 h-5 w-px bg-white/15" aria-hidden="true" />
+
+          <button
+            type="button"
+            onClick={toggleLayerManager}
+            aria-pressed={showLayerManager}
+            title="Layers, Opacity Presets & Anatomical Views [L]"
+            className={cn(
+              'flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 sm:px-3 text-xs font-medium transition-all duration-150 active:scale-95',
+              showLayerManager
+                ? 'border-sky-400/60 bg-sky-500/25 text-white shadow-[0_0_14px_rgba(56,189,248,0.25)]'
+                : 'border-white/15 bg-white/5 text-zinc-200 hover:bg-white/15 hover:text-white'
+            )}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+            <span className="hidden md:inline">Layers & Views</span>
+            <span className="md:hidden font-mono text-[10px]">
+              {cameraPresetView ? cameraPresetView.slice(0, 3).toUpperCase() : 'LAYERS'}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={resetView}
+            title="Reset Camera"
+            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1.5 sm:px-3 text-xs font-medium text-zinc-200 transition-all duration-150 hover:bg-white/15 hover:text-white active:scale-95"
+          >
+            <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+            <span className="hidden md:inline">Reset Camera</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+      )}
+    </>
+  );
+};

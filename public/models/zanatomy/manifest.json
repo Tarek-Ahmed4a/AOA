@@ -1,0 +1,221 @@
+{
+  "generatedAt": "2026-11-14T03:02:51.904Z",
+  "source": "z-anatomy-1.0-pristine-zip",
+  "archiveFile": "Z-Anatomy-Beta.zip",
+  "totalModels": 6,
+  "sharedWorldTransform": {
+    "scale": 0.01008978,
+    "position": [
+      0,
+      0.02101,
+      0.00136
+    ],
+    "rawBoundsCm": {
+      "min": [
+        -34.01,
+        -0.1,
+        -14.83
+      ],
+      "max": [
+        34.01,
+        174.33,
+        14.56
+      ]
+    }
+  },
+  "models": [
+    {
+      "id": "zanatomy-skeletal",
+      "system": "skeletal",
+      "file": "skeletal.glb",
+      "fileName": "skeletal.glb",
+      "localPath": "/models/zanatomy/skeletal.glb?v=zanatomy-v4",
+      "title": "Skeletal System & Joints (Z-Anatomy 1.0)",
+      "titleAr": "الجهاز الهيكلي والمفاصل (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 684,
+      "vertexCount": 1551642,
+      "faceCount": 1054203,
+      "sizeBytes": 44426360,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "id": "zanatomy-muscular",
+      "system": "muscular",
+      "file": "muscular.glb",
+      "fileName": "muscular.glb",
+      "localPath": "/models/zanatomy/muscular.glb?v=zanatomy-v4",
+      "title": "Muscular System & Tendons (Z-Anatomy 1.0)",
+      "titleAr": "الجهاز العضلي والأوتار (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 628,
+      "vertexCount": 3814781,
+      "faceCount": 2173440,
+      "sizeBytes": 81931204,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "id": "zanatomy-visceral",
+      "system": "visceral",
+      "file": "visceral.glb",
+      "fileName": "visceral.glb",
+      "localPath": "/models/zanatomy/visceral.glb?v=zanatomy-v4",
+      "title": "Visceral & Lymphoid Organs (Z-Anatomy 1.0)",
+      "titleAr": "الأحشاء الداخلية والجهاز اللمفاوي (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 282,
+      "vertexCount": 538095,
+      "faceCount": 830875,
+      "sizeBytes": 18178732,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "id": "zanatomy-cardiovascular",
+      "system": "cardiovascular",
+      "file": "cardiovascular.glb",
+      "fileName": "cardiovascular.glb",
+      "localPath": "/models/zanatomy/cardiovascular.glb?v=zanatomy-v4",
+      "title": "Cardiovascular System (Z-Anatomy 1.0)",
+      "titleAr": "القلب والأوعية الدموية (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 676,
+      "vertexCount": 2289218,
+      "faceCount": 1575424,
+      "sizeBytes": 65554812,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "id": "zanatomy-nervous",
+      "system": "nervous",
+      "file": "nervous.glb",
+      "fileName": "nervous.glb",
+      "localPath": "/models/zanatomy/nervous.glb?v=zanatomy-v4",
+      "title": "Nervous System & Sensory Organs (Z-Anatomy 1.0)",
+      "titleAr": "الجهاز العصبي وأعضاء الحس (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 582,
+      "vertexCount": 3648314,
+      "faceCount": 2396634,
+      "sizeBytes": 76653692,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    },
+    {
+      "id": "zanatomy-integumentary",
+      "system": "integumentary",
+      "file": "integumentary.glb",
+      "fileName": "integumentary.glb",
+      "localPath": "/models/zanatomy/integumentary.glb?v=zanatomy-v4",
+      "title": "Surface Regions, Skin & Investing Fascia (Z-Anatomy 1.0)",
+      "titleAr": "التشريح السطحي والجلد واللفافات (Z-Anatomy 1.0)",
+      "author": "Z-Anatomy (Gauthier Kervyn & Contributors)",
+      "license": "CC BY-SA 4.0",
+      "meshCount": 310,
+      "vertexCount": 476484,
+      "faceCount": 284994,
+      "sizeBytes": 13548692,
+      "isUnifiedFullBody": true,
+      "alignment": {
+        "isFullBody": true,
+        "useSharedOrigin": true,
+        "sharedScale": 0.01008978,
+        "sharedOffset": [
+          0,
+          0.02101,
+          0.00136
+        ],
+        "targetHeight": 1.76,
+        "targetCenter": [
+          0,
+          0.9,
+          0
+        ]
+      }
+    }
+  ],
+  "cacheVersion": "zanatomy-v4"
+}

@@ -1,0 +1,910 @@
+import { create } from 'zustand';
+import { resolveClinicalBaseline } from '../data/clinicalBaseline';
+import { fetchMedicalProfile } from '../services/medicalKnowledgeService';
+import type { AnatomicalClinicalProfile } from '../types/medicalData';
+import type { AnatomicalPartInfo } from '../utils/anatomyParser';
+import { isPartVisibleForSex } from '../utils/sexDimorphismFilter';
+
+export const cursorCoords = { x: 0, y: 0 };
+export const cameraInteractionState = { isOrbiting: false };
+
+export type AnatomicalSystem =
+  | 'integumentary'
+  | 'skeletal'
+  | 'muscular'
+  | 'visceral'
+  | 'nervous'
+  | 'cardiovascular';
+
+export type BiologicalSex = 'male' | 'female';
+
+export type SlicingPlaneAxis = 'sagittal' | 'coronal' | 'axial';
+export type SlicingScope = 'all' | 'selected';
+export type AtlasLanguage = 'ar' | 'en';
+export type CameraPresetView =
+  | 'anterior'
+  | 'posterior'
+  | 'left'
+  | 'right'
+  | 'superior'
+  | 'inferior';
+export type ClinicalPreset =
+  | 'full'
+  | 'neuro-vascular'
+  | 'cardio-thoracic'
+  | 'musculoskeletal';
+export type MobileSheetSnap = 'peek' | 'half' | 'full';
+export type ModelSource = 'sketchfab-pack' | 'nih-hra' | 'hybrid';
+export type ActiveTab = 'master-atlas' | 'cloud-explorer' | 'pdf-books';
+
+export interface PdfReferenceTarget {
+  query: string;
+  citationLabel?: string;
+  book1Plate?: number;
+  book1Page?: number;
+  book2Page?: number;
+  netterPlates?: string[];
+  preferredView?: 'book1' | 'book2' | 'split';
+  trigger: number;
+}
+export type OfficialAtlasPresetId =
+  | 'zanatomy-full-body'
+  | 'zanatomy-skeletal'
+  | 'zanatomy-muscular'
+  | 'zanatomy-visceral'
+  | 'zanatomy-cardiovascular'
+  | 'zanatomy-nervous'
+  | 'zanatomy-integumentary'
+  | 'nih-visible-human';
+
+export interface SlicingState {
+  enabled: boolean;
+  plane: SlicingPlaneAxis;
+  offset: number;
+  invert: boolean;
+  scope: SlicingScope;
+  showHelper: boolean;
+}
+
+export interface PointerScreenPos {
+  x: number;
+  y: number;
+}
+
+export interface AnatomyState {
+  // Phase 1 state
+  selectedMeshId: string | null;
+  selectedAnatomicalName: string | null;
+  hoveredAnatomicalName: string | null;
+  activeSystems: Record<AnatomicalSystem, boolean>;
+  systemOpacity: Record<AnatomicalSystem, number>;
+  cameraTarget: [number, number, number];
+  resetViewCounter: number;
+
+  // Phase 2 state
+  selectedPart: AnatomicalPartInfo | null;
+  hoveredPart: AnatomicalPartInfo | null;
+  pointerScreenPos: PointerScreenPos;
+  isTouchInteraction: boolean;
+  cameraFocusTrigger: number;
+
+  // Phase 3 Dissection & Slicing state
+  hiddenPartIds: string[];
+  isolatedPartId: string | null;
+  xrayGhostMode: boolean;
+  explodeFactor: number;
+  slicing: SlicingState;
+
+  // Phase 4 Medical Knowledge & Inspector state
+  language: AtlasLanguage;
+  medicalProfile: AnatomicalClinicalProfile | null;
+  isLoadingMedicalData: boolean;
+
+  // Phase 5 Search, Layer Matrix, Camera Presets, Custom GLB & Mobile Sheet state
+  anatomicalCatalog: AnatomicalPartInfo[];
+  searchQuery: string;
+  cameraPresetView: CameraPresetView | null;
+  cameraPresetTrigger: number;
+  customGlbUrl: string | null;
+  customGlbName: string | null;
+  showLayerManager: boolean;
+  mobileSheetSnap: MobileSheetSnap;
+
+  // Phase 5.5 Biological Sex state
+  biologicalSex: BiologicalSex;
+
+  // Phase 6 Sketchfab 3D Anatomy Cloud & Source Switcher
+  modelSource: ModelSource;
+  showSketchfabModal: boolean;
+
+  // Phase 7 Standalone Official Master Atlas, Cloud Explorer & Dual PDF Books
+  activeTab: ActiveTab;
+  activeAtlasPreset: OfficialAtlasPresetId;
+  explorerCloudUid: string | null;
+  explorerCloudTitle: string | null;
+  pdfReferenceTarget: PdfReferenceTarget | null;
+
+  // Phase 1 & 2 actions
+  selectPart: (part: AnatomicalPartInfo | null) => void;
+  setHoveredPart: (
+    part: AnatomicalPartInfo | null,
+    screenPos?: PointerScreenPos,
+    isTouch?: boolean
+  ) => void;
+  setPointerScreenPos: (screenPos: PointerScreenPos, isTouch?: boolean) => void;
+  focusSelectedPart: () => void;
+  toggleSystem: (system: AnatomicalSystem) => void;
+  setSystemOpacity: (system: AnatomicalSystem, opacity: number) => void;
+  resetView: () => void;
+
+  // Phase 3 Dissection & Slicing actions
+  peelSelectedPart: () => void;
+  undoLastPeel: () => void;
+  restoreAllParts: () => void;
+  toggleIsolateSelected: () => void;
+  toggleXrayGhost: () => void;
+  setExplodeFactor: (val: number) => void;
+  updateSlicing: (partial: Partial<SlicingState>) => void;
+  resetSlicing: () => void;
+
+  // Phase 4 actions
+  setLanguage: (lang: AtlasLanguage) => void;
+
+  // Phase 5 actions
+  registerCatalog: (parts: AnatomicalPartInfo[]) => void;
+  setSearchQuery: (q: string) => void;
+  selectAndFlyToPart: (meshUuid: string) => void;
+  triggerCameraPreset: (view: CameraPresetView) => void;
+  soloSystem: (systemKey: AnatomicalSystem) => void;
+  applyClinicalPreset: (preset: ClinicalPreset) => void;
+  loadCustomGlb: (url: string | null, fileName?: string | null) => void;
+  setShowLayerManager: (show: boolean) => void;
+  toggleLayerManager: () => void;
+  setMobileSheetSnap: (snap: MobileSheetSnap) => void;
+
+  // Phase 5.5 actions
+  setBiologicalSex: (sex: BiologicalSex) => void;
+
+  // Phase 6 actions
+  setModelSource: (source: ModelSource) => void;
+  setShowSketchfabModal: (show: boolean) => void;
+
+  // Phase 7 actions
+  setActiveTab: (tab: ActiveTab) => void;
+  setActiveAtlasPreset: (preset: OfficialAtlasPresetId) => void;
+  loadExplorerCloudModel: (uid: string | null, title?: string | null) => void;
+  openTextbookReference: (
+    target?: Partial<Omit<PdfReferenceTarget, 'trigger'>>
+  ) => void;
+  clearPdfReference: () => void;
+}
+
+export const DEFAULT_CAMERA_TARGET: [number, number, number] = [0, 1.0, 0];
+
+const DEFAULT_ACTIVE_SYSTEMS: Record<AnatomicalSystem, boolean> = {
+  integumentary: false,
+  skeletal: true,
+  muscular: true,
+  visceral: true,
+  nervous: false,
+  cardiovascular: false,
+};
+
+const DEFAULT_SYSTEM_OPACITY: Record<AnatomicalSystem, number> = {
+  integumentary: 0.45,
+  skeletal: 1.0,
+  muscular: 1.0,
+  visceral: 1.0,
+  nervous: 1.0,
+  cardiovascular: 1.0,
+};
+
+const DEFAULT_SLICING_STATE: SlicingState = {
+  enabled: false,
+  plane: 'sagittal',
+  offset: 0,
+  invert: false,
+  scope: 'all',
+  showHelper: true,
+};
+
+let activeMedicalAbortController: AbortController | null = null;
+let activeMedicalRequestToken = 0;
+
+function cancelActiveMedicalFetch(): void {
+  activeMedicalRequestToken += 1;
+  if (activeMedicalAbortController) {
+    activeMedicalAbortController.abort();
+    activeMedicalAbortController = null;
+  }
+}
+
+export const useAnatomyStore = create<AnatomyState>((set, get) => ({
+  selectedMeshId: null,
+  selectedAnatomicalName: null,
+  hoveredAnatomicalName: null,
+  activeSystems: { ...DEFAULT_ACTIVE_SYSTEMS },
+  systemOpacity: { ...DEFAULT_SYSTEM_OPACITY },
+  cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
+  resetViewCounter: 0,
+
+  selectedPart: null,
+  hoveredPart: null,
+  pointerScreenPos: { x: 0, y: 0 },
+  isTouchInteraction: false,
+  cameraFocusTrigger: 0,
+
+  hiddenPartIds: [],
+  isolatedPartId: null,
+  xrayGhostMode: false,
+  explodeFactor: 0,
+  slicing: { ...DEFAULT_SLICING_STATE },
+
+  language: 'en',
+  medicalProfile: null,
+  isLoadingMedicalData: false,
+
+  anatomicalCatalog: [],
+  searchQuery: '',
+  cameraPresetView: null,
+  cameraPresetTrigger: 0,
+  customGlbUrl: null,
+  customGlbName: null,
+  showLayerManager: false,
+  mobileSheetSnap: 'half',
+  biologicalSex: 'male',
+  modelSource: 'sketchfab-pack',
+  showSketchfabModal: false,
+  activeTab: 'master-atlas',
+  activeAtlasPreset: 'zanatomy-full-body',
+  explorerCloudUid: null,
+  explorerCloudTitle: null,
+  pdfReferenceTarget: null,
+
+  selectPart: (part) => {
+    cancelActiveMedicalFetch();
+
+    if (!part) {
+      set({
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        mobileSheetSnap: 'half',
+      });
+      return;
+    }
+
+    const { profile: baselineProfile } = resolveClinicalBaseline(part);
+    const controller = new AbortController();
+    activeMedicalAbortController = controller;
+    const requestToken = activeMedicalRequestToken;
+
+    set({
+      selectedPart: part,
+      selectedMeshId: part.rawName || part.meshUuid,
+      selectedAnatomicalName: part.cleanName,
+      medicalProfile: baselineProfile,
+      isLoadingMedicalData: true,
+    });
+
+    void fetchMedicalProfile(part, controller.signal)
+      .then((profile) => {
+        if (
+          controller.signal.aborted ||
+          requestToken !== activeMedicalRequestToken
+        ) {
+          return;
+        }
+        set({
+          medicalProfile: profile,
+          isLoadingMedicalData: false,
+        });
+      })
+      .catch(() => {
+        if (
+          controller.signal.aborted ||
+          requestToken !== activeMedicalRequestToken
+        ) {
+          return;
+        }
+        set({ isLoadingMedicalData: false });
+      });
+  },
+
+  setHoveredPart: (part, screenPos, isTouch) => {
+    if (screenPos) {
+      cursorCoords.x = screenPos.x;
+      cursorCoords.y = screenPos.y;
+    }
+    const current = get();
+    const nextUuid = part?.meshUuid ?? null;
+    const prevUuid = current.hoveredPart?.meshUuid ?? null;
+    const nextTouch =
+      isTouch !== undefined ? isTouch : current.isTouchInteraction;
+    if (nextUuid === prevUuid && nextTouch === current.isTouchInteraction) {
+      return;
+    }
+    set({
+      hoveredPart: part,
+      hoveredAnatomicalName: part ? part.cleanName : null,
+      isTouchInteraction: nextTouch,
+    });
+  },
+
+  setPointerScreenPos: (screenPos, isTouch) => {
+    cursorCoords.x = screenPos.x;
+    cursorCoords.y = screenPos.y;
+    if (isTouch !== undefined && isTouch !== get().isTouchInteraction) {
+      set({ isTouchInteraction: isTouch });
+    }
+  },
+
+  focusSelectedPart: () =>
+    set((state) => {
+      if (!state.selectedPart) return state;
+      return {
+        cameraTarget: [...state.selectedPart.worldCenter] as [
+          number,
+          number,
+          number,
+        ],
+        cameraFocusTrigger: state.cameraFocusTrigger + 1,
+      };
+    }),
+
+  toggleSystem: (system) =>
+    set((state) => {
+      const nextActive = !state.activeSystems[system];
+      const clearHover =
+        !nextActive && state.hoveredPart?.system === system;
+      return {
+        activeSystems: {
+          ...state.activeSystems,
+          [system]: nextActive,
+        },
+        ...(clearHover
+          ? { hoveredPart: null, hoveredAnatomicalName: null }
+          : {}),
+      };
+    }),
+
+  setSystemOpacity: (system, opacity) =>
+    set((state) => ({
+      systemOpacity: {
+        ...state.systemOpacity,
+        [system]: Math.max(0, Math.min(1, opacity)),
+      },
+    })),
+
+  resetView: () => {
+    cancelActiveMedicalFetch();
+    set((state) => ({
+      selectedPart: null,
+      selectedMeshId: null,
+      selectedAnatomicalName: null,
+      medicalProfile: null,
+      isLoadingMedicalData: false,
+      cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
+      cameraPresetView: null,
+      resetViewCounter: state.resetViewCounter + 1,
+    }));
+  },
+
+  peelSelectedPart: () => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (!state.selectedPart) return state;
+      const uuidTarget = state.selectedPart.meshUuid;
+      const rawTarget = state.selectedPart.rawName;
+      const targetId = uuidTarget || rawTarget;
+      const nextHidden = state.hiddenPartIds.includes(targetId)
+        ? state.hiddenPartIds
+        : [...state.hiddenPartIds, targetId];
+      const clearHover =
+        state.hoveredPart?.meshUuid === uuidTarget ||
+        (Boolean(rawTarget) && state.hoveredPart?.rawName === rawTarget);
+
+      return {
+        hiddenPartIds: nextHidden,
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        isolatedPartId:
+          state.isolatedPartId === uuidTarget ||
+          state.isolatedPartId === rawTarget
+            ? null
+            : state.isolatedPartId,
+        ...(clearHover
+          ? { hoveredPart: null, hoveredAnatomicalName: null }
+          : {}),
+      };
+    });
+  },
+
+  undoLastPeel: () =>
+    set((state) => {
+      if (state.hiddenPartIds.length === 0) return state;
+      return {
+        hiddenPartIds: state.hiddenPartIds.slice(0, -1),
+      };
+    }),
+
+  restoreAllParts: () =>
+    set({
+      hiddenPartIds: [],
+      isolatedPartId: null,
+      xrayGhostMode: false,
+      explodeFactor: 0,
+    }),
+
+  toggleIsolateSelected: () =>
+    set((state) => {
+      if (state.selectedPart) {
+        const uuidTarget = state.selectedPart.meshUuid;
+        const rawTarget = state.selectedPart.rawName;
+        const isCurrentlyIsolated =
+          state.isolatedPartId === uuidTarget ||
+          state.isolatedPartId === rawTarget;
+        return {
+          isolatedPartId: isCurrentlyIsolated ? null : uuidTarget || rawTarget,
+        };
+      }
+      if (state.isolatedPartId !== null) {
+        return { isolatedPartId: null };
+      }
+      return state;
+    }),
+
+  toggleXrayGhost: () =>
+    set((state) => ({
+      xrayGhostMode: !state.xrayGhostMode,
+    })),
+
+  setExplodeFactor: (val) =>
+    set({
+      explodeFactor: Math.max(0, Math.min(1, val)),
+    }),
+
+  updateSlicing: (partial) =>
+    set((state) => ({
+      slicing: {
+        ...state.slicing,
+        ...partial,
+        offset:
+          partial.offset !== undefined
+            ? Math.max(-1, Math.min(1, partial.offset))
+            : state.slicing.offset,
+      },
+    })),
+
+  resetSlicing: () =>
+    set((state) => ({
+      slicing: {
+        ...state.slicing,
+        enabled: false,
+        offset: 0,
+        invert: false,
+      },
+    })),
+
+  setLanguage: (lang) => set({ language: lang }),
+
+  registerCatalog: (parts) =>
+    set((state) => {
+      const seen = new Set<string>();
+      const deduped: AnatomicalPartInfo[] = [];
+      for (const p of parts) {
+        if (!isPartVisibleForSex(p, state.biologicalSex)) continue;
+        const key = `${p.meshUuid}::${p.rawName}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(p);
+        }
+      }
+      deduped.sort((a, b) => a.cleanName.localeCompare(b.cleanName));
+      return { anatomicalCatalog: deduped };
+    }),
+
+  setSearchQuery: (q) => set({ searchQuery: q }),
+
+  selectAndFlyToPart: (meshUuid) => {
+    const state = get();
+    const part =
+      state.anatomicalCatalog.find((item) => item.meshUuid === meshUuid) ??
+      state.anatomicalCatalog.find((item) => item.rawName === meshUuid);
+    if (!part) return;
+
+    set((prev) => ({
+      activeSystems: {
+        ...prev.activeSystems,
+        [part.system]: true,
+      },
+      systemOpacity: {
+        ...prev.systemOpacity,
+        [part.system]:
+          prev.systemOpacity[part.system] < 0.05
+            ? 1.0
+            : prev.systemOpacity[part.system],
+      },
+      hiddenPartIds: prev.hiddenPartIds.filter(
+        (id) => id !== part.meshUuid && id !== part.rawName
+      ),
+      isolatedPartId:
+        prev.isolatedPartId &&
+        prev.isolatedPartId !== part.meshUuid &&
+        prev.isolatedPartId !== part.rawName &&
+        !prev.xrayGhostMode
+          ? null
+          : prev.isolatedPartId,
+    }));
+
+    get().selectPart(part);
+    get().focusSelectedPart();
+  },
+
+  triggerCameraPreset: (view) =>
+    set((state) => ({
+      cameraPresetView: view,
+      cameraPresetTrigger: state.cameraPresetTrigger + 1,
+    })),
+
+  soloSystem: (systemKey) =>
+    set((state) => {
+      const nextActive: Record<AnatomicalSystem, boolean> = {
+        integumentary: false,
+        skeletal: false,
+        muscular: false,
+        visceral: false,
+        nervous: false,
+        cardiovascular: false,
+        [systemKey]: true,
+      };
+      return {
+        activeSystems: nextActive,
+        systemOpacity: {
+          ...state.systemOpacity,
+          [systemKey]: 1.0,
+        },
+        ...(state.hoveredPart && state.hoveredPart.system !== systemKey
+          ? { hoveredPart: null, hoveredAnatomicalName: null }
+          : {}),
+      };
+    }),
+
+  applyClinicalPreset: (preset) =>
+    set((state) => {
+      let nextActive: Record<AnatomicalSystem, boolean>;
+      let nextOpacity: Record<AnatomicalSystem, number>;
+
+      switch (preset) {
+        case 'neuro-vascular':
+          nextActive = {
+            integumentary: false,
+            skeletal: true,
+            muscular: false,
+            visceral: false,
+            nervous: true,
+            cardiovascular: true,
+          };
+          nextOpacity = {
+            integumentary: 0.12,
+            skeletal: 0.2,
+            muscular: 1.0,
+            visceral: 1.0,
+            nervous: 1.0,
+            cardiovascular: 1.0,
+          };
+          break;
+        case 'cardio-thoracic':
+          nextActive = {
+            integumentary: false,
+            skeletal: true,
+            muscular: false,
+            visceral: true,
+            nervous: false,
+            cardiovascular: true,
+          };
+          nextOpacity = {
+            integumentary: 0.35,
+            skeletal: 0.25,
+            muscular: 1.0,
+            visceral: 1.0,
+            nervous: 1.0,
+            cardiovascular: 1.0,
+          };
+          break;
+        case 'musculoskeletal':
+          nextActive = {
+            integumentary: false,
+            skeletal: true,
+            muscular: true,
+            visceral: false,
+            nervous: false,
+            cardiovascular: false,
+          };
+          nextOpacity = {
+            integumentary: 0.15,
+            skeletal: 1.0,
+            muscular: 0.65,
+            visceral: 1.0,
+            nervous: 1.0,
+            cardiovascular: 1.0,
+          };
+          break;
+        case 'full':
+        default:
+          nextActive = { ...DEFAULT_ACTIVE_SYSTEMS };
+          nextOpacity = { ...DEFAULT_SYSTEM_OPACITY };
+          break;
+      }
+
+      return {
+        activeSystems: nextActive,
+        systemOpacity: nextOpacity,
+        ...(state.hoveredPart && !nextActive[state.hoveredPart.system]
+          ? { hoveredPart: null, hoveredAnatomicalName: null }
+          : {}),
+      };
+    }),
+
+  loadCustomGlb: (url, fileName = null) => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (
+        state.customGlbUrl &&
+        state.customGlbUrl !== url &&
+        state.customGlbUrl.startsWith('blob:')
+      ) {
+        URL.revokeObjectURL(state.customGlbUrl);
+      }
+
+      return {
+        customGlbUrl: url,
+        customGlbName: url ? fileName : null,
+        explorerCloudUid: null,
+        explorerCloudTitle: null,
+        anatomicalCatalog: [],
+        searchQuery: '',
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        hoveredPart: null,
+        hoveredAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        hiddenPartIds: [],
+        isolatedPartId: null,
+        xrayGhostMode: false,
+        explodeFactor: 0,
+        activeSystems: { ...DEFAULT_ACTIVE_SYSTEMS },
+        systemOpacity: { ...DEFAULT_SYSTEM_OPACITY },
+        cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
+        resetViewCounter: state.resetViewCounter + 1,
+      };
+    });
+  },
+
+  setShowLayerManager: (show) => set({ showLayerManager: show }),
+
+  toggleLayerManager: () =>
+    set((state) => ({ showLayerManager: !state.showLayerManager })),
+
+  setMobileSheetSnap: (snap) => set({ mobileSheetSnap: snap }),
+
+  setBiologicalSex: (sex) => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (state.biologicalSex === sex) return state;
+      return {
+        biologicalSex: sex,
+        anatomicalCatalog: state.anatomicalCatalog.filter((part) =>
+          isPartVisibleForSex(part, sex)
+        ),
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        hoveredPart: null,
+        hoveredAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        hiddenPartIds: [],
+        isolatedPartId: null,
+        mobileSheetSnap: 'half',
+      };
+    });
+  },
+
+  setModelSource: (source) => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (state.customGlbUrl && state.customGlbUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(state.customGlbUrl);
+      }
+      return {
+        modelSource: source,
+        customGlbUrl: null,
+        customGlbName: null,
+        anatomicalCatalog: [],
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        hoveredPart: null,
+        hoveredAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        hiddenPartIds: [],
+        isolatedPartId: null,
+        mobileSheetSnap: 'half',
+        cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
+        resetViewCounter: state.resetViewCounter + 1,
+      };
+    });
+  },
+
+  setShowSketchfabModal: (show) => set({ showSketchfabModal: show }),
+
+  setActiveTab: (tab) =>
+    set((state) => ({
+      activeTab: tab,
+      ...(tab === 'master-atlas'
+        ? { explorerCloudUid: null, explorerCloudTitle: null }
+        : {}),
+      resetViewCounter: state.resetViewCounter,
+    })),
+
+  setActiveAtlasPreset: (preset) => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (state.customGlbUrl && state.customGlbUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(state.customGlbUrl);
+      }
+
+      const presetSystemMap: Partial<
+        Record<OfficialAtlasPresetId, AnatomicalSystem>
+      > = {
+        'zanatomy-skeletal': 'skeletal',
+        'zanatomy-muscular': 'muscular',
+        'zanatomy-visceral': 'visceral',
+        'zanatomy-cardiovascular': 'cardiovascular',
+        'zanatomy-nervous': 'nervous',
+        'zanatomy-integumentary': 'integumentary',
+      };
+      const soloTargetSystem = presetSystemMap[preset];
+      const nextActiveSystems =
+        preset === 'zanatomy-full-body'
+          ? { ...DEFAULT_ACTIVE_SYSTEMS }
+          : soloTargetSystem
+            ? {
+                ...state.activeSystems,
+                [soloTargetSystem]: true,
+              }
+            : preset === 'nih-visible-human'
+              ? { ...DEFAULT_ACTIVE_SYSTEMS, integumentary: true }
+              : state.activeSystems;
+
+      const nextSystemOpacity =
+        preset === 'zanatomy-integumentary'
+          ? { ...state.systemOpacity, integumentary: 0.9 }
+          : preset === 'zanatomy-full-body'
+            ? { ...DEFAULT_SYSTEM_OPACITY }
+            : {
+                ...state.systemOpacity,
+                integumentary: DEFAULT_SYSTEM_OPACITY.integumentary,
+              };
+
+      return {
+        activeAtlasPreset: preset,
+        activeSystems: nextActiveSystems,
+        systemOpacity: nextSystemOpacity,
+        modelSource:
+          preset === 'nih-visible-human' ? 'nih-hra' : 'sketchfab-pack',
+        customGlbUrl: null,
+        customGlbName: null,
+        explorerCloudUid: null,
+        explorerCloudTitle: null,
+        anatomicalCatalog: [],
+        selectedPart: null,
+        selectedMeshId: null,
+        selectedAnatomicalName: null,
+        hoveredPart: null,
+        hoveredAnatomicalName: null,
+        medicalProfile: null,
+        isLoadingMedicalData: false,
+        hiddenPartIds: [],
+        isolatedPartId: null,
+        xrayGhostMode: false,
+        explodeFactor: 0,
+        mobileSheetSnap: 'half',
+        cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
+        resetViewCounter: state.resetViewCounter + 1,
+      };
+    });
+  },
+
+  loadExplorerCloudModel: (uid, title = null) => {
+    cancelActiveMedicalFetch();
+    set((state) => {
+      if (state.customGlbUrl && state.customGlbUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(state.customGlbUrl);
+      }
+      return {
+        explorerCloudUid: uid,
+        explorerCloudTitle: uid ? title : null,
+        customGlbUrl: null,
+        customGlbName: null,
+        anatomicalCatalog: [],
+        hiddenPartIds: [],
+        isolatedPartId: null,
+        xrayGhostMode: false,
+        explodeFactor: 0,
+      };
+    });
+  },
+
+  openTextbookReference: (target) =>
+    set((state) => {
+      const profile = state.medicalProfile;
+      const part = state.selectedPart;
+      const query =
+        target?.query ||
+        profile?.cleanNameEn ||
+        part?.cleanName ||
+        'Human Anatomy';
+      const citationLabel =
+        target?.citationLabel || profile?.textbookRefCitation || undefined;
+      const netterPlates =
+        target?.netterPlates ?? profile?.netterPlates ?? undefined;
+
+      let book2Page = target?.book2Page;
+      if (!book2Page && citationLabel) {
+        const grayMatch = citationLabel.match(/Gray's[^•]*\(p\.(\d+)\)/i);
+        if (grayMatch) book2Page = Number(grayMatch[1]);
+      }
+
+      let book1Plate = target?.book1Plate;
+      if (!book1Plate && netterPlates && netterPlates.length > 0) {
+        const pMatch = netterPlates[0].match(/(\d+)/);
+        if (pMatch) book1Plate = Number(pMatch[1]);
+      }
+      if (!book1Plate && citationLabel) {
+        const netterMatch = citationLabel.match(/Netter[^•]*Plate\s+(\d+)/i);
+        if (netterMatch) book1Plate = Number(netterMatch[1]);
+      }
+
+      let book1Page = target?.book1Page;
+      if (!book1Page && !book1Plate && citationLabel) {
+        const netterPageMatch = citationLabel.match(/Netter[^•]*\(p\.(\d+)\)/i);
+        if (netterPageMatch) book1Page = Number(netterPageMatch[1]);
+      }
+
+      const preferredView =
+        target?.preferredView ||
+        (book1Plate || book1Page
+          ? book2Page
+            ? 'split'
+            : 'book1'
+          : book2Page
+            ? 'book2'
+            : 'split');
+
+      return {
+        activeTab: 'pdf-books',
+        pdfReferenceTarget: {
+          query,
+          citationLabel,
+          book1Plate,
+          book1Page,
+          book2Page,
+          netterPlates,
+          preferredView,
+          trigger: (state.pdfReferenceTarget?.trigger ?? 0) + 1,
+        },
+      };
+    }),
+
+  clearPdfReference: () => set({ pdfReferenceTarget: null }),
+}));

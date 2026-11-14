@@ -1,0 +1,29 @@
+appId: com.tarek.anatomyatlas3d
+productName: Anatomy Atlas 3D
+copyright: Copyright © 2026 Tarek Ahmed
+directories:
+  output: release
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+asar: true
+asarUnpack:
+  - dist/models/**
+  - dist/books/**
+compression: normal
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  artifactName: AnatomyAtlas3D-Windows-${arch}-Setup.${ext}
+portable:
+  artifactName: AnatomyAtlas3D-Windows-${arch}.exe

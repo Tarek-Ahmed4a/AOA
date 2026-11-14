@@ -1,0 +1,2203 @@
+{
+  "generatedAt": "2026-11-13T22:42:45.008Z",
+  "source": "nih-hra-api-v1",
+  "stats": {
+    "totalTargets": 73,
+    "downloadedCount": 73,
+    "offlineFallbackCount": 0
+  },
+  "male": [
+    {
+      "id": "adipose-male",
+      "organKey": "adipose",
+      "name": "adipose",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "integumentary",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0014455",
+      "ta98Code": "A01.0.00.000",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/adipose-male/v1.0/assets/3d-vh-m-adipose.glb",
+      "localPath": "/models/nih/male/adipose-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "blood-vasculature-male",
+      "organKey": "blood vasculature",
+      "name": "blood vasculature",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004537",
+      "ta98Code": "A12.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/blood-vasculature-male/v1.3/assets/3d-vh-m-blood-vasculature.glb",
+      "localPath": "/models/nih/male/blood-vasculature-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "brain-male",
+      "organKey": "brain",
+      "name": "brain",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "nervous",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000955",
+      "ta98Code": "A14.1.03.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/brain-male/v1.4/assets/3d-allen-m-brain.glb",
+      "localPath": "/models/nih/male/brain-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "epiploic-appendage-of-transverse-colon-male",
+      "organKey": "epiploic appendage",
+      "name": "epiploic appendage of transverse colon",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma15046",
+      "ta98Code": "A05.7.03.005",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/epiploic-appendage-of-transverse-colon-male/v1.0/assets/3d-vh-m-epiploic-appendage-of-transverse-colon.glb",
+      "localPath": "/models/nih/male/epiploic-appendage-of-transverse-colon-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "heart-male",
+      "organKey": "heart",
+      "name": "heart",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000948",
+      "ta98Code": "A12.1.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-male/v1.3/assets/3d-vh-m-heart.glb",
+      "localPath": "/models/nih/male/heart-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "intervertebral-disk-male",
+      "organKey": "intervertebral disk",
+      "name": "intervertebral disk",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "skeletal",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001066",
+      "ta98Code": "A03.2.02.003",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/intervertebral-disk-male/v1.0/assets/3d-vh-m-intervertebral-disk.glb",
+      "localPath": "/models/nih/male/intervertebral-disk-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "kidney-male-left",
+      "organKey": "kidney",
+      "name": "Left kidney",
+      "sex": "male",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004538",
+      "ta98Code": "A08.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-male-left/v1.3/assets/3d-vh-m-kidney-l.glb",
+      "localPath": "/models/nih/male/kidney-male-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "kidney-male-right",
+      "organKey": "kidney",
+      "name": "Right kidney",
+      "sex": "male",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004539",
+      "ta98Code": "A08.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-male-right/v1.3/assets/3d-vh-m-kidney-r.glb",
+      "localPath": "/models/nih/male/kidney-male-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "knee-male-left",
+      "organKey": "knee",
+      "name": "Left knee",
+      "sex": "male",
+      "side": "Left",
+      "system": "skeletal",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma24978",
+      "ta98Code": "A03.6.08.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-male-left/v1.2/assets/3d-vh-m-knee-l.glb",
+      "localPath": "/models/nih/male/knee-male-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "knee-male-right",
+      "organKey": "knee",
+      "name": "Right knee",
+      "sex": "male",
+      "side": "Right",
+      "system": "skeletal",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma24977",
+      "ta98Code": "A03.6.08.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-male-right/v1.2/assets/3d-vh-m-knee-r.glb",
+      "localPath": "/models/nih/male/knee-male-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "large-intestine-male",
+      "organKey": "large intestine",
+      "name": "large intestine",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000059",
+      "ta98Code": "A05.7.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/large-intestine-male/v1.3/assets/3d-sbu-m-large-intestine.glb",
+      "localPath": "/models/nih/male/large-intestine-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "larynx-male",
+      "organKey": "larynx",
+      "name": "larynx",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001737",
+      "ta98Code": "A06.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/larynx-male/v1.1/assets/3d-vh-m-larynx.glb",
+      "localPath": "/models/nih/male/larynx-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "liver-male",
+      "organKey": "liver",
+      "name": "liver",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002107",
+      "ta98Code": "A05.8.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/liver-male/v1.2/assets/3d-vh-m-liver.glb",
+      "localPath": "/models/nih/male/liver-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "lung-male",
+      "organKey": "lung",
+      "name": "lung",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001004",
+      "ta98Code": "A06.5.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lung-male/v1.4/assets/3d-vh-m-lung.glb",
+      "localPath": "/models/nih/male/lung-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "lymph-node-male",
+      "organKey": "lymph node",
+      "name": "lymph node",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002509",
+      "ta98Code": "A13.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lymph-node-male/v1.4/assets/3d-nih-m-lymph-node.glb",
+      "localPath": "/models/nih/male/lymph-node-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "main-bronchus-male",
+      "organKey": "main bronchus",
+      "name": "main bronchus",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002182",
+      "ta98Code": "A06.4.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/main-bronchus-male/v1.1/assets/3d-vh-m-main-bronchus.glb",
+      "localPath": "/models/nih/male/main-bronchus-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "omentum-male",
+      "organKey": "omentum",
+      "name": "omentum",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0003688",
+      "ta98Code": "A10.1.02.201",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/omentum-male/v1.0/assets/3d-vh-m-omentum.glb",
+      "localPath": "/models/nih/male/omentum-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "palatine-tonsil-male-left",
+      "organKey": "palatine tonsil",
+      "name": "Left palatine tonsil",
+      "sex": "male",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma54974",
+      "ta98Code": "A05.2.01.011",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-male-left/v1.2/assets/3d-vh-m-palatine-tonsil-l.glb",
+      "localPath": "/models/nih/male/palatine-tonsil-male-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "palatine-tonsil-male-right",
+      "organKey": "palatine tonsil",
+      "name": "Right palatine tonsil",
+      "sex": "male",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma54973",
+      "ta98Code": "A05.2.01.011",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-male-right/v1.2/assets/3d-vh-m-palatine-tonsil-r.glb",
+      "localPath": "/models/nih/male/palatine-tonsil-male-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pancreas-male",
+      "organKey": "pancreas",
+      "name": "pancreas",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001264",
+      "ta98Code": "A05.9.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pancreas-male/v1.3/assets/3d-vh-m-pancreas.glb",
+      "localPath": "/models/nih/male/pancreas-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pelvis-male",
+      "organKey": "pelvis",
+      "name": "pelvis",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "skeletal",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001270",
+      "ta98Code": "A02.5.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pelvis-male/v1.3/assets/3d-vh-m-pelvis.glb",
+      "localPath": "/models/nih/male/pelvis-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "prostate-male",
+      "organKey": "prostate",
+      "name": "prostate",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000079",
+      "ta98Code": "A09.3.08.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/prostate-male/v1.2/assets/3d-vh-m-prostate.glb",
+      "localPath": "/models/nih/male/prostate-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "renal-pelvis-male-left",
+      "organKey": "renal pelvis",
+      "name": "Left renal pelvis",
+      "sex": "male",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0018115",
+      "ta98Code": "A08.1.05.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-male-left/v1.0/assets/3d-vh-m-renal-pelvis-l.glb",
+      "localPath": "/models/nih/male/renal-pelvis-male-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "renal-pelvis-male-right",
+      "organKey": "renal pelvis",
+      "name": "Right renal pelvis",
+      "sex": "male",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0018116",
+      "ta98Code": "A08.1.05.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-male-right/v1.0/assets/3d-vh-m-renal-pelvis-r.glb",
+      "localPath": "/models/nih/male/renal-pelvis-male-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "skin-male",
+      "organKey": "skin",
+      "name": "skin",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "integumentary",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002097",
+      "ta98Code": "A16.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/skin-male/v1.4/assets/3d-vh-m-skin.glb",
+      "localPath": "/models/nih/male/skin-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "small-intestine-male",
+      "organKey": "small intestine",
+      "name": "small intestine",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002108",
+      "ta98Code": "A05.6.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/small-intestine-male/v1.2/assets/3d-vh-m-small-intestine.glb",
+      "localPath": "/models/nih/male/small-intestine-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "spinal-cord-male",
+      "organKey": "spinal cord",
+      "name": "spinal cord",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "nervous",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002240",
+      "ta98Code": "A14.1.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spinal-cord-male/v1.1/assets/3d-vh-m-spinal-cord.glb",
+      "localPath": "/models/nih/male/spinal-cord-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "spleen-male",
+      "organKey": "spleen",
+      "name": "spleen",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002106",
+      "ta98Code": "A13.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spleen-male/v1.3/assets/3d-vh-m-spleen.glb",
+      "localPath": "/models/nih/male/spleen-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "thymus-male",
+      "organKey": "thymus",
+      "name": "thymus",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002370",
+      "ta98Code": "A13.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/thymus-male/v1.3/assets/3d-vh-m-thymus.glb",
+      "localPath": "/models/nih/male/thymus-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "trachea-male",
+      "organKey": "trachea",
+      "name": "trachea",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0003126",
+      "ta98Code": "A06.3.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/trachea-male/v1.1/assets/3d-vh-m-trachea.glb",
+      "localPath": "/models/nih/male/trachea-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ureter-male-left",
+      "organKey": "ureter",
+      "name": "Left ureter",
+      "sex": "male",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001223",
+      "ta98Code": "A08.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-male-left/v1.2/assets/3d-vh-m-ureter-l.glb",
+      "localPath": "/models/nih/male/ureter-male-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ureter-male-right",
+      "organKey": "ureter",
+      "name": "Right ureter",
+      "sex": "male",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001222",
+      "ta98Code": "A08.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-male-right/v1.2/assets/3d-vh-m-ureter-r.glb",
+      "localPath": "/models/nih/male/ureter-male-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "urinary-bladder-male",
+      "organKey": "urinary bladder",
+      "name": "urinary bladder",
+      "sex": "male",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001255",
+      "ta98Code": "A08.3.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/urinary-bladder-male/v1.2/assets/3d-vh-m-urinary-bladder.glb",
+      "localPath": "/models/nih/male/urinary-bladder-male.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ],
+  "female": [
+    {
+      "id": "adipose-female",
+      "organKey": "adipose",
+      "name": "adipose",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "integumentary",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0014455",
+      "ta98Code": "A01.0.00.000",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/adipose-female/v1.0/assets/3d-vh-f-adipose.glb",
+      "localPath": "/models/nih/female/adipose-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "blood-vasculature-female",
+      "organKey": "blood vasculature",
+      "name": "blood vasculature",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004537",
+      "ta98Code": "A12.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/blood-vasculature-female/v1.3/assets/3d-vh-f-blood-vasculature.glb",
+      "localPath": "/models/nih/female/blood-vasculature-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "brain-female",
+      "organKey": "brain",
+      "name": "brain",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "nervous",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000955",
+      "ta98Code": "A14.1.03.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/brain-female/v1.4/assets/3d-allen-f-brain.glb",
+      "localPath": "/models/nih/female/brain-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "epiploic-appendage-of-transverse-colon-female",
+      "organKey": "epiploic appendage",
+      "name": "epiploic appendage of transverse colon",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma15046",
+      "ta98Code": "A05.7.03.005",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/epiploic-appendage-of-transverse-colon-female/v1.0/assets/3d-vh-f-epiploic-appendage-of-transverse-colon.glb",
+      "localPath": "/models/nih/female/epiploic-appendage-of-transverse-colon-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "fallopian-tube-female-left",
+      "organKey": "fallopian tube",
+      "name": "Left fallopian tube",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001303",
+      "ta98Code": "A09.1.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/fallopian-tube-female-left/v1.2/assets/3d-vh-f-fallopian-tube-l.glb",
+      "localPath": "/models/nih/female/fallopian-tube-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "fallopian-tube-female-right",
+      "organKey": "fallopian tube",
+      "name": "Right fallopian tube",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001302",
+      "ta98Code": "A09.1.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/fallopian-tube-female-right/v1.2/assets/3d-vh-f-fallopian-tube-r.glb",
+      "localPath": "/models/nih/female/fallopian-tube-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "heart-female",
+      "organKey": "heart",
+      "name": "heart",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000948",
+      "ta98Code": "A12.1.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-female/v1.3/assets/3d-vh-f-heart.glb",
+      "localPath": "/models/nih/female/heart-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "kidney-female-left",
+      "organKey": "kidney",
+      "name": "Left kidney",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004538",
+      "ta98Code": "A08.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-female-left/v1.3/assets/3d-vh-f-kidney-l.glb",
+      "localPath": "/models/nih/female/kidney-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "kidney-female-right",
+      "organKey": "kidney",
+      "name": "Right kidney",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0004539",
+      "ta98Code": "A08.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-female-right/v1.3/assets/3d-vh-f-kidney-r.glb",
+      "localPath": "/models/nih/female/kidney-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "knee-female-left",
+      "organKey": "knee",
+      "name": "Left knee",
+      "sex": "female",
+      "side": "Left",
+      "system": "skeletal",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma24978",
+      "ta98Code": "A03.6.08.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-female-left/v1.3/assets/3d-vh-f-knee-l.glb",
+      "localPath": "/models/nih/female/knee-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "knee-female-right",
+      "organKey": "knee",
+      "name": "Right knee",
+      "sex": "female",
+      "side": "Right",
+      "system": "skeletal",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma24977",
+      "ta98Code": "A03.6.08.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-female-right/v1.3/assets/3d-vh-f-knee-r.glb",
+      "localPath": "/models/nih/female/knee-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "large-intestine-female",
+      "organKey": "large intestine",
+      "name": "large intestine",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000059",
+      "ta98Code": "A05.7.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/large-intestine-female/v1.3/assets/3d-sbu-f-large-intestine.glb",
+      "localPath": "/models/nih/female/large-intestine-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "larynx-female",
+      "organKey": "larynx",
+      "name": "larynx",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001737",
+      "ta98Code": "A06.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/larynx-female/v1.1/assets/3d-vh-f-larynx.glb",
+      "localPath": "/models/nih/female/larynx-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "liver-female",
+      "organKey": "liver",
+      "name": "liver",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002107",
+      "ta98Code": "A05.8.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/liver-female/v1.2/assets/3d-vh-f-liver.glb",
+      "localPath": "/models/nih/female/liver-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "lung-female",
+      "organKey": "lung",
+      "name": "lung",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001004",
+      "ta98Code": "A06.5.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lung-female/v1.4/assets/3d-vh-f-lung.glb",
+      "localPath": "/models/nih/female/lung-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "lymph-node-female",
+      "organKey": "lymph node",
+      "name": "lymph node",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "cardiovascular",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002509",
+      "ta98Code": "A13.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lymph-node-female/v1.4/assets/3d-nih-f-lymph-node.glb",
+      "localPath": "/models/nih/female/lymph-node-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "main-bronchus-female",
+      "organKey": "main bronchus",
+      "name": "main bronchus",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002182",
+      "ta98Code": "A06.4.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/main-bronchus-female/v1.1/assets/3d-vh-f-main-bronchus.glb",
+      "localPath": "/models/nih/female/main-bronchus-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "mammary-gland-female-left",
+      "organKey": "mammary gland",
+      "name": "Left mammary gland",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma57991",
+      "ta98Code": "A16.0.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/mammary-gland-female-left/v1.1/assets/3d-vh-f-mammary-gland-l.glb",
+      "localPath": "/models/nih/female/mammary-gland-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "mammary-gland-female-right",
+      "organKey": "mammary gland",
+      "name": "Right mammary gland",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma57987",
+      "ta98Code": "A16.0.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/mammary-gland-female-right/v1.1/assets/3d-vh-f-mammary-gland-r.glb",
+      "localPath": "/models/nih/female/mammary-gland-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "manubrium-female",
+      "organKey": "manubrium",
+      "name": "manubrium",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "skeletal",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_2001553",
+      "ta98Code": "A02.3.03.002",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/manubrium-female/v1.0/assets/3d-vh-f-manubrium.glb",
+      "localPath": "/models/nih/female/manubrium-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "omentum-female",
+      "organKey": "omentum",
+      "name": "omentum",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0003688",
+      "ta98Code": "A10.1.02.201",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/omentum-female/v1.0/assets/3d-vh-f-omentum.glb",
+      "localPath": "/models/nih/female/omentum-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ovary-female-left",
+      "organKey": "ovary",
+      "name": "Left ovary",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002119",
+      "ta98Code": "A09.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ovary-female-left/v1.3/assets/3d-vh-f-ovary-l.glb",
+      "localPath": "/models/nih/female/ovary-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ovary-female-right",
+      "organKey": "ovary",
+      "name": "Right ovary",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002118",
+      "ta98Code": "A09.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ovary-female-right/v1.3/assets/3d-vh-f-ovary-r.glb",
+      "localPath": "/models/nih/female/ovary-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "palatine-tonsil-female-left",
+      "organKey": "palatine tonsil",
+      "name": "Left palatine tonsil",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma54974",
+      "ta98Code": "A05.2.01.011",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-female-left/v1.2/assets/3d-vh-f-palatine-tonsil-l.glb",
+      "localPath": "/models/nih/female/palatine-tonsil-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "palatine-tonsil-female-right",
+      "organKey": "palatine tonsil",
+      "name": "Right palatine tonsil",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.org/sig/ont/fma/fma54973",
+      "ta98Code": "A05.2.01.011",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-female-right/v1.2/assets/3d-vh-f-palatine-tonsil-r.glb",
+      "localPath": "/models/nih/female/palatine-tonsil-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pancreas-female",
+      "organKey": "pancreas",
+      "name": "pancreas",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001264",
+      "ta98Code": "A05.9.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pancreas-female/v1.3/assets/3d-vh-f-pancreas.glb",
+      "localPath": "/models/nih/female/pancreas-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "pelvis-female",
+      "organKey": "pelvis",
+      "name": "pelvis",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "skeletal",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001270",
+      "ta98Code": "A02.5.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pelvis-female/v1.3/assets/3d-vh-f-pelvis.glb",
+      "localPath": "/models/nih/female/pelvis-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "renal-pelvis-female-left",
+      "organKey": "renal pelvis",
+      "name": "Left renal pelvis",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0018115",
+      "ta98Code": "A08.1.05.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-female-left/v1.0/assets/3d-vh-f-renal-pelvis-l.glb",
+      "localPath": "/models/nih/female/renal-pelvis-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "renal-pelvis-female-right",
+      "organKey": "renal pelvis",
+      "name": "Right renal pelvis",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0018116",
+      "ta98Code": "A08.1.05.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-female-right/v1.0/assets/3d-vh-f-renal-pelvis-r.glb",
+      "localPath": "/models/nih/female/renal-pelvis-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "skin-female",
+      "organKey": "skin",
+      "name": "skin",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "integumentary",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002097",
+      "ta98Code": "A16.0.00.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/skin-female/v1.5/assets/3d-vh-f-skin.glb",
+      "localPath": "/models/nih/female/skin-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "small-intestine-female",
+      "organKey": "small intestine",
+      "name": "small intestine",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002108",
+      "ta98Code": "A05.6.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/small-intestine-female/v1.2/assets/3d-vh-f-small-intestine.glb",
+      "localPath": "/models/nih/female/small-intestine-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "spinal-cord-female",
+      "organKey": "spinal cord",
+      "name": "spinal cord",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "nervous",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002240",
+      "ta98Code": "A14.1.02.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spinal-cord-female/v1.1/assets/3d-vh-f-spinal-cord.glb",
+      "localPath": "/models/nih/female/spinal-cord-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "spleen-female",
+      "organKey": "spleen",
+      "name": "spleen",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002106",
+      "ta98Code": "A13.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spleen-female/v1.3/assets/3d-vh-f-spleen.glb",
+      "localPath": "/models/nih/female/spleen-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "sternum-female",
+      "organKey": "sternum",
+      "name": "sternum",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "skeletal",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000975",
+      "ta98Code": "A02.3.03.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/sternum-female/v1.0/assets/3d-vh-f-sternum.glb",
+      "localPath": "/models/nih/female/sternum-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "thymus-female",
+      "organKey": "thymus",
+      "name": "thymus",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0002370",
+      "ta98Code": "A13.1.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/thymus-female/v1.3/assets/3d-vh-f-thymus.glb",
+      "localPath": "/models/nih/female/thymus-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "trachea-female",
+      "organKey": "trachea",
+      "name": "trachea",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0003126",
+      "ta98Code": "A06.3.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/trachea-female/v1.1/assets/3d-vh-f-trachea.glb",
+      "localPath": "/models/nih/female/trachea-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ureter-female-left",
+      "organKey": "ureter",
+      "name": "Left ureter",
+      "sex": "female",
+      "side": "Left",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001223",
+      "ta98Code": "A08.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-female-left/v1.2/assets/3d-vh-f-ureter-l.glb",
+      "localPath": "/models/nih/female/ureter-female-left.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "ureter-female-right",
+      "organKey": "ureter",
+      "name": "Right ureter",
+      "sex": "female",
+      "side": "Right",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001222",
+      "ta98Code": "A08.2.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-female-right/v1.2/assets/3d-vh-f-ureter-r.glb",
+      "localPath": "/models/nih/female/ureter-female-right.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "urinary-bladder-female",
+      "organKey": "urinary bladder",
+      "name": "urinary bladder",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0001255",
+      "ta98Code": "A08.3.01.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/urinary-bladder-female/v1.2/assets/3d-vh-f-urinary-bladder.glb",
+      "localPath": "/models/nih/female/urinary-bladder-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    },
+    {
+      "id": "uterus-female",
+      "organKey": "uterus",
+      "name": "uterus",
+      "sex": "female",
+      "side": "Unpaired",
+      "system": "visceral",
+      "ontologyId": "http://purl.obolibrary.org/obo/UBERON_0000995",
+      "ta98Code": "A09.1.03.001",
+      "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/uterus-female/v1.2/assets/3d-vh-f-uterus.glb",
+      "localPath": "/models/nih/female/uterus-female.glb",
+      "downloaded": true,
+      "placement": {
+        "translation": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    }
+  ]
+}
