@@ -39,6 +39,7 @@ async function loadLiveModules() {
       `export * from ${JSON.stringify(path.join(ROOT, 'src/utils/spatialAnatomyResolver.ts'))};`,
       `export * from ${JSON.stringify(path.join(ROOT, 'src/utils/sexDimorphismFilter.ts'))};`,
       `export * from ${JSON.stringify(path.join(ROOT, 'src/utils/explodeClusters.ts'))};`,
+      `export * from ${JSON.stringify(path.join(ROOT, 'src/utils/femaleZAnatomyRegistration.ts'))};`,
       `export { resolveClinicalBaseline, translateAnatomicalTermToArabic } from ${JSON.stringify(path.join(ROOT, 'src/data/clinicalBaseline.ts'))};`,
       `export { resolveTextbookEntry } from ${JSON.stringify(path.join(ROOT, 'src/services/textbookKnowledgeService.ts'))};`,
     ].join('\n'),
@@ -255,6 +256,7 @@ function getMeshSpatialStats(mesh) {
   return {
     box,
     center,
+    minY: box.isEmpty() ? center.y : box.min.y,
     maxZ: box.isEmpty() ? center.z : box.max.z,
     radius: box.isEmpty() ? 0 : sphere.radius,
   };
@@ -323,7 +325,7 @@ const GENERIC_LABEL_REGEX =
   /(?:^|\b)(?:part\s*#?\d+|(?:—|-)\s*part\b|(?:object|mesh|primitive|submesh)(?:\s*#?\d+)?\b|node\s*#?\d+\b)|الجزء|^\d+$/i;
 
 const MALE_LEAK_REGEX =
-  /\b(?:prostat|testis|testes|testicular|epididym|ductus[\s_-]*deferens|vas[\s_-]*deferens|spermatic|seminal[\s_-]*vesicl|vesicule[\s_-]*seminale|bulbourethral|bulbo[\s_-]*uretral|cowper|corpus[\s_-]*cavernosum|corpora[\s_-]*cavernosa|corpus[\s_-]*spongiosum|glans|prepuce|foreskin|scrot|suspensory[\s_-]*ligament[\s_-]*of[\s_-]*penis|fundiform|penis|penile|bulb[\s_-]*of[\s_-]*penis|crus[\s_-]*of[\s_-]*penis|crura[\s_-]*of[\s_-]*penis|cremaster|male[\s_-]*urethra|hairs[\s_-]*of[\s_-]*head|pubic[\s_-]*hairs)\b/i;
+  /\b(?:prostat|testis|testes|testicular|epididym|ductus[\s_-]*deferens|vas[\s_-]*deferens|spermatic|seminal[\s_-]*vesicl|vesicule[\s_-]*seminale|bulbourethral|bulbo[\s_-]*uretral|cowper|corpus[\s_-]*cavernosum|corpora[\s_-]*cavernosa|corpus[\s_-]*spongiosum|glans|prepuce|foreskin|scrot|suspensory[\s_-]*ligament[\s_-]*of[\s_-]*penis|fundiform|penis|penile|bulb[\s_-]*of[\s_-]*penis|crus[\s_-]*of[\s_-]*penis|crura[\s_-]*of[\s_-]*penis|cremaster|male[\s_-]*urethra|hairs[\s_-]*of[\s_-]*head|pubic[\s_-]*hairs|pampiniform|dorsal[\s_-]*veins?[\s_-]*of[\s_-]*penis|deep[\s_-]*dorsal[\s_-]*vein[\s_-]*of[\s_-]*penis|dorsal[\s_-]*artery[\s_-]*of[\s_-]*penis|deep[\s_-]*artery[\s_-]*of[\s_-]*penis|dorsal[\s_-]*nerve[\s_-]*of[\s_-]*penis|cavernous[\s_-]*nerve|external[\s_-]*pudendal|genital[\s_-]*branch[\s_-]*of[\s_-]*genitofemoral|ilioinguinal)\b/i;
 
 const FEMALE_LEAK_REGEX =
   /\b(?:uterus|ovary|ovaries|ovarian|fallopian|uterine[\s_-]*tube|salpinx|vagina|vaginal|vulva|clitoris|clitoral|labium|labia|mons[\s_-]*pubis|mammary[\s_-]*gland|breast|nipple|areola|broad[\s_-]*ligament|round[\s_-]*ligament[\s_-]*of[\s_-]*uterus|greater[\s_-]*vestibular|bartholin)\b/i;
@@ -450,6 +452,8 @@ async function runAudit() {
         femaleOrgansFound: [],
         maleOrgansFound: [],
         femaleIntegumentSuppressedCount: 0,
+        femaleZAnatomyOrgans: [],
+        femaleZAnatomyFailures: [],
       },
       pillar4: {
         totalCoreChecked: CORE_60_STRUCTURES.length,
@@ -493,6 +497,7 @@ async function runAudit() {
         mesh.userData.partIndex = partIdx - 1;
         mesh.userData.__spatialBounds = {
           center: stats.center.clone(),
+          minY: stats.minY,
           maxZ: stats.maxZ,
           radius: stats.radius,
           system: modelEntry.system,
@@ -627,7 +632,7 @@ async function runAudit() {
 
         const labelAll = `${mesh.parent?.name || ''} ${mesh.name} ${parsed.cleanName}`;
         if (effectiveVisFemale && MALE_LEAK_REGEX.test(labelAll)) {
-          // Allow protected "suspensory ligament of eyeball/ovary" or shared perineal if false positive? Flag and inspect!
+          // Allow protected "suspensory ligament of eyeball/ovary"
           if (!/suspensory\s+ligament\s+of\s+(?:eyeball|ovary)/i.test(labelAll)) {
             results.pillar3.femaleModeMaleLeaks.push({
               file: modelEntry.fileName,
@@ -635,6 +640,26 @@ async function runAudit() {
               cleanName: parsed.cleanName,
             });
           }
+        }
+        if (
+          effectiveVisFemale &&
+          (modelEntry.system === 'cardiovascular' ||
+            modelEntry.system === 'nervous' ||
+            modelEntry.system === 'visceral' ||
+            modelEntry.system === 'integumentary') &&
+          Math.abs(stats.center.x) < 0.062 &&
+          ((stats.center.y > 0.68 && stats.center.y < 0.805) ||
+            (stats.minY > 0.68 && stats.minY < 0.805)) &&
+          (stats.center.z > 0.048 || stats.maxZ > 0.048) &&
+          !/\b(?:femoral|saphenous|obturator|gluteal|internal[\s_-]*pudendal|pudendal[\s_-]*nerve)\b/i.test(
+            labelAll
+          )
+        ) {
+          results.pillar3.femaleModeMaleLeaks.push({
+            file: modelEntry.fileName,
+            rawName: mesh.name,
+            cleanName: `${parsed.cleanName} [subpubicZoneLeak]`,
+          });
         }
         if (visMale && FEMALE_LEAK_REGEX.test(labelAll)) {
           results.pillar3.maleModeFemaleLeaks.push({
@@ -993,6 +1018,143 @@ async function runAudit() {
       }
     }
 
+    // Pillar 3B: Verify the 7 Authentic Female NIH Organs Mount & Align Inside Z-Anatomy `FEMALE ♀`
+    const findWrapperLandmark = (regex) => {
+      wrapperRoot.updateMatrixWorld(true);
+      const box = new THREE.Box3();
+      const tmp = new THREE.Box3();
+      const sph = new THREE.Sphere();
+      let hit = false;
+      wrapperRoot.traverse((obj) => {
+        if (!obj.isMesh || !regex.test(obj.name || '')) return;
+        const st = getMeshSpatialStats(obj);
+        if (!st.box.isEmpty()) {
+          st.box.getBoundingSphere(sph);
+          if (sph.radius > 0.005 && sph.radius < 0.45) {
+            tmp.copy(st.box);
+            box.union(tmp);
+            hit = true;
+          }
+        }
+      });
+      return hit && !box.isEmpty() ? box : null;
+    };
+
+    const bladderLandmark = findWrapperLandmark(/urinary[\s_]*bladder/i);
+    const pecLeftLandmark = findWrapperLandmark(/pectoralis[\s_]*major.*left/i);
+    const pecRightLandmark = findWrapperLandmark(/pectoralis[\s_]*major.*right/i);
+
+    const femaleFileMap = {
+      'uterus-female': 'public/models/nih/female/uterus-female.glb',
+      'ovary-female-left': 'public/models/nih/female/ovary-female-left.glb',
+      'ovary-female-right': 'public/models/nih/female/ovary-female-right.glb',
+      'fallopian-tube-female-left': 'public/models/nih/female/fallopian-tube-female-left.glb',
+      'fallopian-tube-female-right': 'public/models/nih/female/fallopian-tube-female-right.glb',
+      'mammary-gland-female-left': 'public/models/nih/female/mammary-gland-female-left.glb',
+      'mammary-gland-female-right': 'public/models/nih/female/mammary-gland-female-right.glb',
+    };
+
+    const loadedFemalePieces = {};
+    const combinedPelvicRaw = new THREE.Box3();
+    for (const [id, relPath] of Object.entries(femaleFileMap)) {
+      const fullPath = path.join(ROOT, relPath);
+      if (!fs.existsSync(fullPath)) {
+        results.pillar3.femaleZAnatomyFailures.push({ id, reason: 'Missing GLB file' });
+        continue;
+      }
+      const { root } = loadGlbAsThreeScene(fullPath);
+      loaded.calibrateFemaleZAnatomyMaterials(id, root);
+      const rawBox = loaded.computeFilteredRawOrganBox(root);
+      loadedFemalePieces[id] = { id, root, rawBox };
+      if ((loaded.FEMALE_PELVIC_ORGAN_IDS || []).includes(id)) {
+        combinedPelvicRaw.union(rawBox);
+      }
+    }
+
+    const pelvicTx = loaded.computeCohesivePelvicTransform(
+      combinedPelvicRaw,
+      bladderLandmark
+    );
+
+    const checkFemaleWorldBounds = (id, root, tx, isPelvic) => {
+      const grp = new THREE.Group();
+      grp.position.copy(tx.position);
+      grp.scale.copy(tx.scale);
+      grp.add(root);
+      grp.updateMatrixWorld(true);
+
+      const visibleBox = new THREE.Box3();
+      const tmp = new THREE.Box3();
+      let neonBlueFound = false;
+      let visibleFatFound = false;
+
+      root.traverse((obj) => {
+        if (!obj.isMesh) return;
+        if (/fat/i.test(obj.name || '') && obj.visible) {
+          visibleFatFound = true;
+        }
+        if (!obj.visible) return;
+        const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+        for (const m of mats) {
+          if (m?.color && m.color.b > 0.5 && m.color.r < 0.2 && m.color.g < 0.25) {
+            neonBlueFound = true;
+          }
+        }
+        const st = getMeshSpatialStats(obj);
+        if (!st.box.isEmpty()) visibleBox.union(st.box);
+      });
+
+      const center = visibleBox.getCenter(new THREE.Vector3());
+      const issues = [];
+      if (visibleBox.isEmpty()) issues.push('Empty bounds');
+      if (neonBlueFound) issues.push('Raw neon-blue placeholder material not calibrated');
+      if (visibleFatFound) issues.push('Noise adipose fat pad not hidden');
+      if (isPelvic) {
+        if (center.y < 0.78 || center.y > 0.90) {
+          issues.push(`Pelvic Y center ${center.y.toFixed(4)}m outside [0.78, 0.90]m`);
+        }
+        if (Math.abs(center.x) > 0.08) {
+          issues.push(`Pelvic X center ${center.x.toFixed(4)}m too lateral`);
+        }
+      } else {
+        if (center.y < 1.20 || center.y > 1.34) {
+          issues.push(`Mammary Y center ${center.y.toFixed(4)}m outside [1.20, 1.34]m`);
+        }
+        if (id.endsWith('left') && center.x < 0.05) {
+          issues.push(`Left mammary should sit in +X, got ${center.x.toFixed(4)}m`);
+        }
+        if (id.endsWith('right') && center.x > -0.05) {
+          issues.push(`Right mammary should sit in -X, got ${center.x.toFixed(4)}m`);
+        }
+      }
+
+      results.pillar3.femaleZAnatomyOrgans.push({
+        id,
+        center: center.toArray().map((n) => Number(n.toFixed(4))),
+        size: visibleBox.getSize(new THREE.Vector3()).toArray().map((n) => Number(n.toFixed(4))),
+        issues,
+      });
+      if (issues.length > 0) {
+        results.pillar3.femaleZAnatomyFailures.push({ id, issues });
+      }
+    };
+
+    for (const pid of loaded.FEMALE_PELVIC_ORGAN_IDS) {
+      if (loadedFemalePieces[pid]) {
+        checkFemaleWorldBounds(pid, loadedFemalePieces[pid].root, pelvicTx, true);
+      }
+    }
+    if (loadedFemalePieces['mammary-gland-female-left']) {
+      const p = loadedFemalePieces['mammary-gland-female-left'];
+      const txL = loaded.computeMammaryGlandTransform('left', p.rawBox, pecLeftLandmark);
+      checkFemaleWorldBounds(p.id, p.root, txL, false);
+    }
+    if (loadedFemalePieces['mammary-gland-female-right']) {
+      const p = loadedFemalePieces['mammary-gland-female-right'];
+      const txR = loaded.computeMammaryGlandTransform('right', p.rawBox, pecRightLandmark);
+      checkFemaleWorldBounds(p.id, p.root, txR, false);
+    }
+
     const totalFailures =
       results.pillar1.genericFailures.length +
       results.pillar1.lateralityErrors.length +
@@ -1003,6 +1165,7 @@ async function runAudit() {
       results.pillar2.explodeSplits.length +
       results.pillar3.femaleModeMaleLeaks.length +
       results.pillar3.maleModeFemaleLeaks.length +
+      results.pillar3.femaleZAnatomyFailures.length +
       results.pillar4.coreFailures.length +
       results.pillar4.realMeshFallbackSamples.length;
 
@@ -1029,6 +1192,8 @@ async function runAudit() {
     console.log('P3 Female mode -> male leaks:', results.pillar3.femaleModeMaleLeaks.length, results.pillar3.femaleModeMaleLeaks.slice(0, 15));
     console.log('P3 Male mode -> female leaks:', results.pillar3.maleModeFemaleLeaks.length, results.pillar3.maleModeFemaleLeaks.slice(0, 15));
     console.log('P3 Female integumentary head/pubic hair suppressed:', results.pillar3.femaleIntegumentSuppressedCount);
+    console.log('P3 Female Z-Anatomy aligned organs:', JSON.stringify(results.pillar3.femaleZAnatomyOrgans));
+    console.log('P3 Female Z-Anatomy alignment failures:', results.pillar3.femaleZAnatomyFailures.length, results.pillar3.femaleZAnatomyFailures);
     console.log('P3 Female organs in NIH:', results.pillar3.femaleOrgansFound);
     console.log('P3 Male organs in NIH:', results.pillar3.maleOrgansFound);
     console.log(`P4 Core ${results.pillar4.totalCoreChecked} structures failures:`, results.pillar4.coreFailures.length);

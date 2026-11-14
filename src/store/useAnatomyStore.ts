@@ -102,6 +102,8 @@ export interface AnatomyState {
 
   // Phase 5 Search, Layer Matrix, Camera Presets, Custom GLB & Mobile Sheet state
   anatomicalCatalog: AnatomicalPartInfo[];
+  baseCatalogParts: AnatomicalPartInfo[];
+  supplementalCatalogParts: AnatomicalPartInfo[];
   searchQuery: string;
   cameraPresetView: CameraPresetView | null;
   cameraPresetTrigger: number;
@@ -152,6 +154,7 @@ export interface AnatomyState {
 
   // Phase 5 actions
   registerCatalog: (parts: AnatomicalPartInfo[]) => void;
+  setSupplementalCatalogParts: (parts: AnatomicalPartInfo[]) => void;
   setSearchQuery: (q: string) => void;
   selectAndFlyToPart: (meshUuid: string) => void;
   triggerCameraPreset: (view: CameraPresetView) => void;
@@ -245,6 +248,8 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
   isLoadingMedicalData: false,
 
   anatomicalCatalog: [],
+  baseCatalogParts: [],
+  supplementalCatalogParts: [],
   searchQuery: '',
   cameraPresetView: null,
   cameraPresetTrigger: 0,
@@ -497,7 +502,11 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
     set((state) => {
       const seen = new Set<string>();
       const deduped: AnatomicalPartInfo[] = [];
-      for (const p of parts) {
+      const merged = [
+        ...parts,
+        ...(state.biologicalSex === 'female' ? state.supplementalCatalogParts : []),
+      ];
+      for (const p of merged) {
         if (!isPartVisibleForSex(p, state.biologicalSex)) continue;
         const key = `${p.meshUuid}::${p.rawName}`;
         if (!seen.has(key)) {
@@ -506,7 +515,33 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
         }
       }
       deduped.sort((a, b) => a.cleanName.localeCompare(b.cleanName));
-      return { anatomicalCatalog: deduped };
+      return {
+        baseCatalogParts: parts,
+        anatomicalCatalog: deduped,
+      };
+    }),
+
+  setSupplementalCatalogParts: (parts) =>
+    set((state) => {
+      const seen = new Set<string>();
+      const deduped: AnatomicalPartInfo[] = [];
+      const merged = [
+        ...state.baseCatalogParts,
+        ...(state.biologicalSex === 'female' ? parts : []),
+      ];
+      for (const p of merged) {
+        if (!isPartVisibleForSex(p, state.biologicalSex)) continue;
+        const key = `${p.meshUuid}::${p.rawName}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(p);
+        }
+      }
+      deduped.sort((a, b) => a.cleanName.localeCompare(b.cleanName));
+      return {
+        supplementalCatalogParts: parts,
+        anatomicalCatalog: deduped,
+      };
     }),
 
   setSearchQuery: (q) => set({ searchQuery: q }),
@@ -668,6 +703,8 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
         explorerCloudUid: null,
         explorerCloudTitle: null,
         anatomicalCatalog: [],
+        baseCatalogParts: [],
+        supplementalCatalogParts: [],
         searchQuery: '',
         selectedPart: null,
         selectedMeshId: null,
@@ -701,6 +738,7 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
       if (state.biologicalSex === sex) return state;
       return {
         biologicalSex: sex,
+        supplementalCatalogParts: sex === 'female' ? state.supplementalCatalogParts : [],
         anatomicalCatalog: state.anatomicalCatalog.filter((part) =>
           isPartVisibleForSex(part, sex)
         ),
@@ -729,6 +767,8 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
         customGlbUrl: null,
         customGlbName: null,
         anatomicalCatalog: [],
+        baseCatalogParts: [],
+        supplementalCatalogParts: [],
         selectedPart: null,
         selectedMeshId: null,
         selectedAnatomicalName: null,
@@ -807,6 +847,8 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
         explorerCloudUid: null,
         explorerCloudTitle: null,
         anatomicalCatalog: [],
+        baseCatalogParts: [],
+        supplementalCatalogParts: [],
         selectedPart: null,
         selectedMeshId: null,
         selectedAnatomicalName: null,
@@ -837,6 +879,8 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
         customGlbUrl: null,
         customGlbName: null,
         anatomicalCatalog: [],
+        baseCatalogParts: [],
+        supplementalCatalogParts: [],
         hiddenPartIds: [],
         isolatedPartId: null,
         xrayGhostMode: false,

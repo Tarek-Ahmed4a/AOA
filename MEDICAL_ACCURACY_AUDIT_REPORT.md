@@ -24,7 +24,7 @@ The entire 3D Human Anatomy Atlas scene graph (`Z-Anatomy` full-body GLBs + `73`
 | **Pillar 2 — Cardiovascular System Topology** | `zanatomy:cardiovascular` (`676` meshes) | Isolated intrinsic cardiac papillary/coronary structures as `'Median / Unpaired'` and validated aortic/portal/pulmonary clinical baselines | **0** | **100%** |
 | **Pillar 2 — Nervous System Topology** | `zanatomy:nervous` (`708` meshes) | Added cranial/peripheral nerve TA98 & clinical entries (CN V, CN VII, CN X, Phrenic, Median, Ulnar, Radial, Femoral, Obturator, Tibial, Common Fibular) | **0** | **100%** |
 | **Pillar 2 — Integumentary System & Dataset Isolation** | `zanatomy:integumentary` (`750` meshes) + Z-Anatomy vs NIH mutual exclusion | Verified strict Z-Anatomy / NIH pose separation (`crossDatasetIsolated: true`) with zero overlapping limbs | **0** | **100%** |
-| **Pillar 3 — Biological Sex Dimorphism (`MALE ♂` / `FEMALE ♀`)** | Female (`7` NIH organs) · Male (`prostate-male`) · Integumentary hair suppression | Verified `0` male leaks in `FEMALE ♀`, `0` female leaks in `MALE ♂`, and `2` male scalp/pubic hair meshes suppressed in Female integumentary view | **0** | **100%** |
+| **Pillar 3 — Biological Sex Dimorphism (`MALE ♂` / `FEMALE ♀`)** | Female (`7` NIH organs inside Z-Anatomy `FEMALE ♀`) · Male (`prostate-male`) · Groin neurovasculature & hair suppression | Mounted & precision-aligned all `7` female pelvic/mammary organs in Z-Anatomy (`0` failures), pruned male groin vessels/nerves (`|X|<0.062, Y∈(0.68,0.805), Z>0.048`), and verified `0` male/female leaks | **0** | **100%** |
 | **Pillar 4 — Clinical Textbook, Neurovascular & WHO Arabic** | `67` Core Structures + all `5,784` Z-Anatomy/NIH meshes | Blocked truncated `textbookKnowledge.json` overwrites, replaced generic fallbacks with `19` regional clinical rules, expanded TA98 & Arabic lexicons | **0** | **100%** |
 
 ---
@@ -82,11 +82,12 @@ All 6 Z-Anatomy systems sit coherently centered along the midline sagittal plane
 ### Pillar 3 — Biological Sex Dimorphism (`MALE ♂` vs. `FEMALE ♀`)
 ### الركيزة الثالثة — التمايز التشريحي الجنسي
 
-- Verified strict runtime segregation across NIH and Z-Anatomy structures:
+- Verified strict runtime segregation, subpubic neurovascular pruning, and aligned `FEMALE ♀` organ registration across NIH and Z-Anatomy structures:
   - `P3 Female mode -> male leaks: 0 []`
   - `P3 Male mode -> female leaks: 0 []`
+  - `P3 Female Z-Anatomy aligned organs (7/7): 0 failures` (`uterus-female [0, 0.8235, 0.016]`, `ovary-female-left [0.0522, 0.8534, 0.0282]`, `ovary-female-right [-0.0516, 0.8534, 0.0281]`, `fallopian-tube-female-left [0.0405, 0.8554, 0.0306]`, `fallopian-tube-female-right [-0.0389, 0.8545, 0.0263]`, `mammary-gland-female-left [0.086, 1.268, 0.092]`, `mammary-gland-female-right [-0.086, 1.268, 0.092]`)
   - `P3 Female integumentary head/pubic hair suppressed: 2`
-  - Dedicated `FEMALE ♀` structures (`7` NIH models) and `MALE ♂` structure (`prostate-male`) remain strictly gated to their biological sex mode.
+  - Dedicated `FEMALE ♀` structures (`7` NIH models mounted inside Z-Anatomy `Full Body` / `Visceral` with `VH_F_Skin` and `VH_F_Pelvis` strictly excluded) and `MALE ♂` structure (`prostate-male`) remain strictly gated to their biological sex mode.
 
 ### Pillar 4 — Clinical Textbook Integrity, Neurovascular Accuracy & WHO Arabic Localization
 ### الركيزة الرابعة — الدقة السريرية والتغذية العصبية/الشريانية والتوطين العربي

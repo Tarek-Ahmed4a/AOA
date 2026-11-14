@@ -132,12 +132,14 @@ function registerAppProtocol() {
 let mainWindow = null;
 
 function createMainWindow() {
+  const iconPath = path.join(__dirname, '..', 'build', 'icon.png');
   const win = new BrowserWindow({
     width: 1440,
     height: 900,
     minWidth: 1024,
     minHeight: 680,
     title: 'Anatomy Atlas 3D',
+    icon: fs.existsSync(iconPath) ? iconPath : undefined,
     backgroundColor: '#000000',
     autoHideMenuBar: true,
     show: false,

@@ -23,3 +23,17 @@ if (fs.existsSync(appBuildGradlePath)) {
     fs.writeFileSync(appBuildGradlePath, gradle, 'utf8');
   }
 }
+
+const androidIconsDir = path.resolve('build', 'android-icons');
+const androidResDir = path.resolve('android', 'app', 'src', 'main', 'res');
+if (fs.existsSync(androidIconsDir) && fs.existsSync(androidResDir)) {
+  for (const density of fs.readdirSync(androidIconsDir)) {
+    const srcDensity = path.join(androidIconsDir, density);
+    const dstDensity = path.join(androidResDir, density);
+    if (!fs.statSync(srcDensity).isDirectory()) continue;
+    fs.mkdirSync(dstDensity, { recursive: true });
+    for (const file of fs.readdirSync(srcDensity)) {
+      fs.copyFileSync(path.join(srcDensity, file), path.join(dstDensity, file));
+    }
+  }
+}

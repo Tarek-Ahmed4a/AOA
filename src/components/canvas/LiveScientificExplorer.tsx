@@ -8,13 +8,24 @@ import React, {
 import {
   ArrowLeft,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   Cloud,
   Cpu,
+  EyeOff,
   FlaskConical,
+  Focus,
   Loader2,
+  MapPin,
+  MapPinOff,
   Microscope,
+  RotateCcw,
+  Scan,
+  Scissors,
   Search,
+  Sliders,
   Sparkles,
+  Undo2,
   X,
 } from 'lucide-react';
 import { ANATOMICAL_SYSTEMS } from '../../config/anatomicalSystems';
@@ -27,9 +38,20 @@ import {
   useAnatomyStore,
   type AnatomicalSystem,
   type BiologicalSex,
+  type OfficialAtlasPresetId,
 } from '../../store/useAnatomyStore';
 import { parseAnatomicalString } from '../../utils/anatomyParser';
 import { resolveAssetUrl } from '../../utils/assetUrl';
+import {
+  buildCloudNodeIndex,
+  collectIsolationHideIds,
+  matchZAnatomySystemBundle,
+  type CloudNodeIndex,
+  type SketchfabAnnotationEntry,
+  type SketchfabMaterialEntry,
+  type SketchfabOpacityChannel,
+  type SketchfabViewerApi,
+} from '../../utils/cloudDissectionBridge';
 import {
   bakeGlbThumbnail,
   getCachedGlbThumbnail,
@@ -70,6 +92,7 @@ interface ExplorerModelCard {
   thumbnailUrl: string | null;
   uid?: string;
   isDownloadable: boolean;
+  localBundlePreset?: OfficialAtlasPresetId;
   glbUrl?: string;
   faceCount?: number;
   license?: string;
@@ -91,34 +114,16 @@ interface SketchfabApiSearchResult {
   tags?: Array<{ name?: string; slug?: string }>;
 }
 
-interface SketchfabNodeEntry {
-  instanceID?: number;
-  name?: string;
-  type?: string;
-}
-
 interface SketchfabClickInfo {
   instanceID?: number;
   material?: { name?: string };
 }
 
-interface SketchfabViewerApi {
-  start: () => void;
-  setBackground: (
-    options: { color?: [number, number, number, number] },
-    callback?: () => void
-  ) => void;
-  getNodeMap: (
-    callback: (
-      err: unknown,
-      nodes: Record<string, SketchfabNodeEntry>
-    ) => void
-  ) => void;
-  addEventListener: (
-    event: string,
-    callback: (info?: unknown) => void,
-    options?: Record<string, unknown>
-  ) => void;
+interface CloudSelectedNodeState {
+  instanceID: number;
+  name: string;
+  cleanLabel: string;
+  materialName?: string;
 }
 
 const ARABIC_CHAR_REGEX = /[\u0600-\u06FF]/;
@@ -507,6 +512,7 @@ function mapSketchfabItem(
   const title = item.name || 'Anatomical 3D Specimen';
   const tagText = (item.tags ?? []).map((t) => t.name || '').join(' ');
   const uniBadge = UNIVERSITY_BADGES[userLower];
+  const matchedBundle = isZAnatomy ? matchZAnatomySystemBundle(title) : null;
 
   return {
     id: `sf-${item.uid}`,
@@ -525,9 +531,10 @@ function mapSketchfabItem(
       ? '🏛️ Z-Anatomy TA2'
       : uniBadge || '🎓 Univ. Medical School Scan',
     author: displayName,
-    system: classifyExplorerSystem(`${title} ${tagText}`),
+    system: matchedBundle?.system ?? classifyExplorerSystem(`${title} ${tagText}`),
     thumbnailUrl: pickThumbnailUrl(item),
-    isDownloadable: Boolean(item.isDownloadable),
+    isDownloadable: Boolean(item.isDownloadable) || Boolean(matchedBundle),
+    localBundlePreset: matchedBundle?.preset,
     faceCount: item.faceCount,
     license: item.license?.label,
   };
@@ -1205,6 +1212,8 @@ export const LiveScientificExplorer: React.FC = () => {
   const loadExplorerCloudModel = useAnatomyStore(
     (s) => s.loadExplorerCloudModel
   );
+  const setActiveAtlasPreset = useAnatomyStore((s) => s.setActiveAtlasPreset);
+  const soloSystem = useAnatomyStore((s) => s.soloSystem);
   const selectPart = useAnatomyStore((s) => s.selectPart);
 
   const [searchInput, setSearchInput] = useState('');
@@ -1221,10 +1230,29 @@ export const LiveScientificExplorer: React.FC = () => {
   const [lastPickedCloudNode, setLastPickedCloudNode] = useState<string | null>(
     null
   );
+  const [cloudSelectedNode, setCloudSelectedNode] =
+    useState<CloudSelectedNodeState | null>(null);
+  const [cloudPeeledStack, setCloudPeeledStack] = useState<number[]>([]);
+  const [cloudIsolatedId, setCloudIsolatedId] = useState<number | null>(null);
+  const [cloudXrayEnabled, setCloudXrayEnabled] = useState(false);
+  const [cloudSliceEnabled, setCloudSliceEnabled] = useState(false);
+  const [cloudSliceDepth, setCloudSliceDepth] = useState(35);
+  const [cloudExplodePct, setCloudExplodePct] = useState(0);
+  const [cloudPinsVisible, setCloudPinsVisible] = useState(true);
+  const [cloudAnnotationCount, setCloudAnnotationCount] = useState(0);
+  const [cloudDockMinimized, setCloudDockMinimized] = useState(false);
 
   const searchAbortRef = useRef<AbortController | null>(null);
   const nihCacheRef = useRef<ExplorerModelCard[] | null>(null);
   const cloudIframeRef = useRef<HTMLIFrameElement>(null);
+  const cloudApiRef = useRef<SketchfabViewerApi | null>(null);
+  const cloudNodeIndexRef = useRef<CloudNodeIndex | null>(null);
+  const cloudMaterialsRef = useRef<SketchfabMaterialEntry[]>([]);
+  const cloudOriginalOpacityRef = useRef<
+    Map<string, SketchfabOpacityChannel>
+  >(new Map());
+  const cloudAnnotationsRef = useRef<SketchfabAnnotationEntry[]>([]);
+  const cloudHiddenIdsRef = useRef<Set<number>>(new Set());
 
   const ensureNihCards = useCallback(async (): Promise<ExplorerModelCard[]> => {
     if (nihCacheRef.current) return nihCacheRef.current;
@@ -1446,7 +1474,7 @@ export const LiveScientificExplorer: React.FC = () => {
     void executeSearch(query, sourceFilter);
   };
 
-  // Mode A: Download real .glb and mount into Engine 1 (BVH + Outlines + Slicing + Inspector)
+  // Mode A: Auto-route direct .glb, local Z-Anatomy bundles, or downloadable Sketchfab .glb into Native Three.js Engine
   const launchInLocalEngine = useCallback(
     async (card: ExplorerModelCard) => {
       setLoadingCardId(card.id);
@@ -1457,6 +1485,32 @@ export const LiveScientificExplorer: React.FC = () => {
           loadCustomGlb(resolveAssetUrl(card.glbUrl), card.title);
           selectPart(
             parseAnatomicalString(card.title, card.title, card.system)
+          );
+          setActiveTab('master-atlas');
+          return;
+        }
+
+        const matchedBundle = card.localBundlePreset
+          ? {
+              preset: card.localBundlePreset,
+              system: card.system,
+              isFullBody: card.localBundlePreset === 'zanatomy-full-body',
+            }
+          : card.sourceKind === 'z-anatomy'
+            ? matchZAnatomySystemBundle(card.title)
+            : null;
+
+        if (matchedBundle) {
+          setActiveAtlasPreset(matchedBundle.preset);
+          if (!matchedBundle.isFullBody) {
+            soloSystem(matchedBundle.system);
+          }
+          selectPart(
+            parseAnatomicalString(
+              card.title,
+              card.title,
+              matchedBundle.system
+            )
           );
           setActiveTab('master-atlas');
           return;
@@ -1483,10 +1537,9 @@ export const LiveScientificExplorer: React.FC = () => {
         };
         const assetUrl = dlJson.glb?.url;
         if (!assetUrl) {
-          // If only zipped GLTF is returned, open seamlessly in Mode B Cloud 3D Stage
           loadExplorerCloudModel(card.uid, card.title);
           setStatusMessage(
-            'Model uses archived GLTF — opened in Cloud 3D Interactive Stage.'
+            'Model uses archived GLTF — opened in interactive Cloud 3D Dissector.'
           );
           return;
         }
@@ -1504,11 +1557,10 @@ export const LiveScientificExplorer: React.FC = () => {
         );
         setActiveTab('master-atlas');
       } catch {
-        // Fallback seamlessly to Mode B Sketchfab Cloud Viewer if signed GLB CORS/quota blocks
         if (card.uid) {
           loadExplorerCloudModel(card.uid, card.title);
           setStatusMessage(
-            'Direct GLB fetch unavailable — opened in Cloud 3D Stage.'
+            'Direct GLB fetch unavailable — opened in interactive Cloud 3D Stage.'
           );
         } else {
           setStatusMessage('Failed to load GLB asset from source.');
@@ -1517,22 +1569,246 @@ export const LiveScientificExplorer: React.FC = () => {
         setLoadingCardId(null);
       }
     },
-    [loadCustomGlb, loadExplorerCloudModel, selectPart, setActiveTab]
+    [
+      loadCustomGlb,
+      loadExplorerCloudModel,
+      selectPart,
+      setActiveAtlasPreset,
+      setActiveTab,
+      soloSystem,
+    ]
   );
 
-  // Mode B: Sketchfab Viewer API 1.12.1 on #000000 stage, bridged to Clinical Inspector Sidebar
+  // Reconcile Cloud 3D visible/hidden sub-meshes whenever Peel, Isolate, or Slice changes
+  useEffect(() => {
+    const api = cloudApiRef.current;
+    const index = cloudNodeIndexRef.current;
+    if (!api || !index || !cloudReady) return;
+
+    const nextHidden = new Set<number>(cloudPeeledStack);
+    if (cloudIsolatedId !== null) {
+      for (const id of collectIsolationHideIds(cloudIsolatedId, index)) {
+        nextHidden.add(id);
+      }
+    }
+    if (cloudSliceEnabled && index.sliceOrderedIds.length > 0) {
+      const sliceCount = Math.min(
+        Math.max(index.sliceOrderedIds.length - 1, 0),
+        Math.round((cloudSliceDepth / 100) * index.sliceOrderedIds.length)
+      );
+      for (let i = 0; i < sliceCount; i++) {
+        nextHidden.add(index.sliceOrderedIds[i]);
+      }
+    }
+
+    for (const id of nextHidden) {
+      if (!cloudHiddenIdsRef.current.has(id)) {
+        api.hide?.(id);
+      }
+    }
+    for (const prevId of cloudHiddenIdsRef.current) {
+      if (!nextHidden.has(prevId)) {
+        api.show?.(prevId);
+      }
+    }
+    cloudHiddenIdsRef.current = nextHidden;
+  }, [
+    cloudReady,
+    cloudPeeledStack,
+    cloudIsolatedId,
+    cloudSliceEnabled,
+    cloudSliceDepth,
+  ]);
+
+  // Cloud X-Ray translucency toggle via Sketchfab `getMaterialList` / `setMaterial`
+  useEffect(() => {
+    const api = cloudApiRef.current;
+    const materials = cloudMaterialsRef.current;
+    if (!api || !cloudReady || materials.length === 0) return;
+
+    const keepMatName = cloudSelectedNode?.materialName;
+    for (const mat of materials) {
+      const origOpacity = cloudOriginalOpacityRef.current.get(mat.id);
+      const isSelectedMat = Boolean(
+        cloudSelectedNode && keepMatName && mat.name === keepMatName
+      );
+      if (cloudXrayEnabled && !isSelectedMat) {
+        api.setMaterial?.({
+          ...mat,
+          channels: {
+            ...mat.channels,
+            Opacity: {
+              ...(origOpacity ?? {}),
+              enable: true,
+              factor: 0.2,
+              type: 'alphaBlend',
+            },
+          },
+        });
+      } else if (origOpacity) {
+        api.setMaterial?.({
+          ...mat,
+          channels: {
+            ...mat.channels,
+            Opacity: { ...origOpacity },
+          },
+        });
+      }
+    }
+  }, [cloudReady, cloudXrayEnabled, cloudSelectedNode]);
+
+  // Cloud Explode View via radial `api.translate` across movable transform nodes
+  useEffect(() => {
+    const api = cloudApiRef.current;
+    const index = cloudNodeIndexRef.current;
+    if (!api || !index || !cloudReady || index.movableNodes.length === 0) {
+      return;
+    }
+
+    const factor = cloudExplodePct / 100;
+    const timer = window.setTimeout(() => {
+      for (const node of index.movableNodes) {
+        api.translate?.(
+          node.instanceID,
+          [
+            node.restLocal[0] + node.explodeDir[0] * factor,
+            node.restLocal[1] + node.explodeDir[1] * factor,
+            node.restLocal[2] + node.explodeDir[2] * factor,
+          ],
+          { duration: 0.14, easing: 'easeOutQuad' }
+        );
+      }
+    }, 35);
+
+    return () => window.clearTimeout(timer);
+  }, [cloudReady, cloudExplodePct]);
+
+  // Sync Sketchfab Annotation Pins visibility (`[A]`)
+  useEffect(() => {
+    const api = cloudApiRef.current;
+    if (!api || !cloudReady) return;
+    if (cloudPinsVisible) {
+      api.showAnnotationTooltips?.();
+      for (let i = 0; i < cloudAnnotationsRef.current.length; i++) {
+        api.showAnnotation?.(i);
+      }
+    } else {
+      api.hideAnnotationTooltips?.();
+      for (let i = 0; i < cloudAnnotationsRef.current.length; i++) {
+        api.hideAnnotation?.(i);
+      }
+    }
+  }, [cloudReady, cloudPinsVisible]);
+
+  const handleCloudIsolate = useCallback(() => {
+    if (!cloudSelectedNode) return;
+    setCloudIsolatedId((prev) =>
+      prev === cloudSelectedNode.instanceID ? null : cloudSelectedNode.instanceID
+    );
+  }, [cloudSelectedNode]);
+
+  const handleCloudPeel = useCallback(() => {
+    if (!cloudSelectedNode) return;
+    setCloudPeeledStack((prev) =>
+      prev.includes(cloudSelectedNode.instanceID)
+        ? prev
+        : [...prev, cloudSelectedNode.instanceID]
+    );
+    if (cloudIsolatedId === cloudSelectedNode.instanceID) {
+      setCloudIsolatedId(null);
+    }
+    setCloudSelectedNode(null);
+  }, [cloudSelectedNode, cloudIsolatedId]);
+
+  const handleCloudUndoPeel = useCallback(() => {
+    setCloudPeeledStack((prev) => prev.slice(0, -1));
+  }, []);
+
+  const handleCloudRestoreAll = useCallback(() => {
+    setCloudPeeledStack([]);
+    setCloudIsolatedId(null);
+    setCloudXrayEnabled(false);
+    setCloudSliceEnabled(false);
+    setCloudExplodePct(0);
+    setCloudPinsVisible(true);
+    cloudApiRef.current?.recenterCamera?.();
+  }, []);
+
+  // Cloud Stage Keyboard Shortcuts ([I] Isolate, [H] Peel, [Z] Undo Peel, [X] X-Ray, [S] Slice, [R] Restore, [A] Pins)
+  useEffect(() => {
+    if (!explorerCloudUid) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === 'i') {
+        handleCloudIsolate();
+      } else if (k === 'h') {
+        handleCloudPeel();
+      } else if (k === 'z') {
+        handleCloudUndoPeel();
+      } else if (k === 'x') {
+        setCloudXrayEnabled((v) => !v);
+      } else if (k === 's') {
+        setCloudSliceEnabled((v) => !v);
+      } else if (k === 'r') {
+        handleCloudRestoreAll();
+      } else if (k === 'a') {
+        setCloudPinsVisible((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [
+    explorerCloudUid,
+    handleCloudIsolate,
+    handleCloudPeel,
+    handleCloudUndoPeel,
+    handleCloudRestoreAll,
+  ]);
+
+  // Mode B: Sketchfab Viewer API 1.12.1 on #000000 stage, bridged to Full Dissection Dock + Clinical Inspector Sidebar
   useEffect(() => {
     if (!explorerCloudUid) {
+      cloudApiRef.current = null;
+      cloudNodeIndexRef.current = null;
+      cloudMaterialsRef.current = [];
+      cloudOriginalOpacityRef.current.clear();
+      cloudAnnotationsRef.current = [];
+      cloudHiddenIdsRef.current.clear();
       setCloudReady(false);
       setCloudError(null);
       setCloudNodeCount(0);
       setLastPickedCloudNode(null);
+      setCloudSelectedNode(null);
+      setCloudPeeledStack([]);
+      setCloudIsolatedId(null);
+      setCloudXrayEnabled(false);
+      setCloudSliceEnabled(false);
+      setCloudExplodePct(0);
+      setCloudPinsVisible(true);
+      setCloudAnnotationCount(0);
       return;
     }
 
     let cancelled = false;
     setCloudReady(false);
     setCloudError(null);
+    setCloudSelectedNode(null);
+    setCloudPeeledStack([]);
+    setCloudIsolatedId(null);
+    setCloudXrayEnabled(false);
+    setCloudSliceEnabled(false);
+    setCloudExplodePct(0);
+    setCloudPinsVisible(true);
 
     ensureSketchfabViewerScript()
       .then(() => {
@@ -1541,7 +1817,6 @@ export const LiveScientificExplorer: React.FC = () => {
           '1.12.1',
           cloudIframeRef.current
         );
-        const nodeNameByInstanceId = new Map<number, string>();
 
         client.init(explorerCloudUid, {
           autostart: 1,
@@ -1552,12 +1827,15 @@ export const LiveScientificExplorer: React.FC = () => {
           ui_watermark: 0,
           ui_stop: 0,
           ui_help: 0,
+          ui_settings: 0,
+          ui_inspector: 0,
           ui_ar: 0,
           ui_vr: 0,
           ui_hint: 0,
           success: (rawApi: unknown) => {
             if (cancelled) return;
             const api = rawApi as SketchfabViewerApi;
+            cloudApiRef.current = api;
             api.start();
             api.addEventListener('viewerready', () => {
               if (cancelled) return;
@@ -1566,18 +1844,39 @@ export const LiveScientificExplorer: React.FC = () => {
 
               api.getNodeMap((err, nodes) => {
                 if (cancelled || err || !nodes) return;
-                let count = 0;
-                for (const node of Object.values(nodes)) {
-                  if (
-                    typeof node.instanceID === 'number' &&
-                    node.name &&
-                    !/^(rootnode|scene|sketchfab)/i.test(node.name)
-                  ) {
-                    nodeNameByInstanceId.set(node.instanceID, node.name);
-                    count += 1;
-                  }
+                const index = buildCloudNodeIndex(nodes);
+                cloudNodeIndexRef.current = index;
+                setCloudNodeCount(index.nameByInstanceId.size);
+              });
+
+              api.getMaterialList?.((err, materials) => {
+                if (cancelled || err || !Array.isArray(materials)) return;
+                cloudMaterialsRef.current = materials;
+                cloudOriginalOpacityRef.current.clear();
+                for (const m of materials) {
+                  cloudOriginalOpacityRef.current.set(m.id, {
+                    ...(m.channels?.Opacity ?? { enable: false, factor: 1 }),
+                  });
                 }
-                setCloudNodeCount(count);
+              });
+
+              api.getAnnotationList?.((err, annotations) => {
+                if (cancelled || err || !Array.isArray(annotations)) return;
+                cloudAnnotationsRef.current = annotations;
+                setCloudAnnotationCount(annotations.length);
+              });
+
+              api.addEventListener('annotationSelect', (rawIndex: unknown) => {
+                if (cancelled || typeof rawIndex !== 'number' || rawIndex < 0) {
+                  return;
+                }
+                const ann = cloudAnnotationsRef.current[rawIndex];
+                if (!ann) return;
+                const rawTitle =
+                  ann.name || explorerCloudTitle || 'Anatomical Structure';
+                const cleanLabel = formatReadableNodeName(rawTitle);
+                setLastPickedCloudNode(cleanLabel);
+                selectPart(parseAnatomicalString(rawTitle, cleanLabel));
               });
 
               api.addEventListener(
@@ -1585,9 +1884,10 @@ export const LiveScientificExplorer: React.FC = () => {
                 (rawInfo: unknown) => {
                   const info = rawInfo as SketchfabClickInfo | undefined;
                   if (!info) return;
+                  const idx = cloudNodeIndexRef.current;
                   const mappedName =
                     typeof info.instanceID === 'number'
-                      ? nodeNameByInstanceId.get(info.instanceID)
+                      ? idx?.nameByInstanceId.get(info.instanceID)
                       : undefined;
                   const candidateRaw =
                     mappedName ||
@@ -1597,6 +1897,14 @@ export const LiveScientificExplorer: React.FC = () => {
                   const cleanLabel = formatReadableNodeName(candidateRaw);
                   if (!cleanLabel) return;
                   setLastPickedCloudNode(cleanLabel);
+                  if (typeof info.instanceID === 'number') {
+                    setCloudSelectedNode({
+                      instanceID: info.instanceID,
+                      name: candidateRaw,
+                      cleanLabel,
+                      materialName: info.material?.name,
+                    });
+                  }
                   selectPart(parseAnatomicalString(candidateRaw, cleanLabel));
                 },
                 { pick: 'fast' }
@@ -1605,7 +1913,9 @@ export const LiveScientificExplorer: React.FC = () => {
           },
           error: () => {
             if (!cancelled) {
-              setCloudError('Failed to initialize Sketchfab Cloud Viewer for this model.');
+              setCloudError(
+                'Failed to initialize Sketchfab Cloud Viewer for this model.'
+              );
             }
           },
         });
@@ -1664,6 +1974,228 @@ export const LiveScientificExplorer: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Left Surgical Dissection Dock (Cloud API Mirror of Engine 1 HUD) */}
+        <aside className="pointer-events-auto fixed left-3 top-16 z-20 w-[238px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/10 bg-[#07070c]/90 p-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Sliders className="h-3.5 w-3.5 text-sky-400" />
+              <span className="font-mono text-[10px] font-bold uppercase tracking-widest text-zinc-200">
+                SURGICAL DISSECTION
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCloudDockMinimized((v) => !v)}
+              aria-label={
+                cloudDockMinimized
+                  ? 'Expand Surgical Dissection'
+                  : 'Minimize Surgical Dissection'
+              }
+              className="rounded p-0.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+            >
+              {cloudDockMinimized ? (
+                <ChevronDown className="h-3.5 w-3.5" />
+              ) : (
+                <ChevronUp className="h-3.5 w-3.5" />
+              )}
+            </button>
+          </div>
+
+          {!cloudDockMinimized && (
+            <div className="mt-2 space-y-2">
+              <div className="grid grid-cols-2 gap-1.5">
+                {/* Isolate [I] */}
+                <button
+                  type="button"
+                  onClick={handleCloudIsolate}
+                  disabled={!cloudReady || !cloudSelectedNode}
+                  aria-pressed={cloudIsolatedId !== null}
+                  title="Isolate selected structure [I]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    cloudIsolatedId !== null
+                      ? 'border-sky-400/50 bg-sky-500/20 text-white'
+                      : cloudSelectedNode
+                        ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                        : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Focus className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {cloudIsolatedId !== null ? 'Unisolate' : 'Isolate'}
+                    </span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">I</kbd>
+                </button>
+
+                {/* Peel [H] */}
+                <button
+                  type="button"
+                  onClick={handleCloudPeel}
+                  disabled={!cloudReady || !cloudSelectedNode}
+                  title="Peel / hide selected structure [H]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    cloudSelectedNode
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:border-rose-400/40 hover:bg-rose-500/15 hover:text-rose-100'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <EyeOff className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Peel</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">H</kbd>
+                </button>
+
+                {/* Undo Peel [Z] */}
+                <button
+                  type="button"
+                  onClick={handleCloudUndoPeel}
+                  disabled={!cloudReady || cloudPeeledStack.length === 0}
+                  title="Undo last peel [Z]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    cloudPeeledStack.length > 0
+                      ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                      : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Undo2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Undo Peel</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">Z</kbd>
+                </button>
+
+                {/* X-Ray [X] */}
+                <button
+                  type="button"
+                  onClick={() => setCloudXrayEnabled((v) => !v)}
+                  disabled={!cloudReady}
+                  aria-pressed={cloudXrayEnabled}
+                  title="Toggle translucent X-Ray context [X]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    cloudXrayEnabled
+                      ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-100'
+                      : 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Scan className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">X-Ray</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">X</kbd>
+                </button>
+
+                {/* Slice Tool [S] */}
+                <button
+                  type="button"
+                  onClick={() => setCloudSliceEnabled((v) => !v)}
+                  disabled={!cloudReady}
+                  aria-pressed={cloudSliceEnabled}
+                  title="Toggle Cross-Section Layer Cutaway [S]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    cloudSliceEnabled
+                      ? 'border-sky-400/55 bg-sky-500/25 text-white shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                      : 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                  )}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Scissors className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Slice Tool</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">S</kbd>
+                </button>
+
+                {/* Restore All [R] */}
+                <button
+                  type="button"
+                  onClick={handleCloudRestoreAll}
+                  disabled={!cloudReady}
+                  title="Restore all peeled, isolated & exploded structures [R]"
+                  className="flex items-center justify-between gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] font-medium text-zinc-200 transition-all hover:border-emerald-400/40 hover:bg-emerald-500/15 hover:text-emerald-100"
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <RotateCcw className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Restore All</span>
+                  </span>
+                  <kbd className="font-mono text-[9px] text-zinc-400">R</kbd>
+                </button>
+              </div>
+
+              {cloudSliceEnabled && (
+                <div className="rounded-xl border border-sky-400/25 bg-sky-500/10 px-2.5 py-2">
+                  <div className="flex items-center justify-between font-mono text-[9.5px] text-sky-200">
+                    <span>SECTION DEPTH</span>
+                    <span>{cloudSliceDepth}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={10}
+                    max={85}
+                    value={cloudSliceDepth}
+                    onChange={(e) =>
+                      setCloudSliceDepth(Number(e.target.value))
+                    }
+                    className="mt-1 h-1.5 w-full cursor-pointer accent-sky-400"
+                  />
+                </div>
+              )}
+
+              {/* Explode View Slider */}
+              <div className="rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-2">
+                <div className="flex items-center justify-between font-mono text-[9.5px] text-zinc-300">
+                  <span>EXPLODE VIEW</span>
+                  <span className="text-sky-300">{cloudExplodePct}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={cloudExplodePct}
+                  disabled={!cloudReady}
+                  onChange={(e) =>
+                    setCloudExplodePct(Number(e.target.value))
+                  }
+                  className="mt-1 h-1.5 w-full cursor-pointer accent-sky-400 disabled:opacity-40"
+                />
+              </div>
+
+              {/* Hide / Show Annotation Pins [A] */}
+              <button
+                type="button"
+                onClick={() => setCloudPinsVisible((v) => !v)}
+                disabled={!cloudReady}
+                aria-pressed={!cloudPinsVisible}
+                title="Hide or show 3D annotation pins [A]"
+                className={cn(
+                  'flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium transition-all',
+                  cloudPinsVisible
+                    ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
+                    : 'border-amber-400/40 bg-amber-500/15 text-amber-100'
+                )}
+              >
+                <span className="flex items-center gap-1.5 truncate">
+                  {cloudPinsVisible ? (
+                    <MapPinOff className="h-3.5 w-3.5 shrink-0" />
+                  ) : (
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                  )}
+                  <span className="truncate">
+                    {cloudPinsVisible ? 'Hide Pins' : 'Show Pins'}
+                    {cloudAnnotationCount > 0 ? ` (${cloudAnnotationCount})` : ''}
+                  </span>
+                </span>
+                <kbd className="font-mono text-[9px] text-zinc-400">A</kbd>
+              </button>
+            </div>
+          )}
+        </aside>
 
         {/* Bottom-Left Cloud Stage Dock (clears Top Bar and Right Clinical Inspector Sidebar) */}
         <div className="pointer-events-auto fixed bottom-4 left-4 z-20 flex max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-zinc-950/90 px-3.5 py-2.5 shadow-2xl backdrop-blur-xl">

@@ -8,6 +8,7 @@ files:
   - '!dist/**/*.part*'
   - '!dist/**/*.chunks.json'
   - electron/**/*
+  - build/**/*
   - package.json
 asar: true
 asarUnpack:
@@ -15,6 +16,7 @@ asarUnpack:
   - dist/books/**
 compression: normal
 win:
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -23,6 +25,8 @@ nsis:
   oneClick: true
   perMachine: false
   runAfterFinish: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Anatomy Atlas 3D

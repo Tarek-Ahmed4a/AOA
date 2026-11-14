@@ -61,6 +61,7 @@ import {
   type SharedSystemMaterialEntry,
 } from './NihManifestOrgan';
 import { SlicingPlaneGizmo } from './SlicingPlaneGizmo';
+import { FemaleZAnatomyOrgansGroup } from './FemaleZAnatomyOrgansGroup';
 import {
   isFemaleOnlyMesh,
   isMaleOnlyMesh,
@@ -1526,6 +1527,9 @@ const SketchfabSystemGlbContent: React.FC<{
         const normMaxZ = normBoxEmpty
           ? normalizedCenter.z
           : meshWorldBox.max.z * scale + position[2];
+        const normMinY = normBoxEmpty
+          ? normalizedCenter.y
+          : meshWorldBox.min.y * scale + position[1];
         const normHeightCoords = {
           nx: normalizedCenter.x,
           ny: THREE.MathUtils.clamp((normalizedCenter.y - 0.9) / 0.9, -1.0, 1.0),
@@ -1542,6 +1546,7 @@ const SketchfabSystemGlbContent: React.FC<{
 
         const spatialBounds = {
           center: normalizedCenter.clone(),
+          minY: normMinY,
           maxZ: normMaxZ,
           radius: normRadius,
           system: meshSystem,
@@ -2587,6 +2592,14 @@ export const AnatomicalModelManager: React.FC = () => {
     return activeAtlasPreset === 'nih-visible-human' ? activeNihOrgans : [];
   }, [activeAtlasPreset, activeNihOrgans]);
 
+  // Mount the 7 authentic NIH female pelvic & mammary organs into Z-Anatomy `FEMALE ♀` views
+  // (`Full Body` & `Visceral`), strictly keeping `VH_F_Skin` and `VH_F_Pelvis` excluded.
+  const showFemaleZAnatomyOrgans =
+    biologicalSex === 'female' &&
+    activeSystems.visceral &&
+    (activeAtlasPreset === 'zanatomy-full-body' ||
+      activeAtlasPreset === 'zanatomy-visceral');
+
   const builtInAtlasContent = (
     <group
       ref={atlasAssemblyGroupRef}
@@ -2615,6 +2628,13 @@ export const AnatomicalModelManager: React.FC = () => {
             />
           ))}
         </group>
+      )}
+      {showFemaleZAnatomyOrgans && (
+        <FemaleZAnatomyOrgansGroup
+          nihOrgans={activeNihOrgans}
+          atlasAssemblyGroupRef={atlasAssemblyGroupRef}
+          onCatalogUpdated={() => setNihCatalogTick((v) => v + 1)}
+        />
       )}
     </group>
   );

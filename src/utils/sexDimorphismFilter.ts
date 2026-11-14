@@ -4,6 +4,7 @@ import type { AnatomicalPartInfo } from './anatomyParser';
 
 export interface SpatialMeshBounds {
   center: THREE.Vector3;
+  minY?: number;
   maxZ: number;
   radius: number;
   system?: string;
@@ -145,9 +146,26 @@ const MALE_ONLY_EXACT_TERMS: readonly string[] = [
   'pilier du penis',
   'dorsal vein of penis',
   'dorsal veins of penis',
+  'deep vein of penis',
+  'deep dorsal vein of penis',
   'dorsal artery of penis',
   'deep artery of penis',
+  'artery of bulb of penis',
+  'urethral artery',
   'dorsal nerve of penis',
+  'cavernous nerve',
+  'scrotal branch',
+  'posterior scrotal',
+  'anterior scrotal',
+  'perineal nerve male',
+  'pampiniform plexus',
+  'testicular artery',
+  'testicular vein',
+  'testicular vessel',
+  'testicular vessels',
+  'testicular plexus',
+  'spermatic',
+  'cremasteric',
   'helicine',
   'navicular fossa',
   'external urethral orifice',
@@ -176,6 +194,7 @@ const MALE_ONLY_EXACT_TERMS: readonly string[] = [
   'efferent ductules',
   'external pudendal',
   'genital branch of genitofemoral',
+  'ilioinguinal',
   // Cord, Ducts, Perineal & Glands
   'deferens',
   'deferent',
@@ -368,7 +387,7 @@ export function isFemaleOnlyText(rawText: string): boolean {
 }
 
 const PROTECTED_FEMALE_OR_SHARED_IN_GROIN_REGEX =
-  /\b(?:uterus|ovary|ovaries|ovarian|fallopian|uterine tube|vagina|urinary bladder|broad ligament|round ligament of uterus|clitor|mammary|breast|vh f|female|femoral|iliac|obturator|gluteal|pudendal|pelvic|sacrum|coccyx|hip bone|pubic|ischium|ilium|rectum|anal|sigmoid|colon)\b/i;
+  /\b(?:uterus|ovary|ovaries|ovarian|fallopian|uterine tube|vagina|urinary bladder|broad ligament|round ligament of uterus|clitor|mammary|breast|vh f|female|femoral|iliac|obturator|gluteal|internal pudendal|pudendal nerve|pudendal canal|pelvic|sacrum|coccyx|hip bone|pubic|ischium|ilium|rectum|anal|sigmoid|colon)\b/i;
 
 const PROTECTED_THIGH_AND_PELVIC_MUSCLE_REGEX =
   /\b(?:adductor|pectineus|gracilis|sartorius|quadriceps|rectus femoris|vastus|iliopsoas|psoas|iliacus|gluteus|piriformis|obturator|gemellus|quadratus femoris|tensor fasciae|rectus abdominis|pyramidalis|obliquus|transversus abdominis|levator ani)\b/i;
@@ -386,7 +405,7 @@ export function isInMaleSubpubicProtrusionZone(
 ): boolean {
   if (!bounds) return false;
 
-  const { center, maxZ, radius, system } = bounds;
+  const { center, minY, maxZ, radius, system } = bounds;
   if (system === 'skeletal') return false;
   if (
     system === 'muscular' &&
@@ -399,6 +418,26 @@ export function isInMaleSubpubicProtrusionZone(
     PROTECTED_FEMALE_OR_SHARED_IN_GROIN_REGEX.test(hierarchyPath)
   ) {
     return false;
+  }
+
+  // Exact subpubic scrotal/penile zone filter (`|X| < 0.062m, Y in (0.68..0.805m), Z > 0.048m`)
+  // across vascular, neural, visceral, and integumentary layers in `FEMALE ♀` mode.
+  const isVascularNeuralVisceralOrSkin =
+    !system ||
+    system === 'cardiovascular' ||
+    system === 'nervous' ||
+    system === 'visceral' ||
+    system === 'integumentary';
+  const inExactScrotalY =
+    (center.y > 0.68 && center.y < 0.805) ||
+    (minY !== undefined && minY > 0.68 && minY < 0.805);
+  if (
+    isVascularNeuralVisceralOrSkin &&
+    Math.abs(center.x) < 0.062 &&
+    inExactScrotalY &&
+    (center.z > 0.048 || maxZ > 0.048)
+  ) {
+    return true;
   }
 
   // Support normalized `[-1.0, +1.0]`, centered `[-0.9, +0.9]`, and standing `[0, 1.8]` body frames.
