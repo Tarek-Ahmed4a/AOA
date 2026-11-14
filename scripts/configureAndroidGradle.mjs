@@ -18,7 +18,7 @@ if (fs.existsSync(appBuildGradlePath)) {
   if (!gradle.includes('noCompress') && gradle.includes('android {')) {
     gradle = gradle.replace(
       'android {\n',
-      'android {\n    androidResources {\n        noCompress "glb", "gltf", "bin", "pdf"\n    }\n',
+      'android {\n    androidResources {\n        noCompress.addAll(["glb", "gltf", "bin", "pdf"])\n    }\n',
     );
     fs.writeFileSync(appBuildGradlePath, gradle, 'utf8');
   }
