@@ -106,10 +106,14 @@ walkRemove(
     /\.(zip|tar|gz|bak|tmp)$/i.test(name)
 );
 
-// 2. Strip raw textbook PDF binaries from dist/books/ (manifest.json remoteFallbackUrl handles online access)
-walkRemove(path.join(DIST_DIR, 'books'), (_full, name) =>
-  name.toLowerCase().endsWith('.pdf')
-);
+const shouldStripPdfs = process.argv.includes('--strip-pdfs');
+
+// 2. Strip raw textbook PDF binaries from dist/books/ only when --strip-pdfs is passed (mobile APK builds)
+if (shouldStripPdfs) {
+  walkRemove(path.join(DIST_DIR, 'books'), (_full, name) =>
+    name.toLowerCase().endsWith('.pdf')
+  );
+}
 
 // 3. Remove unused legacy female/*.glb directory if present
 const legacyFemaleDir = path.join(DIST_DIR, 'models', 'female');

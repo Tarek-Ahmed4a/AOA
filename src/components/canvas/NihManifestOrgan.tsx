@@ -1,14 +1,11 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import { type ThreeEvent } from '@react-three/fiber';
+import React, { useEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  cameraInteractionState,
   useAnatomyStore,
   type AnatomicalSystem,
 } from '../../store/useAnatomyStore';
 import type { NihOrganSceneItem } from '../../services/nihSceneService';
-import { parseAnatomicalMesh } from '../../utils/anatomyParser';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 import {
   enqueueGeometryBVH,
@@ -123,8 +120,31 @@ export function getOrCreateSharedStandardMaterial(
   tissueColor: THREE.Color,
   structureHint = ''
 ): THREE.MeshStandardMaterial {
+  const std = sourceMat as THREE.MeshStandardMaterial;
   const isSkinPlaceholder = /^Skin_mat/i.test(sourceMat.name || '');
-  const key = `${sourceMat.uuid}::${system}::${hasVertexColors ? 1 : 0}${
+  const colorSig = std.color ? std.color.getHexString() : 'ffffff';
+  const emissiveSig = std.emissive ? std.emissive.getHexString() : '000000';
+  const emissiveInt =
+    typeof std.emissiveIntensity === 'number'
+      ? std.emissiveIntensity.toFixed(2)
+      : '1.00';
+  const roughSig =
+    typeof std.roughness === 'number' ? std.roughness.toFixed(3) : '1.000';
+  const metalSig =
+    typeof std.metalness === 'number' ? std.metalness.toFixed(3) : '0.000';
+  const opacitySig =
+    typeof std.opacity === 'number' ? std.opacity.toFixed(3) : '1.000';
+  const alphaTestSig =
+    typeof std.alphaTest === 'number' ? std.alphaTest.toFixed(2) : '0.00';
+  const flatSig = std.flatShading ? 1 : 0;
+  const mapSig = std.map?.uuid ?? '';
+  const normalSig = std.normalMap?.uuid ?? '';
+  const roughMapSig = std.roughnessMap?.uuid ?? '';
+  const metalMapSig = std.metalnessMap?.uuid ?? '';
+  const aoMapSig = std.aoMap?.uuid ?? '';
+  const alphaMapSig = std.alphaMap?.uuid ?? '';
+  const bumpMapSig = std.bumpMap?.uuid ?? '';
+  const key = `${system}::${hasVertexColors ? 1 : 0}::${colorSig}::${emissiveSig}::${emissiveInt}::${roughSig}::${metalSig}::${opacitySig}::${alphaTestSig}::${std.transparent ? 1 : 0}::${flatSig}::${mapSig}::${normalSig}::${roughMapSig}::${metalMapSig}::${aoMapSig}::${alphaMapSig}::${bumpMapSig}${
     isSkinPlaceholder && structureHint ? `::${structureHint}` : ''
   }`;
   const existing = cache.get(key);
@@ -179,10 +199,6 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   const clippingPlane = useClippingPlane();
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
 
-  const selectPart = useAnatomyStore((s) => s.selectPart);
-  const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
-
-  const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const tissueColor = useMemo(
     () => new THREE.Color(INTERNAL_TISSUE_COLORS[system]),
     [system]
@@ -496,34 +512,7 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       rotation={entry.placement.rotation}
       scale={entry.placement.scale}
     >
-      <primitive
-        object={clonedScene}
-        visible={isSystemActive}
-        onPointerDown={(e: ThreeEvent<PointerEvent>) => {
-          pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onClick={(e: ThreeEvent<MouseEvent>) => {
-          if (!isSystemActive || cameraInteractionState.isOrbiting) return;
-          const dx = e.clientX - pointerDownPosRef.current.x;
-          const dy = e.clientY - pointerDownPosRef.current.y;
-          if (Math.hypot(dx, dy) >= 5) return;
-          e.stopPropagation();
-          if ((e.object as THREE.Mesh).isMesh && e.object.visible) {
-            selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
-          }
-        }}
-        onDoubleClick={(e: ThreeEvent<MouseEvent>) => {
-          if (!isSystemActive || cameraInteractionState.isOrbiting) return;
-          const dx = e.clientX - pointerDownPosRef.current.x;
-          const dy = e.clientY - pointerDownPosRef.current.y;
-          if (Math.hypot(dx, dy) >= 5) return;
-          e.stopPropagation();
-          if ((e.object as THREE.Mesh).isMesh && e.object.visible) {
-            selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
-            focusSelectedPart();
-          }
-        }}
-      />
+      <primitive object={clonedScene} visible={isSystemActive} />
     </group>
   );
 };

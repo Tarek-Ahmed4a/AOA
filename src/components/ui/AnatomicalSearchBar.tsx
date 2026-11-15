@@ -339,7 +339,7 @@ export const AnatomicalSearchBar: React.FC = () => {
       {/* Top-Right Compact Controls: Omni-Search, Biological Sex Switch & Import .GLB */}
       <div
         ref={containerRef}
-        className="pointer-events-auto relative flex items-center justify-end gap-1 md:gap-1.5"
+        className="pointer-events-auto relative flex shrink-0 items-center justify-end gap-1 md:gap-1.5"
       >
         {/* Mobile (<768px) Search Icon Toggle */}
         <button

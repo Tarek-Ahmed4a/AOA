@@ -13,8 +13,8 @@
     "typecheck": "tsc --noEmit",
     "electron:dev": "electron .",
     "electron:pack": "npm run build && electron-builder --win --x64 --publish never",
-    "cap:sync": "npm run build && node scripts/cleanMobileBuild.mjs && node scripts/configureAndroidGradle.mjs && npx cap sync android",
-    "android:assets": "node scripts/cleanMobileBuild.mjs",
+    "cap:sync": "npm run build && node scripts/cleanMobileBuild.mjs --strip-pdfs && node scripts/configureAndroidGradle.mjs && npx cap sync android",
+    "android:assets": "node scripts/cleanMobileBuild.mjs --strip-pdfs",
     "assets:compress": "node scripts/compressAssetsLossless.mjs",
     "prepare:assets": "node scripts/prepareGitSafeAssets.mjs",
     "reassemble:assets": "node scripts/reassembleLargeAssets.mjs",
@@ -22,6 +22,25 @@
     "fetch:bodies": "node scripts/fetchNihBodies.mjs",
     "fetch:sketchfab": "node scripts/fetchSketchfabAnatomy.mjs",
     "setup:books": "node scripts/setupPdfBooks.mjs"
+  },
+  "build": {
+    "appId": "com.tarek.anatomyatlas3d",
+    "productName": "Anatomy Atlas 3D",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.part*",
+      "!dist/**/*.chunks.json",
+      "!dist/**/*.zip",
+      "!dist/models/female/**",
+      "electron/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "asar": true,
+    "compression": "maximum"
   },
   "dependencies": {
     "@capacitor/core": "^8.6.2",

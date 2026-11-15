@@ -6,13 +6,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { type ThreeEvent } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-  cameraInteractionState,
-  useAnatomyStore,
-} from '../../store/useAnatomyStore';
+import { useAnatomyStore } from '../../store/useAnatomyStore';
 import {
   parseAnatomicalMesh,
   type AnatomicalPartInfo,
@@ -269,7 +265,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
-  const selectPart = useAnatomyStore((s) => s.selectPart);
   const setSupplementalCatalogParts = useAnatomyStore(
     (s) => s.setSupplementalCatalogParts
   );
@@ -580,21 +575,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     selectedPart,
   ]);
 
-  const handleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      if (cameraInteractionState.isOrbiting) return;
-      e.stopPropagation();
-      const mesh = e.object as THREE.Mesh;
-      if (!mesh?.visible) return;
-      const partInfo = mesh.userData?.partInfo as
-        | AnatomicalPartInfo
-        | undefined;
-      if (!partInfo) return;
-      selectPart(partInfo);
-    },
-    [selectPart]
-  );
-
   const pelvicSpecs = useMemo(
     () =>
       FEMALE_ORGAN_SPECS.filter((s) =>
@@ -622,7 +602,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
       ref={rootGroupRef}
       visible={visible && activeSystems.visceral}
       name="Female_ZAnatomy_Internal_Organs"
-      onClick={handleClick}
     >
       <group
         ref={pelvicGroupRef}

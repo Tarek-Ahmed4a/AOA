@@ -12,9 +12,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import draco3d from 'draco3d';
+import { MeshoptSimplifier } from 'meshoptimizer';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, draco } from '@gltf-transform/functions';
+import { dedup, prune, draco, weld, simplify } from '@gltf-transform/functions';
 
 const TARGET_DIRS = [
   path.resolve('public', 'models', 'zanatomy'),
@@ -69,9 +70,21 @@ async function replaceFileWithRetry(tmpPath, destPath) {
   }
 }
 
+function countVertices(doc) {
+  let total = 0;
+  for (const mesh of doc.getRoot().listMeshes()) {
+    for (const prim of mesh.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION');
+      if (pos) total += pos.getCount();
+    }
+  }
+  return total;
+}
+
 async function main() {
   const decoderModule = await draco3d.createDecoderModule();
   const encoderModule = await draco3d.createEncoderModule();
+  await MeshoptSimplifier.ready;
 
   const io = new NodeIO()
     .registerExtensions(ALL_EXTENSIONS)
@@ -102,19 +115,37 @@ async function main() {
       .getRoot()
       .listExtensionsUsed()
       .some((ext) => ext.extensionName === 'KHR_draco_mesh_compression');
-    if (alreadyDraco) {
+    const isHeavyZAnatomy = /^(?:skeletal|muscular)\.glb$/i.test(
+      path.basename(filePath)
+    );
+    const extras = doc.getRoot().getExtras() ?? {};
+    const alreadySimplified = Boolean(extras.aoaMeshoptSimplified);
+
+    if (alreadyDraco && (!isHeavyZAnatomy || alreadySimplified)) {
       totalAfter += beforeBytes;
       skippedCount += 1;
-      console.log(`[SKIP ] ${rel}: already Draco-compressed (${fmtMiB(beforeBytes)})`);
+      console.log(`[SKIP ] ${rel}: already optimal (${fmtMiB(beforeBytes)})`);
       if (beforeBytes > GITHUB_SAFE_MAX_BYTES) oversized.push({ rel, bytes: beforeBytes });
       continue;
     }
 
     const origMeshes = doc.getRoot().listMeshes().length;
     const origNodes = doc.getRoot().listNodes().length;
+    const origVerts = countVertices(doc);
 
-    await doc.transform(
-      dedup(),
+    const transforms = [dedup()];
+    if (isHeavyZAnatomy && !alreadySimplified) {
+      transforms.push(
+        weld(),
+        simplify({
+          simplifier: MeshoptSimplifier,
+          ratio: 0.55,
+          error: 0.0015,
+          lockBorder: true,
+        })
+      );
+    }
+    transforms.push(
       prune({ keepLeaves: true, keepAttributes: true }),
       draco({
         method: 'edgebreaker',
@@ -128,6 +159,13 @@ async function main() {
       })
     );
 
+    await doc.transform(...transforms);
+
+    if (isHeavyZAnatomy && !alreadySimplified) {
+      doc.getRoot().setExtras({ ...extras, aoaMeshoptSimplified: true });
+    }
+
+    const newVerts = countVertices(doc);
     const tmpPath = `${filePath}.tmp.glb`;
     await io.write(tmpPath, doc);
     const tmpBytes = fs.statSync(tmpPath).size;
@@ -143,13 +181,13 @@ async function main() {
       );
     }
 
-    if (tmpBytes < beforeBytes) {
+    if (tmpBytes < beforeBytes || (isHeavyZAnatomy && !alreadySimplified)) {
       await replaceFileWithRetry(tmpPath, filePath);
       totalAfter += tmpBytes;
       compressedCount += 1;
       const pct = (((beforeBytes - tmpBytes) / beforeBytes) * 100).toFixed(1);
       console.log(
-        `[DRACO] ${rel}: ${fmtMiB(beforeBytes)} -> ${fmtMiB(tmpBytes)} (-${pct}%, ${origMeshes} meshes)`
+        `[DRACO] ${rel}: ${fmtMiB(beforeBytes)} -> ${fmtMiB(tmpBytes)} (-${pct}%, ${origMeshes} meshes, verts ${origVerts}->${newVerts})`
       );
       if (tmpBytes > GITHUB_SAFE_MAX_BYTES) oversized.push({ rel, bytes: tmpBytes });
     } else {

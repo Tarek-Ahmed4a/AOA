@@ -85,6 +85,18 @@ function registerAppProtocol() {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'application/octet-stream';
       const totalSize = stat.size;
+
+      if (request.method === 'HEAD') {
+        return new Response(null, {
+          status: 200,
+          headers: {
+            'Content-Type': contentType,
+            'Content-Length': String(totalSize),
+            'Accept-Ranges': 'bytes',
+          },
+        });
+      }
+
       const rangeHeader = request.headers.get('range');
 
       if (rangeHeader) {

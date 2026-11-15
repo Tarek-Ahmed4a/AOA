@@ -13,7 +13,6 @@ import {
   cameraInteractionState,
   DEFAULT_CAMERA_TARGET,
   useAnatomyStore,
-  useAnatomyStoreApi,
   useAppNavigationStore,
   type CameraPresetView,
 } from '../../store/useAnatomyStore';
@@ -24,10 +23,7 @@ import {
   type SceneMeshRegistry,
 } from '../../utils/bvhSetup';
 import { AnatomicalModelManager } from './AnatomicalModelManager';
-import {
-  parseAnatomicalMesh,
-  type AnatomicalPartInfo,
-} from '../../utils/anatomyParser';
+import { type AnatomicalPartInfo } from '../../utils/anatomyParser';
 
 const INITIAL_CAMERA_POSITION = new THREE.Vector3(0, 1.2, 3.2);
 const DEFAULT_TARGET_VECTOR = new THREE.Vector3(...DEFAULT_CAMERA_TARGET);
@@ -67,7 +63,7 @@ function resolveLivePartCenter(
 
 const CameraRig: React.FC = () => {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
-  const { camera, scene, raycaster } = useThree();
+  const { camera, scene, raycaster, gl } = useThree();
   const registry = useSceneMeshRegistry();
 
   const resetViewCounter = useAnatomyStore((s) => s.resetViewCounter);
@@ -103,6 +99,7 @@ const CameraRig: React.FC = () => {
     const handleControlStart = () => {
       isControlActive = true;
       flightModeRef.current = 'idle';
+      gl.setPixelRatio(0.8);
     };
 
     const handleControlChange = () => {
@@ -114,6 +111,11 @@ const CameraRig: React.FC = () => {
     const handleControlEnd = () => {
       isControlActive = false;
       cameraInteractionState.isOrbiting = false;
+      const idleDpr =
+        typeof window !== 'undefined'
+          ? Math.min(window.devicePixelRatio || 1, 1.35)
+          : 1.35;
+      gl.setPixelRatio(idleDpr);
     };
 
     controls.addEventListener('start', handleControlStart);
@@ -125,13 +127,18 @@ const CameraRig: React.FC = () => {
     });
     return () => {
       cameraInteractionState.isOrbiting = false;
+      const idleDpr =
+        typeof window !== 'undefined'
+          ? Math.min(window.devicePixelRatio || 1, 1.35)
+          : 1.35;
+      gl.setPixelRatio(idleDpr);
       controls.removeEventListener('start', handleControlStart);
       controls.removeEventListener('change', handleControlChange);
       controls.removeEventListener('end', handleControlEnd);
       window.removeEventListener('pointerup', handleControlEnd);
       window.removeEventListener('pointercancel', handleControlEnd);
     };
-  }, [raycaster]);
+  }, [gl, raycaster]);
 
   // Trigger smooth camera & target reset whenever resetViewCounter increments
   useEffect(() => {
@@ -369,114 +376,6 @@ const ViewportFrameloopSync: React.FC<{ active: boolean }> = ({ active }) => {
   return null;
 };
 
-const IdleHoverPreviewController: React.FC<{ active: boolean }> = ({
-  active,
-}) => {
-  const { gl, camera, scene, raycaster } = useThree();
-  const storeApi = useAnatomyStoreApi();
-  const pointerNdcRef = useRef(new THREE.Vector2());
-
-  useEffect(() => {
-    const canvasEl = gl.domElement;
-    if (!active) {
-      if (storeApi.getState().hoveredPart !== null) {
-        storeApi.getState().setHoveredPart(null);
-      }
-      document.body.style.cursor = 'auto';
-      return;
-    }
-
-    let hoverTimer: number | null = null;
-    const clearTimer = () => {
-      if (hoverTimer !== null) {
-        window.clearTimeout(hoverTimer);
-        hoverTimer = null;
-      }
-    };
-
-    const onPointerDown = () => {
-      clearTimer();
-    };
-
-    const onPointerLeave = () => {
-      clearTimer();
-      document.body.style.cursor = 'auto';
-      if (storeApi.getState().hoveredPart !== null) {
-        storeApi.getState().setHoveredPart(null);
-      }
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      clearTimer();
-      if (
-        e.buttons !== 0 ||
-        e.pointerType === 'touch' ||
-        cameraInteractionState.isOrbiting
-      ) {
-        return;
-      }
-
-      const clientX = e.clientX;
-      const clientY = e.clientY;
-      hoverTimer = window.setTimeout(() => {
-        hoverTimer = null;
-        if (cameraInteractionState.isOrbiting) return;
-        const rect = canvasEl.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return;
-        pointerNdcRef.current.set(
-          ((clientX - rect.left) / rect.width) * 2 - 1,
-          -((clientY - rect.top) / rect.height) * 2 + 1
-        );
-        raycaster.firstHitOnly = true;
-        raycaster.setFromCamera(pointerNdcRef.current, camera);
-        const hits = raycaster.intersectObjects(scene.children, true);
-        let hitMesh: THREE.Mesh | null = null;
-        for (const hit of hits) {
-          const obj = hit.object as THREE.Mesh;
-          if (
-            obj?.isMesh &&
-            obj.visible &&
-            !obj.userData?.__isNoiseSubmesh &&
-            obj.geometry?.attributes?.position
-          ) {
-            hitMesh = obj;
-            break;
-          }
-        }
-        const currentHover = storeApi.getState().hoveredPart;
-        if (!hitMesh) {
-          document.body.style.cursor = 'auto';
-          if (currentHover !== null) {
-            storeApi.getState().setHoveredPart(null);
-          }
-          return;
-        }
-        document.body.style.cursor = 'pointer';
-        if (currentHover?.meshUuid === hitMesh.uuid) return;
-        storeApi.getState().setHoveredPart(
-          parseAnatomicalMesh(hitMesh),
-          { x: clientX, y: clientY },
-          false
-        );
-      }, 220);
-    };
-
-    canvasEl.addEventListener('pointermove', onPointerMove, { passive: true });
-    canvasEl.addEventListener('pointerdown', onPointerDown, { passive: true });
-    canvasEl.addEventListener('pointerleave', onPointerLeave, { passive: true });
-
-    return () => {
-      clearTimer();
-      canvasEl.removeEventListener('pointermove', onPointerMove);
-      canvasEl.removeEventListener('pointerdown', onPointerDown);
-      canvasEl.removeEventListener('pointerleave', onPointerLeave);
-      document.body.style.cursor = 'auto';
-    };
-  }, [active, gl, camera, scene, raycaster, storeApi]);
-
-  return null;
-};
-
 export interface AnatomyViewportProps {
   active?: boolean;
   mountScene?: boolean;
@@ -488,14 +387,13 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
   mountScene = true,
   showStreamingHud = true,
 }) => {
-  const selectPart = useAnatomyStore((s) => s.selectPart);
   const activeTab = useAppNavigationStore((s) => s.activeTab);
   const isAtlasActive = active ?? activeTab === 'master-atlas';
 
   const maxDpr =
     typeof window !== 'undefined'
-      ? Math.min(window.devicePixelRatio || 1, 1.5)
-      : 1.5;
+      ? Math.min(window.devicePixelRatio || 1, 1.35)
+      : 1.35;
 
   return (
     <div
@@ -510,7 +408,7 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
       <Canvas
         frameloop={isAtlasActive ? 'always' : 'never'}
         shadows={false}
-        dpr={[1, maxDpr]}
+        dpr={[0.8, maxDpr]}
         gl={{
           antialias: true,
           stencil: true,
@@ -522,7 +420,6 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.05,
         }}
-        onPointerMissed={() => selectPart(null)}
       >
         <color attach="background" args={['#000000']} />
         <ViewportFrameloopSync active={isAtlasActive} />
@@ -538,7 +435,6 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
 
         <StudioLighting />
         <CameraRig />
-        <IdleHoverPreviewController active={isAtlasActive} />
         {mountScene && <AnatomicalModelManager />}
       </Canvas>
       {isAtlasActive && showStreamingHud && <NihStreamingProgressHud />}

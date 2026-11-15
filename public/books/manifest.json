@@ -14,7 +14,7 @@
       "pageCount": 791,
       "url": "/books/book1-netters-atlas-7ed.pdf",
       "remoteFallbackUrl": "https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book1-netters-atlas-7ed.pdf",
-      "linkMethod": "symlink",
+      "linkMethod": "bundled",
       "chapters": [
         {
           "title": "Atlas of Human Anatomy",
@@ -613,7 +613,7 @@
       "pageCount": 1234,
       "url": "/books/book2-grays-anatomy-4ed.pdf",
       "remoteFallbackUrl": "https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book2-grays-anatomy-4ed.pdf",
-      "linkMethod": "symlink",
+      "linkMethod": "bundled",
       "chapters": [
         {
           "title": "What is anatomy?",

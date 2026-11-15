@@ -7,12 +7,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { type ThreeEvent } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import {
-  cameraInteractionState,
   useAnatomyStore,
+  useAnatomyStoreApi,
   type AnatomicalSystem,
   type BiologicalSex,
   type OfficialAtlasPresetId,
@@ -245,6 +245,12 @@ function resolveHierarchyName(mesh: THREE.Mesh, fallbackIndex: number): string {
   return `Anatomical_Structure_${fallbackIndex}`;
 }
 
+const CRANIAL_SKULL_REQUEST_REGEX =
+  /\b(?:skull|crani(?:um|al)|calvaria|mandible|maxilla|facial\s*bones?|head\s*bones?)\b/i;
+
+const CRANIAL_MESH_KEEP_REGEX =
+  /\b(?:skull|crani|frontal|parietal|temporal|occipital|sphenoid|ethmoid|zygomatic|maxilla|mandib|nasal|lacrimal|palatine|vomer|concha|malleus|incus|stapes|hyoid|suture|fontanelle|tooth|teeth|incisor|canine|premolar|molar|calvaria|orbit)\b/i;
+
 const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   const resolvedUrl = resolveAssetUrl(url);
   const gltf = useGLTF(resolvedUrl);
@@ -264,16 +270,64 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
 
-  const selectPart = useAnatomyStore((s) => s.selectPart);
-  const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
   const registerCatalog = useAnatomyStore((s) => s.registerCatalog);
-
-  const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const { clonedScene, catalogParts, sharedMaterials, registeredMeshes } =
     useMemo(() => {
       const clone = gltf.scene.clone(true);
       clone.updateMatrixWorld(true);
+
+      // Isolate cranial/skull subtree when a Skull card falls back to full-body skeletal.glb
+      if (CRANIAL_SKULL_REQUEST_REGEX.test(customGlbName ?? '')) {
+        const fullBox = new THREE.Box3().setFromObject(clone);
+        let rawMeshCount = 0;
+        const candidateMeshes: THREE.Mesh[] = [];
+        clone.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            rawMeshCount += 1;
+            candidateMeshes.push(child as THREE.Mesh);
+          }
+        });
+        const fullHeight = fullBox.isEmpty() ? 0 : fullBox.max.y - fullBox.min.y;
+        if (!fullBox.isEmpty() && (fullHeight > 1.2 || rawMeshCount > 150)) {
+          const skullHeightThreshold = fullBox.max.y - fullHeight * 0.165;
+          const skullLowerBound = fullBox.max.y - fullHeight * 0.28;
+          const meshBox = new THREE.Box3();
+          const meshCenter = new THREE.Vector3();
+          const keepMeshes: THREE.Mesh[] = [];
+          const removeMeshes: THREE.Mesh[] = [];
+
+          for (const m of candidateMeshes) {
+            const labelChain = [
+              m.name,
+              m.parent?.name,
+              m.parent?.parent?.name,
+            ]
+              .filter(Boolean)
+              .join(' ');
+            meshBox.setFromObject(m);
+            const hasBox = !meshBox.isEmpty();
+            if (hasBox) {
+              meshBox.getCenter(meshCenter);
+            }
+            const inTopCrown = hasBox && meshCenter.y >= skullHeightThreshold;
+            const inHeadBand = !hasBox || meshCenter.y >= skullLowerBound;
+            const matchesName = CRANIAL_MESH_KEEP_REGEX.test(labelChain);
+            if ((matchesName && inHeadBand) || inTopCrown) {
+              keepMeshes.push(m);
+            } else {
+              removeMeshes.push(m);
+            }
+          }
+
+          if (keepMeshes.length > 0 && removeMeshes.length > 0) {
+            for (const m of removeMeshes) {
+              m.removeFromParent();
+            }
+            clone.updateMatrixWorld(true);
+          }
+        }
+      }
 
       // Preserve anatomical proportions: full-body GLBs scale to 1.76m height centered at Y=0.9,
       // while isolated regional organs fit comfortably at 0.78m max dimension centered at Y=1.0.
@@ -680,37 +734,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
     slicing.scope,
   ]);
 
-  return (
-    <>
-      <primitive
-        object={clonedScene}
-        onPointerDown={(e: ThreeEvent<PointerEvent>) => {
-          pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-        }}
-        onClick={(e: ThreeEvent<MouseEvent>) => {
-          if (cameraInteractionState.isOrbiting) return;
-          const dx = e.clientX - pointerDownPosRef.current.x;
-          const dy = e.clientY - pointerDownPosRef.current.y;
-          if (Math.hypot(dx, dy) >= 5) return;
-          if ((e.object as THREE.Mesh).isMesh && e.object.visible) {
-            e.stopPropagation();
-            selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
-          }
-        }}
-        onDoubleClick={(e: ThreeEvent<MouseEvent>) => {
-          if (cameraInteractionState.isOrbiting) return;
-          const dx = e.clientX - pointerDownPosRef.current.x;
-          const dy = e.clientY - pointerDownPosRef.current.y;
-          if (Math.hypot(dx, dy) >= 5) return;
-          if ((e.object as THREE.Mesh).isMesh && e.object.visible) {
-            e.stopPropagation();
-            selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
-            focusSelectedPart();
-          }
-        }}
-      />
-    </>
-  );
+  return <primitive object={clonedScene} />;
 };
 
 function computeSubtreeLocalBox(
@@ -1277,10 +1301,6 @@ const SketchfabSystemGlbContent: React.FC<{
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
 
-  const selectPart = useAnatomyStore((s) => s.selectPart);
-  const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
-
-  const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastExplodeFactorRef = useRef(0);
 
   const { alignedRoot, normTransform, sharedMaterials, registeredMeshes } =
@@ -1888,55 +1908,13 @@ const SketchfabSystemGlbContent: React.FC<{
     activeSystems,
   ]);
 
-  const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
-    pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
-  }, []);
-
-  const handleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      if (cameraInteractionState.isOrbiting) return;
-      const dx = e.clientX - pointerDownPosRef.current.x;
-      const dy = e.clientY - pointerDownPosRef.current.y;
-      if (Math.hypot(dx, dy) >= 5) return;
-      e.stopPropagation();
-      const obj = e.object as THREE.Mesh;
-      if (!obj || !obj.isMesh || !obj.visible || obj.userData?.__isNoiseFiltered) {
-        return;
-      }
-      selectPart(parseAnatomicalMesh(obj));
-    },
-    [selectPart]
-  );
-
-  const handleDoubleClick = useCallback(
-    (e: ThreeEvent<MouseEvent>) => {
-      if (cameraInteractionState.isOrbiting) return;
-      const dx = e.clientX - pointerDownPosRef.current.x;
-      const dy = e.clientY - pointerDownPosRef.current.y;
-      if (Math.hypot(dx, dy) >= 5) return;
-      e.stopPropagation();
-      const obj = e.object as THREE.Mesh;
-      if (!obj || !obj.isMesh || !obj.visible || obj.userData?.__isNoiseFiltered) {
-        return;
-      }
-      selectPart(parseAnatomicalMesh(obj));
-      focusSelectedPart();
-    },
-    [selectPart, focusSelectedPart]
-  );
-
   return (
     <group
       name={`Sketchfab_System_${entry.system}`}
       position={normTransform.position}
       scale={normTransform.scale}
     >
-      <primitive
-        object={alignedRoot}
-        onPointerDown={handlePointerDown}
-        onClick={handleClick}
-        onDoubleClick={handleDoubleClick}
-      />
+      <primitive object={alignedRoot} />
     </group>
   );
 };
@@ -2184,6 +2162,138 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     anatomicalCatalog,
     nihCatalogTick,
   ]);
+
+  return null;
+};
+
+/**
+ * Zero-overhead pure DOM click-only BVH raycaster attached to `gl.domElement`.
+ * Keeps `@react-three/fiber`'s `internal.interaction` array at length 0 so continuous
+ * mouse movement and orbit dragging incur 0.0ms of raycasting overhead.
+ */
+const NativeCanvasClickPicker: React.FC = () => {
+  const { gl, camera, raycaster } = useThree();
+  const registry = useSceneMeshRegistry();
+  const storeApi = useAnatomyStoreApi();
+  const ndcRef = useRef(new THREE.Vector2());
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    let downPos: {
+      x: number;
+      y: number;
+      time: number;
+      pointerId: number;
+    } | null = null;
+    let lastClick: { x: number; y: number; time: number } | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      downPos = {
+        x: e.clientX,
+        y: e.clientY,
+        time: performance.now(),
+        pointerId: e.pointerId,
+      };
+    };
+
+    const isHierarchyVisible = (obj: THREE.Object3D): boolean => {
+      let curr: THREE.Object3D | null = obj;
+      while (curr) {
+        if (!curr.visible) return false;
+        curr = curr.parent;
+      }
+      return true;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (!downPos || e.pointerId !== downPos.pointerId) return;
+      const dist = Math.hypot(e.clientX - downPos.x, e.clientY - downPos.y);
+      const elapsed = performance.now() - downPos.time;
+      downPos = null;
+      if (dist >= 5 || elapsed >= 400) return;
+
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+
+      ndcRef.current.set(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      );
+
+      (
+        raycaster as THREE.Raycaster & { firstHitOnly?: boolean }
+      ).firstHitOnly = true;
+      raycaster.setFromCamera(ndcRef.current, camera);
+
+      const visibleMeshes: THREE.Object3D[] = [];
+      for (const mesh of registry.byUuid.values()) {
+        if (
+          mesh.visible &&
+          !mesh.userData?.__isNoiseFiltered &&
+          !mesh.userData?.__isNoiseSubmesh &&
+          !mesh.userData?.__isStencilHelper &&
+          isHierarchyVisible(mesh)
+        ) {
+          visibleMeshes.push(mesh);
+        }
+      }
+
+      if (visibleMeshes.length === 0) {
+        lastClick = null;
+        storeApi.getState().selectPart(null);
+        return;
+      }
+
+      const hits = raycaster.intersectObjects(visibleMeshes, false);
+      const now = performance.now();
+
+      if (hits.length === 0) {
+        lastClick = null;
+        storeApi.getState().selectPart(null);
+        return;
+      }
+
+      const hitMesh = hits[0].object as THREE.Mesh;
+      const partInfo =
+        (hitMesh.userData?.partInfo as AnatomicalPartInfo | undefined) ??
+        (hitMesh.userData?.__cachedPartInfo as
+          | AnatomicalPartInfo
+          | undefined) ??
+        parseAnatomicalMesh(hitMesh);
+
+      const isDoubleClick =
+        lastClick !== null &&
+        now - lastClick.time < 320 &&
+        Math.hypot(e.clientX - lastClick.x, e.clientY - lastClick.y) < 10;
+
+      lastClick = isDoubleClick
+        ? null
+        : { x: e.clientX, y: e.clientY, time: now };
+
+      const state = storeApi.getState();
+      state.selectPart(partInfo);
+      if (isDoubleClick) {
+        state.focusSelectedPart();
+      }
+    };
+
+    const onPointerCancel = () => {
+      downPos = null;
+    };
+
+    canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
+    canvas.addEventListener('pointerup', onPointerUp, { passive: true });
+    canvas.addEventListener('pointercancel', onPointerCancel, {
+      passive: true,
+    });
+
+    return () => {
+      canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointerup', onPointerUp);
+      canvas.removeEventListener('pointercancel', onPointerCancel);
+    };
+  }, [gl, camera, raycaster, registry, storeApi]);
 
   return null;
 };
@@ -2502,6 +2612,7 @@ export const AnatomicalModelManager: React.FC = () => {
       ) : (
         builtInAtlasContent
       )}
+      <NativeCanvasClickPicker />
       <MeshHighlightController nihCatalogTick={nihCatalogTick} />
       <ExternalSpatialCalloutPin />
       <SlicingPlaneGizmo />

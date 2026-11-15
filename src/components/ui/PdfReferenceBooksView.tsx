@@ -318,9 +318,7 @@ const PdfFramePane: React.FC<PdfFramePaneProps> = ({
 }) => {
   const isNative = useMemo(() => isCapacitorNative(), []);
   const localResolvedUrl = resolveAssetUrl(customUrl ?? book.url);
-  const [localStatus, setLocalStatus] = useState<'checking' | 'ready' | 'missing'>(
-    () => (customUrl ? 'ready' : isNative ? 'checking' : 'ready')
-  );
+  const [localStatus] = useState<'checking' | 'ready' | 'missing'>('ready');
   const [remoteStreamActive, setRemoteStreamActive] = useState(false);
 
   const [tool, setTool] = useState<AnnotationTool>('read');
@@ -349,28 +347,6 @@ const PdfFramePane: React.FC<PdfFramePaneProps> = ({
   useEffect(() => {
     savePageAnnotations(book.id, pageNumber, annotations);
   }, [book.id, pageNumber, annotations]);
-
-  useEffect(() => {
-    if (customUrl) {
-      setLocalStatus('ready');
-      return;
-    }
-    let cancelled = false;
-    fetch(localResolvedUrl, { method: 'HEAD' })
-      .then((res) => {
-        if (!cancelled) {
-          setLocalStatus(res.ok ? 'ready' : 'missing');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLocalStatus(isNative ? 'missing' : 'ready');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [customUrl, localResolvedUrl, isNative]);
 
   const redrawInkCanvas = useCallback(
     (pendingStroke: InkStroke | null = null) => {

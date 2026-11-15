@@ -349,18 +349,18 @@ export const MinimalHud: React.FC = () => {
 
   return (
     <>
-      {/* Single Unified Top Header Bar (compact & zero-overflow on 360px+ mobile & desktop) */}
+      {/* Single Unified Top Header Bar (horizontally scrollable on mobile phones, zero squish/overflow) */}
       <header
         aria-label="Primary Studio Top Navigation"
         className={cn(
-          'pointer-events-none fixed left-2 right-2 z-50 flex items-center justify-between gap-1 md:left-3 md:right-3 md:gap-2',
+          'pointer-events-auto fixed left-0 right-0 z-50 flex items-center justify-between overflow-x-auto overflow-y-hidden flex-nowrap whitespace-nowrap touch-pan-x no-scrollbar scroll-smooth px-2 gap-2 md:left-3 md:right-3 md:px-0 md:overflow-visible',
           activeTab === 'pdf-books'
             ? 'top-1.5 h-10 md:top-2 md:h-11'
             : 'top-2 h-10 md:top-3 md:h-12'
         )}
       >
         {/* Top-Left Zone */}
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1 md:gap-1.5">
+        <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 md:min-w-0 md:flex-1">
           {activeTab === 'pdf-books' ? (
             <>
               <div
@@ -470,7 +470,7 @@ export const MinimalHud: React.FC = () => {
               )}
 
               {isNativeViewportActive && !customGlbUrl && (
-                <div ref={presetMenuRef} className="relative min-w-0">
+                <div ref={presetMenuRef} className="relative shrink-0 md:min-w-0">
                   <button
                     type="button"
                     onClick={() => setPresetMenuOpen((v) => !v)}
@@ -513,7 +513,7 @@ export const MinimalHud: React.FC = () => {
                     <div
                       role="listbox"
                       aria-label="Official 3D Atlas Module Switcher"
-                      className="absolute left-0 top-[calc(100%+6px)] z-50 w-64 overflow-hidden rounded-xl border border-white/15 bg-[#0a0a0c]/95 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.95)] backdrop-blur-xl"
+                      className="fixed left-2 top-[50px] z-50 w-64 overflow-hidden rounded-xl border border-white/15 bg-[#0a0a0c]/95 p-1.5 shadow-[0_24px_64px_rgba(0,0,0,0.95)] backdrop-blur-xl md:absolute md:left-0 md:top-[calc(100%+6px)]"
                     >
                       <div className="mb-1 border-b border-white/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-400">
                         Official 3D Atlas Presets
@@ -616,7 +616,7 @@ export const MinimalHud: React.FC = () => {
         </nav>
 
         {/* Top-Right Zone */}
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center justify-end gap-1 md:gap-1.5">
+        <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-1.5 md:min-w-0 md:flex-1">
           {isNativeViewportActive && <AnatomicalSearchBar />}
           {activeTab === 'pdf-books' && (
             <>
