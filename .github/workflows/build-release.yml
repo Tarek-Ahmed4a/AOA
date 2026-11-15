@@ -43,11 +43,20 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
-      - name: Upload Windows .exe Artifact
+      - name: Stage Flat Release Assets (Windows .exe + Textbook PDFs)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path staged-release | Out-Null
+          Copy-Item release\AnatomyAtlas3D-Setup.exe staged-release\
+          Copy-Item dist\books\book1-netters-atlas-7ed.pdf staged-release\
+          Copy-Item dist\books\book2-grays-anatomy-4ed.pdf staged-release\
+          Get-ChildItem staged-release | Select-Object Name, Length
+
+      - name: Upload Windows .exe & Reference PDFs Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-desktop-release
-          path: release/AnatomyAtlas3D-Setup.exe
+          path: staged-release/*
           if-no-files-found: error
 
   build-android-apk:
@@ -97,6 +106,9 @@ jobs:
 
       - name: Run TypeScript & Production Vite Build
         run: npm run build
+
+      - name: Strip Heavy PDFs & Desktop-Only Assets for Lean Android APK
+        run: node scripts/buildAndroidAssets.mjs
 
       - name: Sync Capacitor Android Project
         run: |

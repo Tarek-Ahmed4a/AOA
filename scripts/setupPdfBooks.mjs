@@ -275,6 +275,7 @@ async function main() {
       sizeBytes: item.sizeBytes,
       pageCount: pdfMeta.pageCount,
       url: `/books/${encodeURIComponent(item.safeFilename)}`,
+      remoteFallbackUrl: `https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/${encodeURIComponent(item.safeFilename)}`,
       linkMethod,
       chapters: pdfMeta.chapters,
       plateOffsetEstimate: pdfMeta.plateOffsetEstimate,

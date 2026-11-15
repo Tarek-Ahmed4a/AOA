@@ -15,12 +15,59 @@ if (fs.existsSync(gradlePropsPath)) {
 const appBuildGradlePath = path.resolve('android', 'app', 'build.gradle');
 if (fs.existsSync(appBuildGradlePath)) {
   let gradle = fs.readFileSync(appBuildGradlePath, 'utf8');
-  if (!gradle.includes('noCompress') && gradle.includes('android {')) {
+  if (!gradle.includes('androidResources') && gradle.includes('android {')) {
     gradle = gradle.replace(
       'android {\n',
-      'android {\n    androidResources {\n        noCompress.addAll(["glb", "gltf", "bin", "pdf"])\n    }\n',
+      'android {\n    androidResources {\n        noCompress.addAll(["pdf"])\n    }\n',
     );
     fs.writeFileSync(appBuildGradlePath, gradle, 'utf8');
+  } else if (gradle.includes('noCompress.addAll(["glb", "gltf", "bin", "pdf"])')) {
+    gradle = gradle.replace(
+      'noCompress.addAll(["glb", "gltf", "bin", "pdf"])',
+      'noCompress.addAll(["pdf"])',
+    );
+    fs.writeFileSync(appBuildGradlePath, gradle, 'utf8');
+  }
+}
+
+const androidManifestPath = path.resolve(
+  'android',
+  'app',
+  'src',
+  'main',
+  'AndroidManifest.xml'
+);
+if (fs.existsSync(androidManifestPath)) {
+  let manifest = fs.readFileSync(androidManifestPath, 'utf8');
+  let changed = false;
+  if (!manifest.includes('android:hardwareAccelerated=')) {
+    manifest = manifest.replace(
+      '<application\n',
+      '<application\n        android:hardwareAccelerated="true"\n'
+    );
+    if (!manifest.includes('android:hardwareAccelerated=')) {
+      manifest = manifest.replace(
+        '<application ',
+        '<application android:hardwareAccelerated="true" '
+      );
+    }
+    changed = true;
+  }
+  if (!manifest.includes('android:largeHeap=')) {
+    manifest = manifest.replace(
+      '<application\n',
+      '<application\n        android:largeHeap="true"\n'
+    );
+    if (!manifest.includes('android:largeHeap=')) {
+      manifest = manifest.replace(
+        '<application ',
+        '<application android:largeHeap="true" '
+      );
+    }
+    changed = true;
+  }
+  if (changed) {
+    fs.writeFileSync(androidManifestPath, manifest, 'utf8');
   }
 }
 

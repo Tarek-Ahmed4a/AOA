@@ -81,7 +81,7 @@ export interface ClinicalReliefUniforms {
   uDimFactor: { value: number };
 }
 
-export const CLINICAL_RELIEF_PROGRAM_CACHE_KEY = () => 'clinical-relief-v1';
+export const CLINICAL_RELIEF_PROGRAM_CACHE_KEY = () => 'clinical-relief-v2';
 
 export function getClinicalTissueProfile(
   system: AnatomicalSystem
@@ -139,12 +139,14 @@ const CLINICAL_RELIEF_FRAGMENT_INJECTION = /* glsl */ `{
 
 #if NUM_CLIPPING_PLANES > 0
   float sliceEdgeDist = abs( clippingPlanes[ 0 ].w - dot( vClipPosition, clippingPlanes[ 0 ].xyz ) );
-  float laserRim = 1.0 - smoothstep( 0.0, 0.0022, sliceEdgeDist );
+  float laserRim = 1.0 - smoothstep( 0.0, 0.0020, sliceEdgeDist );
   if ( !gl_FrontFacing ) {
-    float grain = 0.86 + 0.14 * sin( vClipPosition.x * 160.0 ) * cos( vClipPosition.y * 160.0 + vClipPosition.z * 160.0 );
-    outgoingLight = uInternalTissueColor * grain;
+    // Keep true 3D PBR lighting & cavity relief inside hollow cross-sections, with soft interior fill
+    vec3 interiorFill = mix( diffuseColor.rgb, uInternalTissueColor, 0.2 );
+    outgoingLight = outgoingLight * 0.96 + interiorFill * ( 0.16 + 0.08 * reliefFactor );
   }
-  outgoingLight = mix( outgoingLight, vec3( 0.22, 0.74, 0.97 ), laserRim * 0.92 );
+  vec3 cutRimColor = mix( diffuseColor.rgb * 1.15 + vec3( 0.14 ), vec3( 0.24, 0.78, 0.98 ), 0.62 );
+  outgoingLight = mix( outgoingLight, cutRimColor, laserRim * 0.9 );
 #endif
 
   if ( uHighlightState > 0.5 ) {

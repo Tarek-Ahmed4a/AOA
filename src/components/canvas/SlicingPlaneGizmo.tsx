@@ -1,15 +1,8 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { CALIBRATION_RIG_STRUCTURES } from '../../config/anatomicalSystems';
-import {
-  useAnatomyStore,
-  type AnatomicalSystem,
-} from '../../store/useAnatomyStore';
+import { useAnatomyStore } from '../../store/useAnatomyStore';
 import { getRegisteredSceneMesh } from '../../utils/bvhSetup';
-import {
-  computeSlicingPlaneParameters,
-  INTERNAL_TISSUE_COLORS,
-} from '../../utils/slicingPlane';
+import { computeSlicingPlaneParameters } from '../../utils/slicingPlane';
 
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
@@ -61,12 +54,6 @@ export const SlicingPlaneGizmo: React.FC = () => {
 
   const slicing = useAnatomyStore((s) => s.slicing);
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
-  const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
-  const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
-  const activeSystems = useAnatomyStore((s) => s.activeSystems);
-  const systemOpacity = useAnatomyStore((s) => s.systemOpacity);
-  const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
-  const anatomicalCatalog = useAnatomyStore((s) => s.anatomicalCatalog);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
 
   const reticleGeometry = useMemo(() => buildLaserReticleGeometry(), []);
@@ -88,31 +75,6 @@ export const SlicingPlaneGizmo: React.FC = () => {
       selectedObjRef.current = null;
     }
   }, [selectedPart]);
-
-  // Resolve active system for solid stencil cap material
-  let capSystem: AnatomicalSystem | null = null;
-  let capPartId: string | null = null;
-
-  if (isolatedPartId && !xrayGhostMode) {
-    capPartId = isolatedPartId;
-    capSystem =
-      CALIBRATION_RIG_STRUCTURES[isolatedPartId]?.system ??
-      anatomicalCatalog.find((p) => p.rawName === isolatedPartId)?.system ??
-      (selectedPart?.rawName === isolatedPartId ? selectedPart.system : null);
-  } else if (slicing.scope === 'selected' && selectedPart) {
-    capPartId = selectedPart.rawName;
-    capSystem = selectedPart.system;
-  }
-
-  const isTargetVisible =
-    capSystem !== null &&
-    capPartId !== null &&
-    activeSystems[capSystem] &&
-    systemOpacity[capSystem] >= 0.99 &&
-    !hiddenPartIds.includes(capPartId);
-
-  const showStencilCap = slicing.enabled && !xrayGhostMode && isTargetVisible;
-  const capColor = capSystem ? INTERNAL_TISSUE_COLORS[capSystem] : '#450a0a';
 
   const syncPlaneTransform = () => {
     const state = useAnatomyStore.getState();
@@ -162,27 +124,6 @@ export const SlicingPlaneGizmo: React.FC = () => {
 
   return (
     <group ref={gizmoGroupRef} name="Surgical_Slicing_Gizmo">
-      {/* Solid Stencil Cap Plane for isolated / single-organ cross-sections */}
-      {showStencilCap && (
-        <mesh renderOrder={4} raycast={() => null}>
-          <planeGeometry args={[2.5, 2.5]} />
-          <meshStandardMaterial
-            color={capColor}
-            roughness={0.68}
-            metalness={0.04}
-            side={THREE.DoubleSide}
-            stencilWrite
-            stencilRef={0}
-            stencilFunc={THREE.NotEqualStencilFunc}
-            stencilFail={THREE.ZeroStencilOp}
-            stencilZFail={THREE.ZeroStencilOp}
-            stencilZPass={THREE.ZeroStencilOp}
-            polygonOffset
-            polygonOffsetFactor={-1}
-          />
-        </mesh>
-      )}
-
       {/* Translucent 3D Surgical Laser Plane Guide */}
       {slicing.showHelper && (
         <>

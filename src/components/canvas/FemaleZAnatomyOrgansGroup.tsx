@@ -185,6 +185,8 @@ const FemaleOrganPieceLoader: React.FC<{
       mesh.userData.ta98Code = spec.ta98Code;
       mesh.userData.__restPosition = mesh.position.clone();
       mesh.userData.__isFemaleZAnatomySupplement = true;
+      mesh.userData.__isFemaleOnly = true;
+      mesh.userData.__isMaleOnly = false;
       mesh.userData.__explodeClusterId = resolveExplodeClusterId(
         `${spec.label} ${mesh.name}`,
         'visceral',
@@ -234,6 +236,7 @@ const FemaleOrganPieceLoader: React.FC<{
 };
 
 export interface FemaleZAnatomyOrgansGroupProps {
+  visible?: boolean;
   nihOrgans: NihOrganSceneItem[];
   atlasAssemblyGroupRef: React.RefObject<THREE.Group | null>;
   onCatalogUpdated: () => void;
@@ -241,13 +244,17 @@ export interface FemaleZAnatomyOrgansGroupProps {
 
 export const FemaleZAnatomyOrgansGroup: React.FC<
   FemaleZAnatomyOrgansGroupProps
-> = ({ nihOrgans, atlasAssemblyGroupRef, onCatalogUpdated }) => {
+> = ({ visible = true, nihOrgans, atlasAssemblyGroupRef, onCatalogUpdated }) => {
+  const rootGroupRef = useRef<THREE.Group>(null);
   const pelvicGroupRef = useRef<THREE.Group>(null);
   const mammaryLeftGroupRef = useRef<THREE.Group>(null);
   const mammaryRightGroupRef = useRef<THREE.Group>(null);
   const loadedPiecesRef = useRef<Map<string, LoadedFemalePieceState>>(
     new Map()
   );
+  const cachedPartsRef = useRef<AnatomicalPartInfo[]>([]);
+  const anchoredVersionRef = useRef<number>(-1);
+  const hasRealLandmarksRef = useRef<boolean>(false);
   const [mountVersion, setMountVersion] = useState(0);
 
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
@@ -293,10 +300,16 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     };
   }, [setSupplementalCatalogParts, onCatalogUpdated]);
 
-  // Dynamically anchor & register all 7 female organs inside Z-Anatomy coordinates
+  // Dynamically anchor & register all 7 female organs inside Z-Anatomy coordinates once loaded
   useEffect(() => {
     const pieces = loadedPiecesRef.current;
     if (pieces.size === 0) return;
+    if (
+      anchoredVersionRef.current === mountVersion &&
+      hasRealLandmarksRef.current
+    ) {
+      return;
+    }
 
     const assemblyRoot = atlasAssemblyGroupRef.current;
 
@@ -308,10 +321,10 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
         pelvicUnionBox.union(piece.rawBox);
       }
     }
+    const bladderWorldBox = findLandmarkBox(assemblyRoot, (n) =>
+      /urinary[\s_]*bladder/i.test(n)
+    );
     if (!pelvicUnionBox.isEmpty() && pelvicGroupRef.current) {
-      const bladderWorldBox = findLandmarkBox(assemblyRoot, (n) =>
-        /urinary[\s_]*bladder/i.test(n)
-      );
       const pelvicTx = computeCohesivePelvicTransform(
         pelvicUnionBox,
         bladderWorldBox
@@ -361,6 +374,11 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
       mammaryRightGroupRef.current.updateMatrixWorld(true);
     }
 
+    anchoredVersionRef.current = mountVersion;
+    if (bladderWorldBox || pecLeftBox || pecRightBox) {
+      hasRealLandmarksRef.current = true;
+    }
+
     // 3. Recompute exact world-space part metadata & cluster IDs after anchoring
     const parts: AnatomicalPartInfo[] = [];
     let partIdx = 9000;
@@ -399,21 +417,35 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
         const parsed = parseAnatomicalMesh(mesh, 'visceral', partIdx);
         mesh.userData.anatomicalName = parsed.cleanName;
         mesh.userData.partInfo = parsed;
+        mesh.userData.__cachedPartInfo = parsed;
         parts.push(parsed);
       }
     }
 
-    setSupplementalCatalogParts(parts);
-    onCatalogUpdated();
+    cachedPartsRef.current = parts;
+    if (visible && activeSystems.visceral) {
+      setSupplementalCatalogParts(parts);
+      onCatalogUpdated();
+    }
   }, [
     mountVersion,
     catalogLength,
+    visible,
     activeSystems.muscular,
     activeSystems.visceral,
     atlasAssemblyGroupRef,
     setSupplementalCatalogParts,
     onCatalogUpdated,
   ]);
+
+  // O(1) catalog sync when toggling MALE <-> FEMALE without recomputing transforms or traversing the scene
+  useEffect(() => {
+    if (cachedPartsRef.current.length === 0) return;
+    setSupplementalCatalogParts(
+      visible && activeSystems.visceral ? cachedPartsRef.current : []
+    );
+    onCatalogUpdated();
+  }, [visible, activeSystems.visceral, setSupplementalCatalogParts, onCatalogUpdated]);
 
   // Apply rigid macro-unit Explode View displacement seamlessly alongside Z-Anatomy clusters
   useEffect(() => {
@@ -449,6 +481,9 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   // Synchronize Peel, Isolate, X-Ray Ghost, Visceral Opacity & Cross-Section Slicing Planes
   useEffect(() => {
     const pieces = loadedPiecesRef.current;
+    if (rootGroupRef.current) {
+      rootGroupRef.current.visible = visible && activeSystems.visceral;
+    }
     if (pieces.size === 0) return;
 
     const visOpacity = systemOpacity.visceral ?? 1.0;
@@ -478,6 +513,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
           (Boolean(isolatedGroupId) && isolatedGroupId === organGrp);
 
         const isVisible =
+          visible &&
           activeSystems.visceral &&
           visOpacity >= 0.02 &&
           !isHidden &&
@@ -488,6 +524,11 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
           ? ((mesh.userData.__origRaycast as THREE.Mesh['raycast']) ??
             THREE.Mesh.prototype.raycast)
           : NOOP_RAYCAST;
+        if (isVisible) {
+          mesh.layers.enable(0);
+        } else {
+          mesh.layers.disable(0);
+        }
 
         const isFocusTarget =
           selectedPart !== null &&
@@ -519,6 +560,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
             mat.clippingPlanes = shouldSlice ? CLIPPING_PLANES_LIST : null;
             mat.clipShadows = shouldSlice;
             mat.side = THREE.DoubleSide;
+            mat.shadowSide = THREE.DoubleSide;
             mat.transparent = isTranslucent || effectiveOpacity < 1;
             mat.opacity = effectiveOpacity;
             mat.depthWrite = !isTranslucent && effectiveOpacity >= 0.99;
@@ -529,6 +571,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     }
   }, [
     mountVersion,
+    visible,
     activeSystems.visceral,
     systemOpacity.visceral,
     hiddenPartIds,
@@ -603,6 +646,8 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
 
   return (
     <group
+      ref={rootGroupRef}
+      visible={visible && activeSystems.visceral}
       name="Female_ZAnatomy_Internal_Organs"
       onPointerOver={handlePointerOver}
       onPointerOut={handlePointerOut}

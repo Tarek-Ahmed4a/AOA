@@ -331,35 +331,39 @@ export const MinimalHud: React.FC = () => {
 
   return (
     <>
-      {/* Single Unified Top Header Bar (h-11 in PDF mode, 1 horizontal row) */}
+      {/* Single Unified Top Header Bar (compact & zero-overflow on 360px+ mobile & desktop) */}
       <header
         aria-label="Primary Studio Top Navigation"
         className={cn(
-          'pointer-events-none fixed left-3 right-3 z-50 flex items-center justify-between gap-2',
-          activeTab === 'pdf-books' ? 'top-2 h-11' : 'top-3 h-12'
+          'pointer-events-none fixed left-2 right-2 z-50 flex items-center justify-between gap-1 md:left-3 md:right-3 md:gap-2',
+          activeTab === 'pdf-books'
+            ? 'top-1.5 h-10 md:top-2 md:h-11'
+            : 'top-2 h-10 md:top-3 md:h-12'
         )}
       >
         {/* Top-Left Zone */}
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1.5">
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-1 md:gap-1.5">
           {activeTab === 'pdf-books' ? (
             <>
               <div
                 role="group"
                 aria-label="Reference Book Layout Selector"
-                className="flex h-8 shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-xl backdrop-blur-md"
+                className="flex h-7 md:h-8 shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-xl backdrop-blur-md"
               >
                 <button
                   type="button"
                   onClick={() => setPdfViewMode('book1')}
                   aria-pressed={pdfViewMode === 'book1'}
                   className={cn(
-                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
                     pdfViewMode === 'book1'
                       ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
                       : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
                   )}
                 >
-                  <span>📘 Book 1</span>
+                  <span>📘</span>
+                  <span className="md:hidden"> 1</span>
+                  <span className="hidden md:inline"> Book 1</span>
                   <span className="hidden xl:inline">: Atlas</span>
                 </button>
                 <button
@@ -367,13 +371,15 @@ export const MinimalHud: React.FC = () => {
                   onClick={() => setPdfViewMode('book2')}
                   aria-pressed={pdfViewMode === 'book2'}
                   className={cn(
-                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
                     pdfViewMode === 'book2'
                       ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
                       : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
                   )}
                 >
-                  <span>📗 Book 2</span>
+                  <span>📗</span>
+                  <span className="md:hidden"> 2</span>
+                  <span className="hidden md:inline"> Book 2</span>
                   <span className="hidden xl:inline">: Text</span>
                 </button>
                 <button
@@ -381,18 +387,19 @@ export const MinimalHud: React.FC = () => {
                   onClick={() => setPdfViewMode('split')}
                   aria-pressed={pdfViewMode === 'split'}
                   className={cn(
-                    'whitespace-nowrap rounded-full border px-2 py-1 text-[10.5px] font-medium transition-all active:scale-95',
+                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
                     pdfViewMode === 'split'
                       ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
                       : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
                   )}
                 >
-                  ⚖️ Split View
+                  <span>⚖️</span>
+                  <span className="hidden md:inline"> Split View</span>
                 </button>
               </div>
 
               {showFocusedPdfBadge && (
-                <div className="flex h-8 min-w-0 max-w-[190px] items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 text-[10.5px] font-medium text-emerald-300 shadow-lg backdrop-blur-md">
+                <div className="hidden sm:flex h-8 min-w-0 max-w-[190px] items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 text-[10.5px] font-medium text-emerald-300 shadow-lg backdrop-blur-md">
                   <span aria-hidden="true" className="shrink-0">
                     📍
                   </span>
@@ -416,7 +423,7 @@ export const MinimalHud: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
+              <div className="hidden md:flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
                 <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                 <span className="whitespace-nowrap font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-200">
                   ATLAS 3D
@@ -432,7 +439,7 @@ export const MinimalHud: React.FC = () => {
                     aria-expanded={presetMenuOpen}
                     aria-label="Atlas Preset Selector"
                     className={cn(
-                      'flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full border bg-[#0a0a0c]/90 px-3 font-mono text-[10px] shadow-2xl backdrop-blur-md transition-colors',
+                      'flex h-8 md:h-9 items-center gap-1 md:gap-1.5 whitespace-nowrap rounded-full border bg-[#0a0a0c]/90 px-2 md:px-3 font-mono text-[9.5px] md:text-[10px] shadow-2xl backdrop-blur-md transition-colors',
                       presetMenuOpen
                         ? 'border-sky-500/45 text-white ring-1 ring-sky-500/20'
                         : 'border-white/10 text-zinc-300 hover:border-white/20 hover:text-white'
@@ -441,7 +448,7 @@ export const MinimalHud: React.FC = () => {
                     <span className="hidden text-zinc-400 xl:inline">
                       Atlas Preset:
                     </span>
-                    <span className="max-w-[130px] truncate font-semibold text-sky-400 2xl:max-w-none">
+                    <span className="max-w-[74px] sm:max-w-[110px] md:max-w-[130px] truncate font-semibold text-sky-400 2xl:max-w-none">
                       {activePresetOption.shortLabel}
                     </span>
                     <svg
@@ -521,18 +528,30 @@ export const MinimalHud: React.FC = () => {
           )}
         </div>
 
-        {/* Top-Center Zone: 3-Tab Minimalist Cockpit Switcher ONLY */}
+        {/* Top-Center Zone: 3-Tab Minimalist Cockpit Switcher */}
         <nav
           role="tablist"
           aria-label="Workspace View Switcher"
           dir="ltr"
-          className="pointer-events-auto flex shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-1 shadow-2xl backdrop-blur-md"
+          className="pointer-events-auto flex shrink-0 items-center gap-0.5 md:gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 md:p-1 shadow-2xl backdrop-blur-md"
         >
           {(
             [
-              { id: 'master-atlas', label: '3D Master Atlas' },
-              { id: 'cloud-explorer', label: 'Live 3D Explorer' },
-              { id: 'pdf-books', label: 'Reference Books (PDF)' },
+              {
+                id: 'master-atlas',
+                mobileLabel: '3D Atlas',
+                label: '3D Master Atlas',
+              },
+              {
+                id: 'cloud-explorer',
+                mobileLabel: 'Explorer',
+                label: 'Live 3D Explorer',
+              },
+              {
+                id: 'pdf-books',
+                mobileLabel: 'Books',
+                label: 'Reference Books (PDF)',
+              },
             ] as const
           ).map((tab) => {
             const isActive = activeTab === tab.id;
@@ -544,30 +563,31 @@ export const MinimalHud: React.FC = () => {
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[11px] font-medium tracking-wide transition-all active:scale-95',
+                  'shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[9.5px] md:px-3 md:text-[11px] font-medium tracking-wide transition-all active:scale-95',
                   isActive
                     ? 'border-sky-500/40 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.16)]'
                     : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
                 )}
               >
-                {tab.label}
+                <span className="md:hidden">{tab.mobileLabel}</span>
+                <span className="hidden md:inline">{tab.label}</span>
               </button>
             );
           })}
         </nav>
 
         {/* Top-Right Zone */}
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center justify-end gap-1.5">
+        <div className="pointer-events-auto flex min-w-0 flex-1 items-center justify-end gap-1 md:gap-1.5">
           {activeTab === 'master-atlas' && <AnatomicalSearchBar />}
           {activeTab === 'pdf-books' && (
             <>
               <form
                 onSubmit={handlePdfPageSubmit}
-                className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2 shadow-xl backdrop-blur-md"
+                className="flex h-7 md:h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-1.5 md:px-2 shadow-xl backdrop-blur-md"
               >
                 <label
                   htmlFor="header-pdf-page-jump"
-                  className="font-mono text-[10px] uppercase tracking-wider text-zinc-400"
+                  className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider text-zinc-400"
                 >
                   Pg
                 </label>
@@ -578,11 +598,11 @@ export const MinimalHud: React.FC = () => {
                   value={pdfPageInput}
                   onChange={(e) => setPdfPageInput(e.target.value)}
                   aria-label="Quick Page Jump"
-                  className="w-11 bg-transparent text-center font-mono text-[11px] tabular-nums text-white outline-none"
+                  className="w-8 md:w-11 bg-transparent text-center font-mono text-[10.5px] md:text-[11px] tabular-nums text-white outline-none"
                 />
                 <button
                   type="submit"
-                  className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] font-medium text-zinc-200 transition-colors hover:bg-sky-500/20 hover:text-sky-300"
+                  className="rounded-full bg-white/10 px-1.5 md:px-2 py-0.5 font-mono text-[9.5px] md:text-[10px] font-medium text-zinc-200 transition-colors hover:bg-sky-500/20 hover:text-sky-300"
                 >
                   Go
                 </button>
@@ -603,7 +623,7 @@ export const MinimalHud: React.FC = () => {
                     jumpBook1(pageNum);
                   }
                 }}
-                className="h-8 max-w-[125px] rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] text-zinc-300 shadow-xl outline-none backdrop-blur-md transition-colors hover:border-white/25 focus:border-sky-500/50 xl:max-w-[165px]"
+                className="hidden sm:block h-8 max-w-[125px] rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] text-zinc-300 shadow-xl outline-none backdrop-blur-md transition-colors hover:border-white/25 focus:border-sky-500/50 xl:max-w-[165px]"
               >
                 <option value="" disabled>
                   Chapters...
@@ -653,7 +673,7 @@ export const MinimalHud: React.FC = () => {
                 type="button"
                 onClick={() => pdfFileInputRef.current?.click()}
                 title="Open a local .pdf file into active reader pane"
-                className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
+                className="flex h-7 md:h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2 md:px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
               >
                 <span aria-hidden="true">📂</span>
                 <span className="hidden lg:inline">Open PDF</span>
@@ -664,7 +684,7 @@ export const MinimalHud: React.FC = () => {
       </header>
 
       {activeTab === 'master-atlas' && (
-      <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-3 pt-16 sm:p-4 sm:pt-16">
+      <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-2 pt-14 md:p-4 md:pt-16">
       {/* Floating Cursor Tooltip (Mouse Hover Only) */}
       {showFloatingTooltip && hoveredPart && (
         <div
@@ -700,30 +720,59 @@ export const MinimalHud: React.FC = () => {
         </div>
       )}
 
-      {/* Left Column: Surgical Dissection & Slicer Dock cleanly at top-16 left-3 */}
+      {/* Left Column: Collapsed Dissection Pill on <768px, Permanent Suite on >=768px */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex flex-col items-start gap-2">
+        <div className="flex flex-col items-start gap-1.5 md:gap-2">
+          {/* Mobile (<768px) Collapsed Dissection Toggle Pill */}
+          <button
+            type="button"
+            onClick={() => setMobileDockOpen((v) => !v)}
+            aria-expanded={mobileDockOpen}
+            className={cn(
+              'pointer-events-auto md:hidden flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 font-mono text-[10.5px] font-medium backdrop-blur-md shadow-xl transition-colors active:scale-95',
+              mobileDockOpen || slicing.enabled || hasAnyDissectionActive
+                ? 'border-sky-400/50 bg-zinc-950/90 text-sky-200'
+                : 'border-white/15 bg-zinc-950/80 text-zinc-200'
+            )}
+          >
+            <Scissors className="h-3 w-3 text-sky-400" />
+            <span>Dissect Tools</span>
+            <span aria-hidden="true" className="text-[9px] text-zinc-400">
+              {mobileDockOpen ? '▴' : '▾'}
+            </span>
+          </button>
+
           {/* Left-Docked Surgical Dissection & Cross-Section Slicer Suite */}
           <div
             className={cn(
-              'pointer-events-auto w-[260px] sm:w-[276px] max-h-[calc(100dvh-152px)] overflow-y-auto touch-pan-y flex-col gap-2',
-              mobileDockOpen ? 'flex' : 'hidden sm:flex'
+              'pointer-events-auto w-[215px] md:w-[276px] max-h-[60dvh] md:max-h-[calc(100dvh-152px)] overflow-y-auto touch-pan-y flex-col gap-2',
+              mobileDockOpen ? 'flex' : 'hidden md:flex'
             )}
           >
             {/* Surgical Dissection Bar */}
             <section
               aria-label="Surgical Dissection Suite"
-              className="rounded-xl border border-white/15 bg-zinc-950/80 p-3 backdrop-blur-md shadow-2xl"
+              className="rounded-xl border border-white/15 bg-zinc-950/88 md:bg-zinc-950/80 p-2 md:p-3 backdrop-blur-md shadow-2xl"
             >
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+              <div className="mb-2 flex items-center justify-between gap-1.5">
+                <span className="font-mono text-[9.5px] md:text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
                   Surgical Dissection
                 </span>
-                {hiddenPartIds.length > 0 && (
-                  <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-2 py-0.5 font-mono text-[10px] text-amber-200">
-                    Hidden: {hiddenPartIds.length}
-                  </span>
-                )}
+                <div className="flex items-center gap-1">
+                  {hiddenPartIds.length > 0 && (
+                    <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">
+                      Hidden: {hiddenPartIds.length}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setMobileDockOpen(false)}
+                    aria-label="Collapse Dissection Tools"
+                    className="md:hidden rounded p-0.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-1.5">
@@ -1077,27 +1126,13 @@ export const MinimalHud: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile Drawer Trigger (top-right on narrow screens) */}
-        <button
-          type="button"
-          onClick={() => setMobileDockOpen((v) => !v)}
-          className={cn(
-            'pointer-events-auto sm:hidden flex items-center gap-1.5 rounded-xl border px-3 py-2 font-mono text-[11px] font-medium backdrop-blur-md shadow-xl transition-colors',
-            mobileDockOpen || slicing.enabled || hasAnyDissectionActive
-              ? 'border-sky-400/40 bg-zinc-950/90 text-sky-200'
-              : 'border-white/15 bg-zinc-950/80 text-zinc-200'
-          )}
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          <span>Dissect</span>
-        </button>
       </div>
 
-      {/* Bottom-Center Floating System Control Bar */}
+      {/* Bottom-Center Floating System Control Bar (Single horizontally-scrollable row on <768px) */}
       <div className="flex justify-center pb-1 sm:pb-2">
         <nav
           aria-label="Anatomical Systems Control"
-          className="pointer-events-auto flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 rounded-2xl sm:rounded-full border border-white/15 bg-zinc-950/80 p-1.5 backdrop-blur-md shadow-2xl"
+          className="pointer-events-auto flex max-w-[calc(100vw-1rem)] flex-nowrap items-center justify-start md:justify-center gap-1 md:gap-1.5 overflow-x-auto no-scrollbar rounded-full border border-white/15 bg-zinc-950/80 px-1.5 py-1 md:p-1.5 backdrop-blur-md shadow-2xl"
         >
           {SYSTEM_DISPLAY_ORDER.map((systemId) => {
             const sys = ANATOMICAL_SYSTEMS[systemId];
@@ -1115,7 +1150,7 @@ export const MinimalHud: React.FC = () => {
                   opacityVal * 100
                 )}% opacity)`}
                 className={cn(
-                  'group flex items-center gap-1.5 rounded-full px-2.5 py-1.5 sm:px-3 text-xs font-medium transition-all duration-150',
+                  'group flex shrink-0 whitespace-nowrap items-center gap-1 md:gap-1.5 rounded-full px-2 py-1 md:px-3 md:py-1.5 text-[11px] md:text-xs font-medium transition-all duration-150',
                   isActive
                     ? 'bg-white/15 text-white border border-white/20 shadow-sm'
                     : 'bg-transparent text-zinc-500 border border-transparent hover:text-zinc-300 hover:bg-white/5'
@@ -1129,15 +1164,15 @@ export const MinimalHud: React.FC = () => {
                   }}
                 />
                 <Icon className="h-3.5 w-3.5 shrink-0" />
-                <span className="hidden sm:inline">{sys.label}</span>
-                <span className="sm:hidden font-mono text-[10px] tracking-wider">
+                <span className="hidden md:inline">{sys.label}</span>
+                <span className="md:hidden font-mono text-[10px] tracking-wider">
                   {sys.shortLabel}
                 </span>
               </button>
             );
           })}
 
-          <div className="mx-0.5 h-5 w-px bg-white/15" aria-hidden="true" />
+          <div className="mx-0.5 h-5 w-px shrink-0 bg-white/15" aria-hidden="true" />
 
           <button
             type="button"
@@ -1145,7 +1180,7 @@ export const MinimalHud: React.FC = () => {
             aria-pressed={showLayerManager}
             title="Layers, Opacity Presets & Anatomical Views [L]"
             className={cn(
-              'flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 sm:px-3 text-xs font-medium transition-all duration-150 active:scale-95',
+              'flex shrink-0 whitespace-nowrap items-center gap-1 md:gap-1.5 rounded-full border px-2 py-1 md:px-3 md:py-1.5 text-[11px] md:text-xs font-medium transition-all duration-150 active:scale-95',
               showLayerManager
                 ? 'border-sky-400/60 bg-sky-500/25 text-white shadow-[0_0_14px_rgba(56,189,248,0.25)]'
                 : 'border-white/15 bg-white/5 text-zinc-200 hover:bg-white/15 hover:text-white'
@@ -1162,10 +1197,11 @@ export const MinimalHud: React.FC = () => {
             type="button"
             onClick={resetView}
             title="Reset Camera"
-            className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-2.5 py-1.5 sm:px-3 text-xs font-medium text-zinc-200 transition-all duration-150 hover:bg-white/15 hover:text-white active:scale-95"
+            className="flex shrink-0 whitespace-nowrap items-center gap-1 md:gap-1.5 rounded-full border border-white/15 bg-white/5 px-2 py-1 md:px-3 md:py-1.5 text-[11px] md:text-xs font-medium text-zinc-200 transition-all duration-150 hover:bg-white/15 hover:text-white active:scale-95"
           >
             <RotateCcw className="h-3.5 w-3.5 shrink-0" />
             <span className="hidden md:inline">Reset Camera</span>
+            <span className="md:hidden font-mono text-[10px]">RESET</span>
           </button>
         </nav>
       </div>

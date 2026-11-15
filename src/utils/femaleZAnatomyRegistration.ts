@@ -220,6 +220,7 @@ export function calibrateFemaleZAnatomyMaterials(
       cloned.emissive.setHex(0x000000);
       cloned.emissiveIntensity = 0;
       cloned.side = THREE.DoubleSide;
+      cloned.shadowSide = THREE.DoubleSide;
       cloned.needsUpdate = true;
 
       applyClinicalReliefToMaterial(cloned, 'visceral', tissueColor);

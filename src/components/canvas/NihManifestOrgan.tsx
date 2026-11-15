@@ -103,6 +103,7 @@ export function cloneAndEnhanceNihMaterial(
       : 0.03;
   mat.userData.__origSide = THREE.DoubleSide;
   mat.side = THREE.DoubleSide;
+  mat.shadowSide = THREE.DoubleSide;
 
   // Replace raw NIH #3566d5 blue placeholder Skin_mat/Skin_mat2 and blank white Ovary_mat
   const matNameTrimmed = (mat.name || '').trim();
@@ -478,6 +479,7 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : null;
       mat.clipShadows = sharedSliced;
       mat.side = THREE.DoubleSide;
+      mat.shadowSide = THREE.DoubleSide;
       mat.transparent = effectiveTransparent;
       mat.opacity = effectiveOpacity;
       mat.depthWrite = effectiveDepthWrite;

@@ -483,14 +483,18 @@ export function isMeshVisibleForSex(
   biologicalSex: BiologicalSex,
   spatialBounds?: SpatialMeshBounds
 ): boolean {
-  const resolvedBounds =
-    spatialBounds ??
-    (obj.userData?.__spatialBounds as SpatialMeshBounds | undefined);
   if (biologicalSex === 'female') {
-    if (obj.userData?.__isMaleOnly === true) return false;
+    if (typeof obj.userData?.__isMaleOnly === 'boolean') {
+      return !obj.userData.__isMaleOnly;
+    }
+    const resolvedBounds =
+      spatialBounds ??
+      (obj.userData?.__spatialBounds as SpatialMeshBounds | undefined);
     return !isMaleOnlyMesh(obj, resolvedBounds);
   }
-  if (obj.userData?.__isFemaleOnly === true) return false;
+  if (typeof obj.userData?.__isFemaleOnly === 'boolean') {
+    return !obj.userData.__isFemaleOnly;
+  }
   return !isFemaleOnlyMesh(obj);
 }
 

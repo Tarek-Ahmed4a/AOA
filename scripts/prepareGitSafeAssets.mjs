@@ -5,6 +5,7 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const SCAN_DIRS = ['public/books', 'public/models'];
+const CHUNKS_ROOT = path.join(ROOT, 'large-asset-chunks');
 const MAX_GIT_FILE_BYTES = 95 * 1000 * 1000; // 95 MB strict cap under GitHub's 100 MB rejection limit
 const CHUNK_SIZE_BYTES = 85 * 1000 * 1000;   // 85 MB (~81.06 MiB), safely under 90 MB
 const IGNORE_START = '# >>> AUTO-MANAGED LARGE ASSETS (>95 MB) SPLIT INTO GIT-SAFE CHUNKS >>>';
@@ -71,10 +72,30 @@ function existingChunksMatch(manifestPath, sizeBytes, sha256) {
   }
 }
 
+function removeLegacyPublicChunks() {
+  for (const dir of SCAN_DIRS) {
+    const absDir = path.join(ROOT, dir);
+    if (!fs.existsSync(absDir)) continue;
+    const walkClean = (current) => {
+      for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+        const full = path.join(current, entry.name);
+        if (entry.isDirectory()) {
+          walkClean(full);
+        } else if (/\.part\d+$/.test(entry.name) || entry.name.endsWith('.chunks.json')) {
+          fs.unlinkSync(full);
+        }
+      }
+    };
+    walkClean(absDir);
+  }
+}
+
 function splitFileIntoChunks(filePath, statSize) {
   const baseName = path.basename(filePath);
-  const baseDir = path.dirname(filePath);
-  const manifestPath = `${filePath}.chunks.json`;
+  const relFromPublic = path.relative(path.join(ROOT, 'public'), filePath);
+  const chunkDir = path.join(CHUNKS_ROOT, path.dirname(relFromPublic));
+  fs.mkdirSync(chunkDir, { recursive: true });
+  const manifestPath = path.join(chunkDir, `${baseName}.chunks.json`);
   const fileHash = sha256File(filePath);
 
   if (existingChunksMatch(manifestPath, statSize, fileHash)) {
@@ -86,9 +107,9 @@ function splitFileIntoChunks(filePath, statSize) {
   }
 
   // Clean up any stale part files before creating fresh parts
-  for (const name of fs.readdirSync(baseDir)) {
+  for (const name of fs.readdirSync(chunkDir)) {
     if (name.startsWith(`${baseName}.part`)) {
-      fs.unlinkSync(path.join(baseDir, name));
+      fs.unlinkSync(path.join(chunkDir, name));
     }
   }
 
@@ -102,7 +123,7 @@ function splitFileIntoChunks(filePath, statSize) {
     while (offset < statSize) {
       const targetChunkBytes = Math.min(CHUNK_SIZE_BYTES, statSize - offset);
       const partFilename = `${baseName}.part${partIdx}`;
-      const partPath = path.join(baseDir, partFilename);
+      const partPath = path.join(chunkDir, partFilename);
       const partHash = crypto.createHash('sha256');
       const writeFd = fs.openSync(partPath, 'w');
       let writtenForPart = 0;
@@ -186,7 +207,8 @@ function untrackLargeFilesIfInGitIndex(largeRelPaths) {
 }
 
 function main() {
-  console.log('=== Preparing Git-Safe Assets (< 95 MB limit) ===');
+  console.log('=== Preparing Git-Safe Assets (< 95 MB limit, stored outside public/) ===');
+  removeLegacyPublicChunks();
   const candidates = SCAN_DIRS.flatMap((dir) => walkRegularAndLinkedFiles(path.join(ROOT, dir)));
   const largeRelPaths = [];
 

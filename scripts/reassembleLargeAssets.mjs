@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const SCAN_DIRS = ['public/books', 'public/models'];
+const SCAN_DIRS = ['large-asset-chunks', 'public/books', 'public/models'];
 
 function findChunkManifests(dirPath, found = []) {
   if (!fs.existsSync(dirPath)) return found;
@@ -34,7 +34,10 @@ function isTargetReady(targetPath, expectedSize) {
 function reassembleManifest(manifestPath) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
   const baseDir = path.dirname(manifestPath);
-  const targetPath = path.join(baseDir, manifest.originalFilename);
+  const targetPath = manifest.originalRelativePath
+    ? path.resolve(ROOT, manifest.originalRelativePath)
+    : path.join(baseDir, manifest.originalFilename);
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
   const relTarget = path.relative(ROOT, targetPath).replace(/\\/g, '/');
 
   if (isTargetReady(targetPath, manifest.sizeBytes)) {

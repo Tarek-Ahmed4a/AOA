@@ -272,10 +272,6 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
 
   const lastHoverTimestampRef = useRef(0);
   const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const stencilGroupRef = useRef<THREE.Group>(null);
-  const tempPosRef = useRef(new THREE.Vector3());
-  const tempQuatRef = useRef(new THREE.Quaternion());
-  const tempScaleRef = useRef(new THREE.Vector3());
 
   const { clonedScene, catalogParts, sharedMaterials, registeredMeshes } =
     useMemo(() => {
@@ -544,67 +540,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
     };
   }, [registeredMeshes, sharedMaterials, resolvedUrl]);
 
-  // Resolve active stencil target mesh when isolated or selected slicing is active
-  const stencilTargetInfo = useMemo(() => {
-    if (!slicing.enabled) return null;
-
-    let candidate: THREE.Mesh | null = null;
-    for (const mesh of registeredMeshes) {
-      const isMatch =
-        (isolatedPartId !== null &&
-          (mesh.uuid === isolatedPartId || mesh.name === isolatedPartId)) ||
-        (slicing.scope === 'selected' &&
-          selectedPart &&
-          (selectedPart.meshUuid === mesh.uuid ||
-            selectedPart.rawName === mesh.name));
-      if (isMatch) {
-        candidate = mesh;
-        break;
-      }
-    }
-
-    if (!candidate) return null;
-    const targetMesh = candidate;
-    const sys = (targetMesh.userData?.system as AnatomicalSystem) ?? 'visceral';
-    const isHidden =
-      hiddenPartIds.includes(targetMesh.uuid) ||
-      hiddenPartIds.includes(targetMesh.name);
-    const isIsolatedOut =
-      isolatedPartId !== null &&
-      !xrayGhostMode &&
-      isolatedPartId !== targetMesh.uuid &&
-      isolatedPartId !== targetMesh.name;
-    const isFocusTarget =
-      isolatedPartId !== null
-        ? isolatedPartId === targetMesh.uuid ||
-          isolatedPartId === targetMesh.name
-        : selectedPart !== null &&
-          (selectedPart.meshUuid === targetMesh.uuid ||
-            selectedPart.rawName === targetMesh.name);
-    const isGhost = xrayGhostMode && !isFocusTarget;
-
-    const visible =
-      activeSystems[sys] &&
-      !isHidden &&
-      !isIsolatedOut &&
-      !isGhost &&
-      systemOpacity[sys] >= 0.99;
-
-    if (!visible || !targetMesh.geometry) return null;
-    return targetMesh;
-  }, [
-    registeredMeshes,
-    slicing.enabled,
-    slicing.scope,
-    isolatedPartId,
-    selectedPart,
-    hiddenPartIds,
-    xrayGhostMode,
-    activeSystems,
-    systemOpacity,
-  ]);
-
-  // Apply rigid macro-unit explode offsets & sync stencil transform declaratively
+  // Apply rigid macro-unit explode offsets declaratively
   useEffect(() => {
     clonedScene.parent?.updateWorldMatrix(true, false);
     clonedScene.updateMatrixWorld(true);
@@ -627,25 +563,12 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
         );
       }
     }
-
-    if (stencilTargetInfo && stencilGroupRef.current) {
-      stencilTargetInfo.updateWorldMatrix(true, false);
-      stencilTargetInfo.matrixWorld.decompose(
-        tempPosRef.current,
-        tempQuatRef.current,
-        tempScaleRef.current
-      );
-      stencilGroupRef.current.position.copy(tempPosRef.current);
-      stencilGroupRef.current.quaternion.copy(tempQuatRef.current);
-      stencilGroupRef.current.scale.copy(tempScaleRef.current);
-    }
   }, [
     clonedScene,
     registeredMeshes,
     explodeFactor,
     activeAtlasPreset,
     activeSystems,
-    stencilTargetInfo,
   ]);
 
   useEffect(() => {
@@ -668,6 +591,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : null;
       mat.clipShadows = sharedSliced;
       mat.side = THREE.DoubleSide;
+      mat.shadowSide = THREE.DoubleSide;
       mat.transparent = effectiveTransparent;
       mat.opacity = effectiveOpacity;
       mat.depthWrite = effectiveDepthWrite;
@@ -816,49 +740,6 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
           document.body.style.cursor = 'auto';
         }}
       />
-
-      {stencilTargetInfo && (
-        <group ref={stencilGroupRef}>
-          <mesh
-            geometry={stencilTargetInfo.geometry}
-            renderOrder={3}
-            userData={{ __isStencilHelper: true }}
-            raycast={() => null}
-          >
-            <meshBasicMaterial
-              colorWrite={false}
-              depthWrite={false}
-              depthTest={false}
-              side={THREE.BackSide}
-              stencilWrite
-              stencilFunc={THREE.AlwaysStencilFunc}
-              stencilFail={THREE.IncrementWrapStencilOp}
-              stencilZFail={THREE.IncrementWrapStencilOp}
-              stencilZPass={THREE.IncrementWrapStencilOp}
-              clippingPlanes={CLIPPING_PLANES_LIST}
-            />
-          </mesh>
-          <mesh
-            geometry={stencilTargetInfo.geometry}
-            renderOrder={3}
-            userData={{ __isStencilHelper: true }}
-            raycast={() => null}
-          >
-            <meshBasicMaterial
-              colorWrite={false}
-              depthWrite={false}
-              depthTest={false}
-              side={THREE.FrontSide}
-              stencilWrite
-              stencilFunc={THREE.AlwaysStencilFunc}
-              stencilFail={THREE.DecrementWrapStencilOp}
-              stencilZFail={THREE.DecrementWrapStencilOp}
-              stencilZPass={THREE.DecrementWrapStencilOp}
-              clippingPlanes={CLIPPING_PLANES_LIST}
-            />
-          </mesh>
-        </group>
-      )}
     </>
   );
 };
@@ -1430,6 +1311,7 @@ const SketchfabSystemGlbContent: React.FC<{
 
   const lastHoverTimestampRef = useRef(0);
   const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastExplodeFactorRef = useRef(0);
 
   const { alignedRoot, normTransform, sharedMaterials, registeredMeshes } =
     useMemo(() => {
@@ -1747,6 +1629,13 @@ const SketchfabSystemGlbContent: React.FC<{
           );
         }
 
+        const isFemaleSuppressedHair =
+          meshSystem === 'integumentary' &&
+          Boolean(entry.alignment?.useSharedOrigin) &&
+          /\b(?:hairs?[\s_]+of[\s_]+head|pubic[\s_]+hairs?)\b/i.test(
+            `${mesh.name} ${readableName}`
+          );
+
         mesh.userData = {
           ...mesh.userData,
           anatomicalName: readableName,
@@ -1761,6 +1650,7 @@ const SketchfabSystemGlbContent: React.FC<{
           __isFemaleOnly: isFemaleOnly,
           __isMaleBladder: isMaleBladder,
           __isPelvicGirdle: isPelvicGirdle,
+          __isFemaleSuppressedHair: isFemaleSuppressedHair,
           __spatialBounds: spatialBounds,
           __restPosition: mesh.position.clone(),
           __restScale: mesh.scale.clone(),
@@ -1770,6 +1660,11 @@ const SketchfabSystemGlbContent: React.FC<{
           __sharedMaterial: mesh.material,
           __origRaycast: mesh.raycast,
         };
+        mesh.userData.__cachedPartInfo = parseAnatomicalMesh(
+          mesh,
+          meshSystem,
+          pIdx - 1
+        );
 
         meshes.push(mesh);
       }
@@ -1865,6 +1760,7 @@ const SketchfabSystemGlbContent: React.FC<{
       const needsTransparency = targetOpacity < 0.99;
 
       mat.side = THREE.DoubleSide;
+      mat.shadowSide = THREE.DoubleSide;
       mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : [];
       mat.clipShadows = sharedSliced;
       mat.transparent = needsTransparency;
@@ -1908,12 +1804,9 @@ const SketchfabSystemGlbContent: React.FC<{
         (mesh.userData?.system as AnatomicalSystem | undefined) ?? entry.system;
       const rawId = mesh.name;
       const organGroupId = mesh.userData?.organGroupId as string | undefined;
-      const displayHint = `${rawId} ${String(mesh.userData?.anatomicalName || '')}`;
       const isFemaleSuppressedHair =
         biologicalSex === 'female' &&
-        meshSystem === 'integumentary' &&
-        Boolean(entry.alignment?.useSharedOrigin) &&
-        /\b(?:hairs?[\s_]+of[\s_]+head|pubic[\s_]+hairs?)\b/i.test(displayHint);
+        Boolean(mesh.userData?.__isFemaleSuppressedHair);
 
       const isHiddenForSex =
         isFemaleSuppressedHair ||
@@ -1995,18 +1888,28 @@ const SketchfabSystemGlbContent: React.FC<{
 
   // Apply rigid macro-unit explode offsets & female skeletal pelvic dimorphism declaratively
   useEffect(() => {
-    alignedRoot.parent?.updateWorldMatrix(true, false);
-    alignedRoot.updateMatrixWorld(true);
+    const prevExplode = lastExplodeFactorRef.current;
+    const isAtZeroExplode = explodeFactor === 0 && prevExplode === 0;
+    lastExplodeFactorRef.current = explodeFactor;
+
+    if (!isAtZeroExplode) {
+      alignedRoot.parent?.updateWorldMatrix(true, false);
+      alignedRoot.updateMatrixWorld(true);
+    }
     const explodeCtx = { activeAtlasPreset, activeSystems };
 
     for (const mesh of registeredMeshes) {
+      const isPelvisMesh = Boolean(mesh.userData?.__isPelvicGirdle);
+      if (isAtZeroExplode && !isPelvisMesh) {
+        continue;
+      }
+
       const restPos = mesh.userData.__restPosition as THREE.Vector3 | undefined;
       const restScale = mesh.userData.__restScale as THREE.Vector3 | undefined;
       const clusterId = mesh.userData.__explodeClusterId as
         | ExplodeClusterId
         | undefined;
-      const isFemalePelvis =
-        biologicalSex === 'female' && Boolean(mesh.userData?.__isPelvicGirdle);
+      const isFemalePelvis = biologicalSex === 'female' && isPelvisMesh;
 
       if (restScale) {
         if (isFemalePelvis) {
@@ -2349,6 +2252,8 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           cloned.depthWrite = true;
         }
 
+        cloned.side = THREE.DoubleSide;
+        cloned.shadowSide = THREE.DoubleSide;
         cloned.clippingPlanes = isMeshSliced ? CLIPPING_PLANES_LIST : null;
         cloned.clipShadows = isMeshSliced;
         return cloned;
@@ -2412,6 +2317,21 @@ export const AnatomicalModelManager: React.FC = () => {
   >({});
   const catalogRebuildTimerRef = useRef<number | null>(null);
   const [nihCatalogTick, setNihCatalogTick] = useState(0);
+  const [femaleSupplementWarm, setFemaleSupplementWarm] = useState(
+    () => biologicalSex === 'female'
+  );
+
+  useEffect(() => {
+    if (biologicalSex === 'female') {
+      setFemaleSupplementWarm(true);
+      return;
+    }
+    if (femaleSupplementWarm) return;
+    const timerId = window.setTimeout(() => {
+      setFemaleSupplementWarm(true);
+    }, 1100);
+    return () => window.clearTimeout(timerId);
+  }, [biologicalSex, femaleSupplementWarm]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2516,25 +2436,51 @@ export const AnatomicalModelManager: React.FC = () => {
   );
 
   // Automatically index live streamed/cached Z-Anatomy & NIH anatomical meshes into Omni-Search catalog
+  // using pre-cached mesh metadata + O(1) sex flags so MALE <-> FEMALE switching takes < 1ms.
+  const canMountFemaleZAnatomyOverlay =
+    activeAtlasPreset === 'zanatomy-full-body' ||
+    activeAtlasPreset === 'zanatomy-visceral';
+  const showFemaleZAnatomyOrgans =
+    biologicalSex === 'female' &&
+    activeSystems.visceral &&
+    canMountFemaleZAnatomyOverlay;
+
   useEffect(() => {
-    if (customGlbUrl || !atlasAssemblyGroupRef.current) return;
-    atlasAssemblyGroupRef.current.updateMatrixWorld(true);
+    if (customGlbUrl || sceneMeshByUuid.size === 0) return;
 
     const parts: AnatomicalPartInfo[] = [];
-    atlasAssemblyGroupRef.current.traverse((obj) => {
+    for (const mesh of sceneMeshByUuid.values()) {
       if (
-        (obj as THREE.Mesh).isMesh &&
-        !obj.userData?.__isStencilHelper &&
-        !obj.userData?.__isNoiseFiltered &&
-        Boolean(obj.name)
+        mesh.userData?.__isStencilHelper ||
+        mesh.userData?.__isNoiseFiltered ||
+        mesh.userData?.__isNoiseSubmesh ||
+        !mesh.name
       ) {
-        const mesh = obj as THREE.Mesh;
-        if (!isMeshVisibleForSex(mesh, biologicalSex)) return;
-        const parsed = parseAnatomicalMesh(mesh);
-        if (!isPartVisibleForSex(parsed, biologicalSex)) return;
-        parts.push(parsed);
+        continue;
       }
-    });
+      if (
+        mesh.userData?.__isFemaleZAnatomySupplement &&
+        !showFemaleZAnatomyOrgans
+      ) {
+        continue;
+      }
+      if (
+        biologicalSex === 'female' &&
+        mesh.userData?.__isFemaleSuppressedHair
+      ) {
+        continue;
+      }
+      if (!isMeshVisibleForSex(mesh, biologicalSex)) continue;
+      const parsed =
+        (mesh.userData?.partInfo as AnatomicalPartInfo | undefined) ??
+        (mesh.userData?.__cachedPartInfo as AnatomicalPartInfo | undefined) ??
+        (() => {
+          const computed = parseAnatomicalMesh(mesh);
+          mesh.userData.__cachedPartInfo = computed;
+          return computed;
+        })();
+      parts.push(parsed);
+    }
     if (parts.length > 0 || nihCatalogTick > 0) {
       registerCatalog(parts);
     }
@@ -2544,6 +2490,7 @@ export const AnatomicalModelManager: React.FC = () => {
     activeSystems,
     biologicalSex,
     nihCatalogTick,
+    showFemaleZAnatomyOrgans,
     rootTransform,
     registerCatalog,
   ]);
@@ -2592,13 +2539,11 @@ export const AnatomicalModelManager: React.FC = () => {
     return activeAtlasPreset === 'nih-visible-human' ? activeNihOrgans : [];
   }, [activeAtlasPreset, activeNihOrgans]);
 
-  // Mount the 7 authentic NIH female pelvic & mammary organs into Z-Anatomy `FEMALE ♀` views
-  // (`Full Body` & `Visceral`), strictly keeping `VH_F_Skin` and `VH_F_Pelvis` excluded.
-  const showFemaleZAnatomyOrgans =
-    biologicalSex === 'female' &&
-    activeSystems.visceral &&
-    (activeAtlasPreset === 'zanatomy-full-body' ||
-      activeAtlasPreset === 'zanatomy-visceral');
+  // Pre-mount the 7 authentic NIH female pelvic & mammary organs once per Z-Anatomy session
+  // and toggle only their group/mesh visibility (<1ms) so switching MALE <-> FEMALE never freezes.
+  const allFemaleNihOrgans = useMemo(() => {
+    return nihSceneCatalog?.female ?? [];
+  }, [nihSceneCatalog]);
 
   const builtInAtlasContent = (
     <group
@@ -2629,13 +2574,15 @@ export const AnatomicalModelManager: React.FC = () => {
           ))}
         </group>
       )}
-      {showFemaleZAnatomyOrgans && (
-        <FemaleZAnatomyOrgansGroup
-          nihOrgans={activeNihOrgans}
-          atlasAssemblyGroupRef={atlasAssemblyGroupRef}
-          onCatalogUpdated={() => setNihCatalogTick((v) => v + 1)}
-        />
-      )}
+      {canMountFemaleZAnatomyOverlay &&
+        (femaleSupplementWarm || showFemaleZAnatomyOrgans) && (
+          <FemaleZAnatomyOrgansGroup
+            visible={showFemaleZAnatomyOrgans}
+            nihOrgans={allFemaleNihOrgans}
+            atlasAssemblyGroupRef={atlasAssemblyGroupRef}
+            onCatalogUpdated={() => setNihCatalogTick((v) => v + 1)}
+          />
+        )}
     </group>
   );
 

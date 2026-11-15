@@ -13,6 +13,7 @@
       "sizeBytes": 120610693,
       "pageCount": 791,
       "url": "/books/book1-netters-atlas-7ed.pdf",
+      "remoteFallbackUrl": "https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book1-netters-atlas-7ed.pdf",
       "linkMethod": "symlink",
       "chapters": [
         {
@@ -611,6 +612,7 @@
       "sizeBytes": 198719430,
       "pageCount": 1234,
       "url": "/books/book2-grays-anatomy-4ed.pdf",
+      "remoteFallbackUrl": "https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book2-grays-anatomy-4ed.pdf",
       "linkMethod": "symlink",
       "chapters": [
         {

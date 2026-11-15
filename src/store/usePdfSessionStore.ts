@@ -21,6 +21,7 @@ export interface PdfBookManifestEntry {
   sizeBytes: number;
   pageCount: number;
   url: string;
+  remoteFallbackUrl?: string;
   chapters?: PdfChapterBookmark[];
   plateOffsetEstimate?: number | null;
   plateToPage?: Record<string, number>;
@@ -49,6 +50,8 @@ export const DEFAULT_PDF_BOOKS: PdfBookManifestEntry[] = [
     sizeBytes: 0,
     pageCount: 791,
     url: '/books/book1-netters-atlas-7ed.pdf',
+    remoteFallbackUrl:
+      'https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book1-netters-atlas-7ed.pdf',
     chapters: [],
     plateOffsetEstimate: 36,
     plateToPage: {},
@@ -65,6 +68,8 @@ export const DEFAULT_PDF_BOOKS: PdfBookManifestEntry[] = [
     sizeBytes: 0,
     pageCount: 1234,
     url: '/books/book2-grays-anatomy-4ed.pdf',
+    remoteFallbackUrl:
+      'https://github.com/Tarek-Ahmed4a/AOA/releases/latest/download/book2-grays-anatomy-4ed.pdf',
     chapters: [],
     plateOffsetEstimate: null,
     plateToPage: {},

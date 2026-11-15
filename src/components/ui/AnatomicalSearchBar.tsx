@@ -38,11 +38,13 @@ function normalizeArabicText(value: string): string {
 
 export const AnatomicalSearchBar: React.FC = () => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragDepthRef = useRef(0);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [glbFeedback, setGlbFeedback] = useState<string | null>(null);
@@ -196,15 +198,17 @@ export const AnatomicalSearchBar: React.FC = () => {
         e.preventDefault();
         inputRef.current?.focus();
         setIsOpen(true);
-      } else if (e.key === 'Escape' && isOpen) {
+      } else if (e.key === 'Escape' && (isOpen || mobileSearchOpen)) {
         setIsOpen(false);
+        setMobileSearchOpen(false);
         inputRef.current?.blur();
+        mobileInputRef.current?.blur();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, mobileSearchOpen]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -214,6 +218,7 @@ export const AnatomicalSearchBar: React.FC = () => {
         !containerRef.current.contains(e.target as Node)
       ) {
         setIsOpen(false);
+        setMobileSearchOpen(false);
       }
     };
     window.addEventListener('pointerdown', handlePointerDown);
@@ -273,7 +278,9 @@ export const AnatomicalSearchBar: React.FC = () => {
   const handleSelectEntry = (entry: IndexedCatalogEntry) => {
     selectAndFlyToPart(entry.part.meshUuid);
     setIsOpen(false);
+    setMobileSearchOpen(false);
     inputRef.current?.blur();
+    mobileInputRef.current?.blur();
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -298,7 +305,9 @@ export const AnatomicalSearchBar: React.FC = () => {
     } else if (e.key === 'Escape') {
       e.preventDefault();
       setIsOpen(false);
+      setMobileSearchOpen(false);
       inputRef.current?.blur();
+      mobileInputRef.current?.blur();
     }
   };
 
@@ -330,11 +339,37 @@ export const AnatomicalSearchBar: React.FC = () => {
       {/* Top-Right Compact Controls: Omni-Search, Biological Sex Switch & Import .GLB */}
       <div
         ref={containerRef}
-        className="pointer-events-auto relative flex items-center justify-end gap-1.5"
+        className="pointer-events-auto relative flex items-center justify-end gap-1 md:gap-1.5"
       >
+        {/* Mobile (<768px) Search Icon Toggle */}
+        <button
+          type="button"
+          onClick={() => {
+            setMobileSearchOpen((prev) => {
+              const next = !prev;
+              setIsOpen(next);
+              if (next) {
+                window.setTimeout(() => mobileInputRef.current?.focus(), 20);
+              }
+              return next;
+            });
+          }}
+          aria-label="Toggle Anatomical Search"
+          aria-expanded={mobileSearchOpen}
+          className={cn(
+            'md:hidden flex h-8 w-8 shrink-0 items-center justify-center rounded-full border bg-[#0a0a0c]/90 shadow-2xl backdrop-blur-md transition-colors',
+            mobileSearchOpen
+              ? 'border-sky-500/50 bg-sky-500/15 text-sky-300'
+              : 'border-white/10 text-sky-400 hover:border-white/20'
+          )}
+        >
+          <Search className="h-3.5 w-3.5" />
+        </button>
+
+        {/* Desktop (>=768px) Inline Search Input */}
         <div
           className={cn(
-            'flex h-9 w-36 items-center gap-1.5 rounded-full border bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md transition-colors sm:w-44 xl:w-56 2xl:w-64',
+            'hidden md:flex h-9 w-44 items-center gap-1.5 rounded-full border bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md transition-colors xl:w-56 2xl:w-64',
             isOpen
               ? 'border-sky-500/40 ring-1 ring-sky-500/20'
               : 'border-white/10 hover:border-white/20'
@@ -374,11 +409,57 @@ export const AnatomicalSearchBar: React.FC = () => {
           )}
         </div>
 
+        {/* Mobile Floating Search Input Overlay */}
+        {mobileSearchOpen && (
+          <div className="fixed left-2 right-2 top-[52px] z-50 flex h-9 items-center gap-2 rounded-full border border-sky-500/45 bg-[#08080e]/95 px-3 shadow-2xl backdrop-blur-xl md:hidden">
+            <Search className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+            <input
+              ref={mobileInputRef}
+              type="text"
+              value={searchQuery}
+              onFocus={() => setIsOpen(true)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setIsOpen(true);
+              }}
+              onKeyDown={handleInputKeyDown}
+              placeholder="Search anatomy (English, Latin, Arabic)..."
+              aria-label="Mobile Anatomical Search"
+              className="w-full min-w-0 bg-transparent text-xs text-white placeholder-zinc-500 focus:outline-none"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  mobileInputRef.current?.focus();
+                }}
+                aria-label="Clear search query"
+                className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileSearchOpen(false);
+                  setIsOpen(false);
+                }}
+                aria-label="Close mobile search"
+                className="shrink-0 rounded p-0.5 text-zinc-400 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Segmented Biological Sex Switch */}
         <div
           role="group"
           aria-label="Biological Sex Model Selector"
-          className="flex h-9 shrink-0 items-center rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-2xl backdrop-blur-md"
+          className="flex h-8 md:h-9 shrink-0 items-center rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-2xl backdrop-blur-md"
         >
           <button
             type="button"
@@ -386,7 +467,7 @@ export const AnatomicalSearchBar: React.FC = () => {
             aria-pressed={biologicalSex === 'male'}
             title="Switch to Male Anatomical Body (♂)"
             className={cn(
-              'flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-[10px] font-semibold tracking-wider transition-all active:scale-95',
+              'flex items-center gap-1 rounded-full border px-1.5 py-0.5 md:px-2 md:py-1 font-mono text-[10px] font-semibold tracking-wider transition-all active:scale-95',
               biologicalSex === 'male'
                 ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
                 : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
@@ -401,7 +482,7 @@ export const AnatomicalSearchBar: React.FC = () => {
             aria-pressed={biologicalSex === 'female'}
             title="Switch to Female Anatomical Body (♀)"
             className={cn(
-              'flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-[10px] font-semibold tracking-wider transition-all active:scale-95',
+              'flex items-center gap-1 rounded-full border px-1.5 py-0.5 md:px-2 md:py-1 font-mono text-[10px] font-semibold tracking-wider transition-all active:scale-95',
               biologicalSex === 'female'
                 ? 'border-rose-500/40 bg-rose-500/15 text-rose-400'
                 : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
@@ -427,11 +508,11 @@ export const AnatomicalSearchBar: React.FC = () => {
           type="button"
           onClick={() => fileInputRef.current?.click()}
           title="Import external Z-Anatomy / NIH .GLB model"
-          className="flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-2xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
+          className="flex h-8 w-8 md:h-9 md:w-auto shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-0 md:px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-2xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
         >
           <Upload className="h-3.5 w-3.5 text-sky-400" />
           <span className="hidden lg:inline">Import .GLB</span>
-          <span className="lg:hidden">.GLB</span>
+          <span className="hidden md:inline lg:hidden">.GLB</span>
         </button>
 
         {/* Search Results Dropdown */}
@@ -439,7 +520,12 @@ export const AnatomicalSearchBar: React.FC = () => {
           <div
             role="listbox"
             aria-label="Anatomical search matches"
-            className="absolute right-0 top-[calc(100%+6px)] z-50 w-[340px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-white/15 bg-[#08080e]/95 shadow-[0_24px_64px_rgba(0,0,0,0.95)] backdrop-blur-xl sm:w-[380px]"
+            className={cn(
+              'z-50 overflow-hidden rounded-xl border border-white/15 bg-[#08080e]/95 shadow-[0_24px_64px_rgba(0,0,0,0.95)] backdrop-blur-xl',
+              mobileSearchOpen
+                ? 'fixed left-2 right-2 top-[96px] md:absolute md:left-auto md:right-0 md:top-[calc(100%+6px)] md:w-[380px]'
+                : 'absolute right-0 top-[calc(100%+6px)] w-[340px] max-w-[calc(100vw-1.5rem)] sm:w-[380px]'
+            )}
           >
             <div className="flex items-center justify-between border-b border-white/10 px-3 py-1.5 font-mono text-[9px] uppercase tracking-wider text-zinc-400">
               <span>
