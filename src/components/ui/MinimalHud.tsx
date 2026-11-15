@@ -36,6 +36,7 @@ const ATLAS_PRESET_OPTIONS: AtlasPresetOption[] = [
 ];
 import {
   Activity,
+  ArrowLeft,
   Bone,
   Brain,
   Crosshair,
@@ -63,6 +64,8 @@ import { cn } from '../../lib/utils';
 import {
   cursorCoords,
   useAnatomyStore,
+  useAnatomyStoreApi,
+  useAppNavigationStore,
   type AnatomicalSystem,
   type SlicingPlaneAxis,
 } from '../../store/useAnatomyStore';
@@ -102,14 +105,26 @@ export const MinimalHud: React.FC = () => {
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
-  const activeTab = useAnatomyStore((s) => s.activeTab);
+  const activeTab = useAppNavigationStore((s) => s.activeTab);
+  const setActiveTab = useAppNavigationStore((s) => s.setActiveTab);
+  const explorerOpenedModel = useAppNavigationStore(
+    (s) => s.explorerOpenedModel
+  );
+  const setExplorerOpenedModel = useAppNavigationStore(
+    (s) => s.setExplorerOpenedModel
+  );
+  const clearPdfReference = useAppNavigationStore((s) => s.clearPdfReference);
+  const pdfReferenceTarget = useAppNavigationStore((s) => s.pdfReferenceTarget);
+  const storeApi = useAnatomyStoreApi();
+  const isNativeViewportActive =
+    activeTab === 'master-atlas' ||
+    (activeTab === 'cloud-explorer' && explorerOpenedModel?.kind === 'native');
 
   const toggleSystem = useAnatomyStore((s) => s.toggleSystem);
   const toggleLayerManager = useAnatomyStore((s) => s.toggleLayerManager);
   const resetView = useAnatomyStore((s) => s.resetView);
   const selectPart = useAnatomyStore((s) => s.selectPart);
   const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
-  const setActiveTab = useAnatomyStore((s) => s.setActiveTab);
 
   const peelSelectedPart = useAnatomyStore((s) => s.peelSelectedPart);
   const undoLastPeel = useAnatomyStore((s) => s.undoLastPeel);
@@ -137,8 +152,13 @@ export const MinimalHud: React.FC = () => {
         return;
       }
 
-      const state = useAnatomyStore.getState();
-      if (state.activeTab !== 'master-atlas') return;
+      const navState = useAppNavigationStore.getState();
+      const isNativeActive =
+        navState.activeTab === 'master-atlas' ||
+        (navState.activeTab === 'cloud-explorer' &&
+          navState.explorerOpenedModel?.kind === 'native');
+      if (!isNativeActive) return;
+      const state = storeApi.getState();
       const key = e.key.toLowerCase();
 
       if (key === 'f' && state.selectedPart) {
@@ -198,9 +218,7 @@ export const MinimalHud: React.FC = () => {
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
   const setActiveAtlasPreset = useAnatomyStore((s) => s.setActiveAtlasPreset);
   const customGlbUrl = useAnatomyStore((s) => s.customGlbUrl);
-  const pdfReferenceTarget = useAnatomyStore((s) => s.pdfReferenceTarget);
   const medicalProfile = useAnatomyStore((s) => s.medicalProfile);
-  const clearPdfReference = useAnatomyStore((s) => s.clearPdfReference);
 
   const pdfBooks = usePdfSessionStore((s) => s.books);
   const pdfViewMode = usePdfSessionStore((s) => s.viewMode);
@@ -423,14 +441,35 @@ export const MinimalHud: React.FC = () => {
             </>
           ) : (
             <>
-              <div className="hidden md:flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
-                <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-                <span className="whitespace-nowrap font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-200">
-                  ATLAS 3D
-                </span>
-              </div>
+              {activeTab === 'cloud-explorer' &&
+              explorerOpenedModel?.kind === 'native' ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setExplorerOpenedModel(null)}
+                    aria-label="Back to Explorer search catalog"
+                    className="flex h-8 md:h-9 shrink-0 items-center gap-1.5 rounded-full border border-sky-400/35 bg-[#0a0a0c]/90 px-2.5 md:px-3 font-mono text-[10px] font-semibold text-sky-200 shadow-2xl backdrop-blur-md transition-colors hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-white active:scale-95"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-sky-400" />
+                    <span>Explorer</span>
+                  </button>
+                  <div className="hidden sm:flex h-8 md:h-9 min-w-0 max-w-[200px] items-center gap-1.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 shadow-2xl backdrop-blur-md">
+                    <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                    <span className="truncate font-mono text-[10px] font-medium text-zinc-200">
+                      {explorerOpenedModel.title}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div className="hidden md:flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
+                  <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                  <span className="whitespace-nowrap font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-200">
+                    ATLAS 3D
+                  </span>
+                </div>
+              )}
 
-              {activeTab === 'master-atlas' && !customGlbUrl && (
+              {isNativeViewportActive && !customGlbUrl && (
                 <div ref={presetMenuRef} className="relative min-w-0">
                   <button
                     type="button"
@@ -578,7 +617,7 @@ export const MinimalHud: React.FC = () => {
 
         {/* Top-Right Zone */}
         <div className="pointer-events-auto flex min-w-0 flex-1 items-center justify-end gap-1 md:gap-1.5">
-          {activeTab === 'master-atlas' && <AnatomicalSearchBar />}
+          {isNativeViewportActive && <AnatomicalSearchBar />}
           {activeTab === 'pdf-books' && (
             <>
               <form
@@ -683,7 +722,7 @@ export const MinimalHud: React.FC = () => {
         </div>
       </header>
 
-      {activeTab === 'master-atlas' && (
+      {isNativeViewportActive && (
       <div className="pointer-events-none fixed inset-0 z-10 flex flex-col justify-between p-2 pt-14 md:p-4 md:pt-16">
       {/* Floating Cursor Tooltip (Mouse Hover Only) */}
       {showFloatingTooltip && hoveredPart && (

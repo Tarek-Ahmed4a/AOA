@@ -1,8 +1,17 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useAnatomyStore } from '../../store/useAnatomyStore';
-import { getRegisteredSceneMesh } from '../../utils/bvhSetup';
-import { computeSlicingPlaneParameters } from '../../utils/slicingPlane';
+import {
+  useAnatomyStore,
+  useAnatomyStoreApi,
+} from '../../store/useAnatomyStore';
+import {
+  getRegisteredSceneMesh,
+  useSceneMeshRegistry,
+} from '../../utils/bvhSetup';
+import {
+  computeSlicingPlaneParameters,
+  useClippingPlane,
+} from '../../utils/slicingPlane';
 
 const Z_AXIS = new THREE.Vector3(0, 0, 1);
 
@@ -48,6 +57,9 @@ function buildLaserReticleGeometry(): THREE.BufferGeometry {
 }
 
 export const SlicingPlaneGizmo: React.FC = () => {
+  const storeApi = useAnatomyStoreApi();
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
   const gizmoGroupRef = useRef<THREE.Group>(null);
   const selectedObjRef = useRef<THREE.Object3D | null>(null);
   const liveCenterRef = useRef(new THREE.Vector3());
@@ -69,15 +81,16 @@ export const SlicingPlaneGizmo: React.FC = () => {
     if (selectedPart) {
       selectedObjRef.current = getRegisteredSceneMesh(
         selectedPart.meshUuid,
-        selectedPart.rawName
+        selectedPart.rawName,
+        registry
       );
     } else {
       selectedObjRef.current = null;
     }
-  }, [selectedPart]);
+  }, [selectedPart, registry]);
 
   const syncPlaneTransform = () => {
-    const state = useAnatomyStore.getState();
+    const state = storeApi.getState();
     if (!state.slicing.enabled) return;
 
     let liveCenter: THREE.Vector3 | null = null;
@@ -102,7 +115,8 @@ export const SlicingPlaneGizmo: React.FC = () => {
     const { normal, planePoint, gizmoSize } = computeSlicingPlaneParameters(
       state.slicing,
       state.selectedPart,
-      liveCenter
+      liveCenter,
+      clippingPlane
     );
 
     const group = gizmoGroupRef.current;

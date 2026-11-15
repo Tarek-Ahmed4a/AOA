@@ -1,3 +1,4 @@
+import React, { createContext, useContext } from 'react';
 import * as THREE from 'three';
 import type {
   AnatomicalSystem,
@@ -6,14 +7,29 @@ import type {
 } from '../store/useAnatomyStore';
 import type { AnatomicalPartInfo } from './anatomyParser';
 
+export function createClippingPlane(): THREE.Plane {
+  return new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+}
+
 /**
- * Shared persistent clipping plane updated synchronously in useFrame so all
- * sliced meshes and the surgical laser gizmo remain locked in sync with zero allocations.
+ * Master default clipping plane. Individual <AnatomyViewport> instances can
+ * supply an isolated plane via ClippingPlaneContext so Tab 1 & Tab 2 never conflict.
  */
-export const ACTIVE_CLIPPING_PLANE = new THREE.Plane(
-  new THREE.Vector3(1, 0, 0),
-  0
+export const ACTIVE_CLIPPING_PLANE = createClippingPlane();
+
+export const ClippingPlaneContext = createContext<THREE.Plane>(
+  ACTIVE_CLIPPING_PLANE
 );
+
+export const ClippingPlaneProvider: React.FC<{
+  plane: THREE.Plane;
+  children: React.ReactNode;
+}> = ({ plane, children }) =>
+  React.createElement(ClippingPlaneContext.Provider, { value: plane }, children);
+
+export function useClippingPlane(): THREE.Plane {
+  return useContext(ClippingPlaneContext);
+}
 
 export const BODY_EXPLODE_CENTER = new THREE.Vector3(0, 1.0, 0);
 
@@ -46,7 +62,8 @@ export interface ComputedSliceTransform {
 export function computeSlicingPlaneParameters(
   slicing: SlicingState,
   selectedPart: AnatomicalPartInfo | null,
-  liveSelectedCenter?: THREE.Vector3 | null
+  liveSelectedCenter?: THREE.Vector3 | null,
+  targetPlane: THREE.Plane = ACTIVE_CLIPPING_PLANE
 ): ComputedSliceTransform {
   const [nx, ny, nz] = AXIS_BASE_NORMALS[slicing.plane];
   _baseAxis.set(nx, ny, nz);
@@ -80,7 +97,7 @@ export function computeSlicingPlaneParameters(
     .copy(_anchor)
     .addScaledVector(_baseAxis, slicing.offset * travelHalfSpan);
 
-  ACTIVE_CLIPPING_PLANE.setFromNormalAndCoplanarPoint(_normal, _planePoint);
+  targetPlane.setFromNormalAndCoplanarPoint(_normal, _planePoint);
 
   return {
     normal: _normal,

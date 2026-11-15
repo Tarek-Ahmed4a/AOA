@@ -28,12 +28,12 @@ import {
   enqueueGeometryBVH,
   getRegisteredSceneMesh,
   registerSceneMesh,
-  sceneMeshByUuid,
   unregisterSceneMesh,
+  useSceneMeshRegistry,
 } from '../../utils/bvhSetup';
 import {
-  ACTIVE_CLIPPING_PLANE,
   INTERNAL_TISSUE_COLORS,
+  useClippingPlane,
 } from '../../utils/slicingPlane';
 import {
   resolveExplodeClusterId,
@@ -46,7 +46,6 @@ import {
 } from '../../utils/tissueShader';
 import {
   cloneClinicalHighlightMaterial,
-  setClinicalDimFactor,
   setClinicalHighlightState,
 } from '../../utils/clinicalReliefShader';
 import {
@@ -69,12 +68,9 @@ import {
   isPartVisibleForSex,
 } from '../../utils/sexDimorphismFilter';
 
-// Configure Draco decoder to Google's official versioned CDN for Phase 2+ high-density GLBs
-useGLTF.setDecoderPath(
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/'
-);
+// Configure local offline Draco decoder (bundled under public/draco/)
+useGLTF.setDecoderPath(resolveAssetUrl('/draco/'));
 
-const CLIPPING_PLANES_LIST: THREE.Plane[] = [ACTIVE_CLIPPING_PLANE];
 const NOOP_RAYCAST: THREE.Mesh['raycast'] = () => {};
 
 const CalloutCardContent: React.FC<{ part: AnatomicalPartInfo }> = ({ part }) => (
@@ -252,6 +248,9 @@ function resolveHierarchyName(mesh: THREE.Mesh, fallbackIndex: number): string {
 const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   const resolvedUrl = resolveAssetUrl(url);
   const gltf = useGLTF(resolvedUrl);
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
+  const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
 
   const customGlbName = useAnatomyStore((s) => s.customGlbName);
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
@@ -266,11 +265,9 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   const slicing = useAnatomyStore((s) => s.slicing);
 
   const selectPart = useAnatomyStore((s) => s.selectPart);
-  const setHoveredPart = useAnatomyStore((s) => s.setHoveredPart);
   const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
   const registerCatalog = useAnatomyStore((s) => s.registerCatalog);
 
-  const lastHoverTimestampRef = useRef(0);
   const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const { clonedScene, catalogParts, sharedMaterials, registeredMeshes } =
@@ -505,11 +502,11 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
     }, [gltf.scene, customGlbName]);
 
   useEffect(() => {
-    registeredMeshes.forEach(registerSceneMesh);
+    registeredMeshes.forEach((m) => registerSceneMesh(m, registry));
     return () => {
-      registeredMeshes.forEach(unregisterSceneMesh);
+      registeredMeshes.forEach((m) => unregisterSceneMesh(m, registry));
     };
-  }, [registeredMeshes]);
+  }, [registeredMeshes, registry]);
 
   useEffect(() => {
     registerCatalog(
@@ -574,7 +571,6 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   useEffect(() => {
     const isInternalSelection =
       selectedPart !== null && selectedPart.system !== 'integumentary';
-    const backgroundDimFactor = selectedPart !== null ? 0.8 : 1.0;
     const sharedSliced = slicing.enabled && slicing.scope === 'all';
 
     for (const { mat, system: sys } of sharedMaterials) {
@@ -588,14 +584,13 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const effectiveDepthWrite =
         !isTranslucentLayer && effectiveOpacity >= 0.99;
 
-      mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : null;
+      mat.clippingPlanes = sharedSliced ? clippingPlanesList : null;
       mat.clipShadows = sharedSliced;
-      mat.side = THREE.DoubleSide;
-      mat.shadowSide = THREE.DoubleSide;
+      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      mat.shadowSide = mat.side;
       mat.transparent = effectiveTransparent;
       mat.opacity = effectiveOpacity;
       mat.depthWrite = effectiveDepthWrite;
-      setClinicalDimFactor(mat, backgroundDimFactor);
 
       const baseEmissive =
         (mat.userData?.__baseEmissive as THREE.Color | undefined) ??
@@ -613,12 +608,12 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
 
     const hiddenGroupIds = new Set<string>();
     for (const hid of hiddenPartIds) {
-      const hiddenMesh = getRegisteredSceneMesh(hid, hid);
+      const hiddenMesh = getRegisteredSceneMesh(hid, hid, registry);
       const grp = hiddenMesh?.userData?.organGroupId as string | undefined;
       if (grp) hiddenGroupIds.add(grp);
     }
     const isolatedMesh = isolatedPartId
-      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId)
+      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
       : null;
     const isolatedGroupId = isolatedMesh?.userData?.organGroupId as
       | string
@@ -712,32 +707,6 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
             selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
             focusSelectedPart();
           }
-        }}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          if (cameraInteractionState.isOrbiting) return;
-          const mesh = e.object as THREE.Mesh;
-          if (!mesh.isMesh || !mesh.visible) return;
-          e.stopPropagation();
-          const now = performance.now();
-          if (now - lastHoverTimestampRef.current < 60) return;
-          lastHoverTimestampRef.current = now;
-          document.body.style.cursor = 'pointer';
-          if (mesh.uuid === useAnatomyStore.getState().hoveredPart?.meshUuid) {
-            return;
-          }
-          setHoveredPart(
-            parseAnatomicalMesh(mesh),
-            { x: e.clientX, y: e.clientY },
-            e.pointerType === 'touch'
-          );
-        }}
-        onPointerOut={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          const currentHovered = useAnatomyStore.getState().hoveredPart;
-          if (currentHovered?.meshUuid === e.object.uuid) {
-            setHoveredPart(null);
-          }
-          document.body.style.cursor = 'auto';
         }}
       />
     </>
@@ -1293,6 +1262,9 @@ const SketchfabSystemGlbContent: React.FC<{
   onSceneReady: () => void;
 }> = ({ entry, onSceneReady }) => {
   const gltf = useGLTF(resolveAssetUrl(entry.localPath));
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
+  const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
 
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
@@ -1306,10 +1278,8 @@ const SketchfabSystemGlbContent: React.FC<{
   const slicing = useAnatomyStore((s) => s.slicing);
 
   const selectPart = useAnatomyStore((s) => s.selectPart);
-  const setHoveredPart = useAnatomyStore((s) => s.setHoveredPart);
   const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
 
-  const lastHoverTimestampRef = useRef(0);
   const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastExplodeFactorRef = useRef(0);
 
@@ -1678,13 +1648,13 @@ const SketchfabSystemGlbContent: React.FC<{
     }, [gltf.scene, entry]);
 
   useEffect(() => {
-    registeredMeshes.forEach(registerSceneMesh);
+    registeredMeshes.forEach((m) => registerSceneMesh(m, registry));
     onSceneReady();
     return () => {
-      registeredMeshes.forEach(unregisterSceneMesh);
+      registeredMeshes.forEach((m) => unregisterSceneMesh(m, registry));
       onSceneReady();
     };
-  }, [alignedRoot, registeredMeshes, onSceneReady]);
+  }, [alignedRoot, registeredMeshes, registry, onSceneReady]);
 
   useEffect(() => {
     return () => {
@@ -1708,7 +1678,6 @@ const SketchfabSystemGlbContent: React.FC<{
   useEffect(() => {
     const isInternalSelection =
       selectedPart !== null && selectedPart.system !== 'integumentary';
-    const backgroundDimFactor = selectedPart !== null ? 0.8 : 1.0;
     const sharedSliced = slicing.enabled && slicing.scope === 'all';
     const hasInternalSystemsVisible =
       activeAtlasPreset !== 'zanatomy-integumentary' &&
@@ -1719,29 +1688,6 @@ const SketchfabSystemGlbContent: React.FC<{
         activeSystems.cardiovascular);
 
     for (const { mat, system: meshSystem } of sharedMaterials) {
-      if (mat.userData.__origColor === undefined) {
-        mat.userData.__origColor = mat.color.clone();
-        mat.userData.__origRoughness = mat.roughness;
-      }
-      const origColor = mat.userData.__origColor as THREE.Color;
-      const origRoughness =
-        (mat.userData.__origRoughness as number | undefined) ?? 0.6;
-
-      const matNameTrimmed = (mat.name || '').trim();
-      const isFemaleZAnatomySkinMat =
-        biologicalSex === 'female' &&
-        Boolean(entry.alignment?.useSharedOrigin) &&
-        meshSystem === 'integumentary' &&
-        !/^(?:fascia|black|nail|ligament)/i.test(matNameTrimmed);
-
-      if (isFemaleZAnatomySkinMat) {
-        mat.color.set('#e2b9a6');
-        mat.roughness = 0.45;
-      } else {
-        mat.color.copy(origColor);
-        mat.roughness = origRoughness;
-      }
-
       const sysOpacity = systemOpacity[meshSystem] ?? 1.0;
       const skinDimFactor =
         meshSystem === 'integumentary' && isInternalSelection ? 0.48 : 1.0;
@@ -1759,9 +1705,9 @@ const SketchfabSystemGlbContent: React.FC<{
           : rawTargetOpacity;
       const needsTransparency = targetOpacity < 0.99;
 
-      mat.side = THREE.DoubleSide;
-      mat.shadowSide = THREE.DoubleSide;
-      mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : [];
+      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      mat.shadowSide = mat.side;
+      mat.clippingPlanes = sharedSliced ? clippingPlanesList : [];
       mat.clipShadows = sharedSliced;
       mat.transparent = needsTransparency;
       mat.opacity = targetOpacity;
@@ -1770,7 +1716,6 @@ const SketchfabSystemGlbContent: React.FC<{
         : meshSystem === 'integumentary'
           ? targetOpacity > 0.85
           : !needsTransparency;
-      setClinicalDimFactor(mat, backgroundDimFactor);
 
       const baseEmissive =
         (mat.userData?.__baseEmissive as THREE.Color | undefined) ??
@@ -1788,12 +1733,12 @@ const SketchfabSystemGlbContent: React.FC<{
 
     const hiddenGroupIds = new Set<string>();
     for (const hid of hiddenPartIds) {
-      const hiddenMesh = getRegisteredSceneMesh(hid, hid);
+      const hiddenMesh = getRegisteredSceneMesh(hid, hid, registry);
       const grp = hiddenMesh?.userData?.organGroupId as string | undefined;
       if (grp) hiddenGroupIds.add(grp);
     }
     const isolatedMesh = isolatedPartId
-      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId)
+      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
       : null;
     const isolatedGroupId = isolatedMesh?.userData?.organGroupId as
       | string
@@ -1943,14 +1888,6 @@ const SketchfabSystemGlbContent: React.FC<{
     activeSystems,
   ]);
 
-  const resolveMesh = useCallback((e: ThreeEvent<PointerEvent>) => {
-    const obj = e.object as THREE.Mesh;
-    if (!obj || !obj.isMesh || !obj.visible || obj.userData?.__isNoiseFiltered) {
-      return null;
-    }
-    return obj;
-  }, []);
-
   const handlePointerDown = useCallback((e: ThreeEvent<PointerEvent>) => {
     pointerDownPosRef.current = { x: e.clientX, y: e.clientY };
   }, []);
@@ -1988,45 +1925,6 @@ const SketchfabSystemGlbContent: React.FC<{
     [selectPart, focusSelectedPart]
   );
 
-  const handlePointerOver = useCallback(
-    (e: ThreeEvent<PointerEvent>) => {
-      if (cameraInteractionState.isOrbiting) return;
-      e.stopPropagation();
-      const mesh = resolveMesh(e);
-      if (!mesh) return;
-      const now = performance.now();
-      if (now - lastHoverTimestampRef.current < 60) return;
-      lastHoverTimestampRef.current = now;
-      document.body.style.cursor = 'pointer';
-      if (mesh.uuid === useAnatomyStore.getState().hoveredPart?.meshUuid) {
-        return;
-      }
-      setHoveredPart(
-        parseAnatomicalMesh(mesh),
-        { x: e.clientX, y: e.clientY },
-        e.pointerType === 'touch'
-      );
-    },
-    [resolveMesh, setHoveredPart]
-  );
-
-  const handlePointerOut = useCallback(
-    (e: ThreeEvent<PointerEvent>) => {
-      e.stopPropagation();
-      const obj = e.object as THREE.Mesh;
-      if (!obj || !obj.isMesh) return;
-      const currentHover = useAnatomyStore.getState().hoveredPart;
-      if (
-        currentHover?.meshUuid === obj.uuid ||
-        currentHover?.rawName === obj.name
-      ) {
-        setHoveredPart(null);
-        document.body.style.cursor = 'auto';
-      }
-    },
-    [setHoveredPart]
-  );
-
   return (
     <group
       name={`Sketchfab_System_${entry.system}`}
@@ -2038,8 +1936,6 @@ const SketchfabSystemGlbContent: React.FC<{
         onPointerDown={handlePointerDown}
         onClick={handleClick}
         onDoubleClick={handleDoubleClick}
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
       />
     </group>
   );
@@ -2131,6 +2027,9 @@ const ExternalSpatialCalloutPin: React.FC = () => {
 const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   nihCatalogTick,
 }) => {
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
+  const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
   const hoveredPart = useAnatomyStore((s) => s.hoveredPart);
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const activeSystems = useAnatomyStore((s) => s.activeSystems);
@@ -2177,13 +2076,13 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     restoreAll();
 
     const selectedMesh = selectedPart
-      ? getRegisteredSceneMesh(selectedPart.meshUuid, selectedPart.rawName)
+      ? getRegisteredSceneMesh(selectedPart.meshUuid, selectedPart.rawName, registry)
       : null;
     const hoveredMesh = hoveredPart
-      ? getRegisteredSceneMesh(hoveredPart.meshUuid, hoveredPart.rawName)
+      ? getRegisteredSceneMesh(hoveredPart.meshUuid, hoveredPart.rawName, registry)
       : null;
     const isolatedMesh = isolatedPartId
-      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId)
+      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
       : null;
 
     const collectGroupSiblings = (anchor: THREE.Mesh | null): THREE.Mesh[] => {
@@ -2191,7 +2090,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
       const grp = anchor.userData?.organGroupId as string | undefined;
       if (!grp) return [anchor];
       const matches: THREE.Mesh[] = [];
-      for (const m of sceneMeshByUuid.values()) {
+      for (const m of registry.byUuid.values()) {
         if (m.visible && m.userData?.organGroupId === grp) {
           matches.push(m);
         }
@@ -2239,11 +2138,11 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
       const configureClone = (srcMat: THREE.Material) => {
         const cloned = cloneClinicalHighlightMaterial(srcMat);
         if (role === 'selected') {
-          setClinicalHighlightState(cloned, 2, 1.0);
+          setClinicalHighlightState(cloned, 2);
         } else if (role === 'hover') {
-          setClinicalHighlightState(cloned, 1, 1.0);
+          setClinicalHighlightState(cloned, 1);
         } else {
-          setClinicalHighlightState(cloned, 0, 1.0);
+          setClinicalHighlightState(cloned, 0);
         }
 
         if (xrayGhostMode && isFocusTarget) {
@@ -2252,9 +2151,9 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           cloned.depthWrite = true;
         }
 
-        cloned.side = THREE.DoubleSide;
-        cloned.shadowSide = THREE.DoubleSide;
-        cloned.clippingPlanes = isMeshSliced ? CLIPPING_PLANES_LIST : null;
+        cloned.side = isMeshSliced ? THREE.DoubleSide : THREE.FrontSide;
+        cloned.shadowSide = cloned.side;
+        cloned.clippingPlanes = isMeshSliced ? clippingPlanesList : null;
         cloned.clipShadows = isMeshSliced;
         return cloned;
       };
@@ -2290,6 +2189,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
 };
 
 export const AnatomicalModelManager: React.FC = () => {
+  const registry = useSceneMeshRegistry();
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
   const activeSystems = useAnatomyStore((s) => s.activeSystems);
   const customGlbUrl = useAnatomyStore((s) => s.customGlbUrl);
@@ -2446,10 +2346,10 @@ export const AnatomicalModelManager: React.FC = () => {
     canMountFemaleZAnatomyOverlay;
 
   useEffect(() => {
-    if (customGlbUrl || sceneMeshByUuid.size === 0) return;
+    if (customGlbUrl || registry.byUuid.size === 0) return;
 
     const parts: AnatomicalPartInfo[] = [];
-    for (const mesh of sceneMeshByUuid.values()) {
+    for (const mesh of registry.byUuid.values()) {
       if (
         mesh.userData?.__isStencilHelper ||
         mesh.userData?.__isNoiseFiltered ||
@@ -2493,6 +2393,7 @@ export const AnatomicalModelManager: React.FC = () => {
     showFemaleZAnatomyOrgans,
     rootTransform,
     registerCatalog,
+    registry,
   ]);
 
   const handleCustomGlbError = useCallback(

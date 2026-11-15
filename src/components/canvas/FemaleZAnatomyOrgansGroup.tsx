@@ -23,14 +23,14 @@ import {
   getRegisteredSceneMesh,
   registerSceneMesh,
   unregisterSceneMesh,
+  useSceneMeshRegistry,
 } from '../../utils/bvhSetup';
-import { ACTIVE_CLIPPING_PLANE } from '../../utils/slicingPlane';
+import { useClippingPlane } from '../../utils/slicingPlane';
 import {
   applyRigidMacroExplodeOffset,
   resolveExplodeClusterId,
   type ExplodeClusterId,
 } from '../../utils/explodeClusters';
-import { setClinicalDimFactor } from '../../utils/clinicalReliefShader';
 import {
   calibrateFemaleZAnatomyMaterials,
   computeCohesivePelvicTransform,
@@ -41,8 +41,6 @@ import {
   FEMALE_PELVIC_ORGAN_IDS,
 } from '../../utils/femaleZAnatomyRegistration';
 import type { NihOrganSceneItem } from '../../services/nihSceneService';
-
-const CLIPPING_PLANES_LIST: THREE.Plane[] = [ACTIVE_CLIPPING_PLANE];
 const NOOP_RAYCAST: THREE.Mesh['raycast'] = () => {};
 
 interface FemaleOrganSpec {
@@ -149,6 +147,7 @@ const FemaleOrganPieceLoader: React.FC<{
   onLoaded: (piece: LoadedFemalePieceState) => void;
   onDisposed: (id: string) => void;
 }> = ({ spec, url, onLoaded, onDisposed }) => {
+  const registry = useSceneMeshRegistry();
   const gltf = useGLTF(resolveAssetUrl(url));
 
   const prepared = useMemo(() => {
@@ -210,7 +209,7 @@ const FemaleOrganPieceLoader: React.FC<{
   }, [gltf.scene, spec]);
 
   useEffect(() => {
-    prepared.meshes.forEach((m) => registerSceneMesh(m));
+    prepared.meshes.forEach((m) => registerSceneMesh(m, registry));
     onLoaded(prepared);
     return () => {
       prepared.meshes.forEach((m) => {
@@ -226,11 +225,11 @@ const FemaleOrganPieceLoader: React.FC<{
           ? (m.userData.__sharedMaterial as THREE.Material[])
           : [m.userData?.__sharedMaterial as THREE.Material | undefined];
         mats.forEach((mat) => mat?.dispose());
-        unregisterSceneMesh(m);
+        unregisterSceneMesh(m, registry);
       });
       onDisposed(spec.id);
     };
-  }, [prepared, onLoaded, onDisposed, spec.id]);
+  }, [prepared, registry, onLoaded, onDisposed, spec.id]);
 
   return <primitive object={prepared.scene} />;
 };
@@ -257,6 +256,10 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const hasRealLandmarksRef = useRef<boolean>(false);
   const [mountVersion, setMountVersion] = useState(0);
 
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
+  const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
+
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
   const activeSystems = useAnatomyStore((s) => s.activeSystems);
   const systemOpacity = useAnatomyStore((s) => s.systemOpacity);
@@ -267,7 +270,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const slicing = useAnatomyStore((s) => s.slicing);
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const selectPart = useAnatomyStore((s) => s.selectPart);
-  const setHoveredPart = useAnatomyStore((s) => s.setHoveredPart);
   const setSupplementalCatalogParts = useAnatomyStore(
     (s) => s.setSupplementalCatalogParts
   );
@@ -487,12 +489,9 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     if (pieces.size === 0) return;
 
     const visOpacity = systemOpacity.visceral ?? 1.0;
-    const isInternalSelection =
-      selectedPart !== null && selectedPart.system !== 'integumentary';
-    const dimFactor = isInternalSelection ? 0.8 : 1.0;
 
     const isolatedMesh = isolatedPartId
-      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId)
+      ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
       : null;
     const isolatedGroupId = isolatedMesh?.userData?.organGroupId as
       | string
@@ -557,14 +556,13 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
             if (!rawMat || visited.has(rawMat)) continue;
             visited.add(rawMat);
             const mat = rawMat as THREE.MeshStandardMaterial;
-            mat.clippingPlanes = shouldSlice ? CLIPPING_PLANES_LIST : null;
+            mat.clippingPlanes = shouldSlice ? clippingPlanesList : null;
             mat.clipShadows = shouldSlice;
-            mat.side = THREE.DoubleSide;
-            mat.shadowSide = THREE.DoubleSide;
             mat.transparent = isTranslucent || effectiveOpacity < 1;
             mat.opacity = effectiveOpacity;
             mat.depthWrite = !isTranslucent && effectiveOpacity >= 0.99;
-            setClinicalDimFactor(mat, dimFactor);
+            mat.side = shouldSlice ? THREE.DoubleSide : THREE.FrontSide;
+            mat.shadowSide = mat.side;
           }
         }
       }
@@ -581,31 +579,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     slicing.scope,
     selectedPart,
   ]);
-
-  const handlePointerOver = useCallback(
-    (e: ThreeEvent<PointerEvent>) => {
-      if (cameraInteractionState.isOrbiting) return;
-      e.stopPropagation();
-      const mesh = e.object as THREE.Mesh;
-      if (!mesh?.visible) return;
-      const partInfo = mesh.userData?.partInfo as
-        | AnatomicalPartInfo
-        | undefined;
-      if (!partInfo) return;
-      document.body.style.cursor = 'pointer';
-      setHoveredPart(
-        partInfo,
-        { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY },
-        e.nativeEvent.pointerType === 'touch'
-      );
-    },
-    [setHoveredPart]
-  );
-
-  const handlePointerOut = useCallback(() => {
-    document.body.style.cursor = 'auto';
-    setHoveredPart(null);
-  }, [setHoveredPart]);
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
@@ -649,8 +622,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
       ref={rootGroupRef}
       visible={visible && activeSystems.visceral}
       name="Female_ZAnatomy_Internal_Organs"
-      onPointerOver={handlePointerOver}
-      onPointerOut={handlePointerOut}
       onClick={handleClick}
     >
       <group

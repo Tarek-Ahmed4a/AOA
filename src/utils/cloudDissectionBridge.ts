@@ -9,9 +9,21 @@ export interface ZAnatomyBundleMatch {
   isFullBody?: boolean;
 }
 
+export const ZANATOMY_PRESET_GLB_URL: Record<OfficialAtlasPresetId, string | null> = {
+  'zanatomy-visceral': '/models/zanatomy/visceral.glb',
+  'zanatomy-muscular': '/models/zanatomy/muscular.glb',
+  'zanatomy-skeletal': '/models/zanatomy/skeletal.glb',
+  'zanatomy-nervous': '/models/zanatomy/nervous.glb',
+  'zanatomy-cardiovascular': '/models/zanatomy/cardiovascular.glb',
+  'zanatomy-integumentary': '/models/zanatomy/integumentary.glb',
+  'zanatomy-full-body': null,
+  'nih-visible-human': null,
+};
+
 /**
  * Matches Z-Anatomy system bundle titles (`Splanchnology`, `Myology`, `Osteology`,
- * `Neurology`, `Angiology`, `Integumentary`, or `Full Body`) to local Three.js GLB presets.
+ * `Arthrology`, `Neurology`, `Angiology`, `Integumentary`, or `Full Body`) to
+ * local Three.js GLB presets.
  */
 export function matchZAnatomySystemBundle(
   title: string
@@ -23,7 +35,7 @@ export function matchZAnatomySystemBundle(
   if (/\b(?:myolog|muscular\s+system)\b/i.test(lower)) {
     return { preset: 'zanatomy-muscular', system: 'muscular' };
   }
-  if (/\b(?:osteolog|skeletal\s+system)\b/i.test(lower)) {
+  if (/\b(?:osteolog|arthrolog|skeletal\s+system|joints?\s*&?\s*ligaments?)\b/i.test(lower)) {
     return { preset: 'zanatomy-skeletal', system: 'skeletal' };
   }
   if (/\b(?:neurolog|nervous\s+system)\b/i.test(lower)) {
@@ -32,7 +44,7 @@ export function matchZAnatomySystemBundle(
   if (/\b(?:angiolog|cardiovascular\s+system|circulatory\s+system|vascular\s+system)\b/i.test(lower)) {
     return { preset: 'zanatomy-cardiovascular', system: 'cardiovascular' };
   }
-  if (/\b(?:integumentary\s+system|superficial\s+skin)\b/i.test(lower)) {
+  if (/\b(?:integument|integumentary\s+system|superficial\s+skin)\b/i.test(lower)) {
     return { preset: 'zanatomy-integumentary', system: 'integumentary' };
   }
   if (/\b(?:full\s+body|complete\s+human\s+anatomy|human\s+anatomy\s+atlas)\b/i.test(lower)) {

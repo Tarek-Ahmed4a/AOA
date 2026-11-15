@@ -17,7 +17,7 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useAnatomyStore } from '../../store/useAnatomyStore';
+import { useAppNavigationStore } from '../../store/useAnatomyStore';
 import {
   DEFAULT_PDF_BOOKS,
   usePdfSessionStore,
@@ -966,7 +966,9 @@ export const PdfReferenceBooksView: React.FC = () => {
   const rootRef = useRef<HTMLElement>(null);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
-  const pdfReferenceTarget = useAnatomyStore((s) => s.pdfReferenceTarget);
+  const pdfReferenceTarget = useAppNavigationStore(
+    (s) => s.pdfReferenceTarget
+  );
   const books = usePdfSessionStore((s) => s.books);
   const viewMode = usePdfSessionStore((s) => s.viewMode);
   const book1Page = usePdfSessionStore((s) => s.book1Page);

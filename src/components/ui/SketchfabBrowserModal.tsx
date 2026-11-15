@@ -10,7 +10,10 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
-import { useAnatomyStore } from '../../store/useAnatomyStore';
+import {
+  useAnatomyStore,
+  useAppNavigationStore,
+} from '../../store/useAnatomyStore';
 
 const SKETCHFAB_API_BASE = 'https://api.sketchfab.com/v3';
 const SKETCHFAB_TOKEN =
@@ -119,8 +122,12 @@ function formatBytes(bytes?: number): string | null {
 }
 
 export const SketchfabBrowserModal: React.FC = () => {
-  const showSketchfabModal = useAnatomyStore((s) => s.showSketchfabModal);
-  const setShowSketchfabModal = useAnatomyStore((s) => s.setShowSketchfabModal);
+  const showSketchfabModal = useAppNavigationStore(
+    (s) => s.showSketchfabModal
+  );
+  const setShowSketchfabModal = useAppNavigationStore(
+    (s) => s.setShowSketchfabModal
+  );
   const loadCustomGlb = useAnatomyStore((s) => s.loadCustomGlb);
 
   const [queryInput, setQueryInput] = useState('');

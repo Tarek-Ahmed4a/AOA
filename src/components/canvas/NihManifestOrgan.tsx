@@ -14,19 +14,16 @@ import {
   enqueueGeometryBVH,
   registerSceneMesh,
   unregisterSceneMesh,
+  useSceneMeshRegistry,
 } from '../../utils/bvhSetup';
 import {
-  ACTIVE_CLIPPING_PLANE,
   INTERNAL_TISSUE_COLORS,
+  useClippingPlane,
 } from '../../utils/slicingPlane';
 import {
   GHOST_EMISSIVE_COLOR,
   ZERO_EMISSIVE_COLOR,
 } from '../../utils/tissueShader';
-import {
-  applyClinicalReliefToMaterial,
-  setClinicalDimFactor,
-} from '../../utils/clinicalReliefShader';
 import {
   isFemaleOnlyMesh,
   isMaleOnlyMesh,
@@ -36,8 +33,6 @@ import {
   applyRigidMacroExplodeOffset,
   type ExplodeClusterId,
 } from '../../utils/explodeClusters';
-
-const CLIPPING_PLANES_LIST: THREE.Plane[] = [ACTIVE_CLIPPING_PLANE];
 
 function formatNihReadableName(
   rawMeshName: string,
@@ -74,61 +69,18 @@ export function cloneAndEnhanceNihMaterial(
   sourceMat: THREE.Material,
   system: AnatomicalSystem,
   hasVertexColors: boolean,
-  tissueColor: THREE.Color,
-  structureHint = ''
+  _tissueColor: THREE.Color,
+  _structureHint = ''
 ): THREE.MeshStandardMaterial {
-  const mat = new THREE.MeshStandardMaterial();
-  if (sourceMat instanceof THREE.MeshStandardMaterial) {
-    THREE.MeshStandardMaterial.prototype.copy.call(mat, sourceMat);
-  } else {
-    const baseCol = (sourceMat as THREE.MeshBasicMaterial).color;
-    if (baseCol) {
-      mat.color.copy(baseCol);
-    }
-    const baseMap = (sourceMat as THREE.MeshBasicMaterial).map;
-    if (baseMap) {
-      mat.map = baseMap;
-    }
-    mat.name = sourceMat.name;
-    mat.side = sourceMat.side;
-  }
+  const mat = sourceMat.clone() as THREE.MeshStandardMaterial;
+  mat.userData.__origSide = THREE.FrontSide;
+  mat.side = THREE.FrontSide;
+  mat.shadowSide = THREE.FrontSide;
 
-  mat.roughness =
-    sourceMat instanceof THREE.MeshStandardMaterial
-      ? sourceMat.roughness ?? 0.45
-      : 0.45;
-  mat.metalness =
-    sourceMat instanceof THREE.MeshStandardMaterial
-      ? sourceMat.metalness ?? 0.03
-      : 0.03;
-  mat.userData.__origSide = THREE.DoubleSide;
-  mat.side = THREE.DoubleSide;
-  mat.shadowSide = THREE.DoubleSide;
-
-  // Replace raw NIH #3566d5 blue placeholder Skin_mat/Skin_mat2 and blank white Ovary_mat
-  const matNameTrimmed = (mat.name || '').trim();
-  const srgb = { r: 0, g: 0, b: 0 };
-  mat.color.getRGB(srgb, THREE.SRGBColorSpace);
-  const isNihBluePlaceholder =
-    !mat.map &&
-    system !== 'cardiovascular' &&
-    (/^(?:Skin_mat\d*)$/i.test(matNameTrimmed) ||
-      (srgb.b > 0.72 && srgb.r < 0.35 && srgb.g < 0.55));
-
-  let preserveNippleDermalFinish = false;
-  if (isNihBluePlaceholder) {
-    const isMammaryAreolar =
-      /^Skin_mat$/i.test(matNameTrimmed) ||
-      /\b(?:nipple|areola|areolar|mammary|tubercles)\b/i.test(structureHint);
-    if (isMammaryAreolar && system !== 'integumentary') {
-      mat.color.set('#b85d65');
-      preserveNippleDermalFinish = true;
-    } else if (/^Skin_mat\d+$/i.test(matNameTrimmed) || system === 'integumentary') {
-      mat.color.set('#e5b59a');
-      preserveNippleDermalFinish = true;
+  if (mat.color && !mat.map && system !== 'cardiovascular') {
+    if (mat.color.b > 0.5 && mat.color.r < 0.2 && mat.color.g < 0.25) {
+      mat.color.set(system === 'integumentary' ? '#e5b59a' : '#d8a997');
     }
-  } else if (/^Ovary_mat\d*$/i.test(matNameTrimmed) && !mat.map) {
-    mat.color.set('#ebd8ce');
   }
 
   if (system === 'integumentary') {
@@ -146,13 +98,10 @@ export function cloneAndEnhanceNihMaterial(
   }
 
   mat.userData.__anatomicalSystem = system;
-  mat.userData.__baseEmissive = mat.emissive.clone();
+  mat.userData.__baseEmissive = mat.emissive
+    ? mat.emissive.clone()
+    : ZERO_EMISSIVE_COLOR.clone();
   mat.userData.__baseEmissiveIntensity = mat.emissiveIntensity ?? 0;
-
-  applyClinicalReliefToMaterial(mat, system, tissueColor);
-  if (preserveNippleDermalFinish) {
-    mat.roughness = 0.48;
-  }
 
   return mat;
 }
@@ -226,11 +175,13 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
 
+  const registry = useSceneMeshRegistry();
+  const clippingPlane = useClippingPlane();
+  const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
+
   const selectPart = useAnatomyStore((s) => s.selectPart);
-  const setHoveredPart = useAnatomyStore((s) => s.setHoveredPart);
   const focusSelectedPart = useAnatomyStore((s) => s.focusSelectedPart);
 
-  const lastHoverTimestampRef = useRef(0);
   const pointerDownPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const tissueColor = useMemo(
     () => new THREE.Color(INTERNAL_TISSUE_COLORS[system]),
@@ -397,13 +348,13 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   }, [gltf.scene, entry, system, tissueColor]);
 
   useEffect(() => {
-    registeredMeshes.forEach(registerSceneMesh);
+    registeredMeshes.forEach((m) => registerSceneMesh(m, registry));
     onOrganMounted(entry, clonedScene);
     return () => {
-      registeredMeshes.forEach(unregisterSceneMesh);
+      registeredMeshes.forEach((m) => unregisterSceneMesh(m, registry));
       onOrganUnmounted(entry.id);
     };
-  }, [entry, clonedScene, registeredMeshes, onOrganMounted, onOrganUnmounted]);
+  }, [entry, clonedScene, registeredMeshes, registry, onOrganMounted, onOrganUnmounted]);
 
   // Dispose shared materials and any active highlight clone on unmount
   useEffect(() => {
@@ -474,16 +425,14 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
         : 10
       : 2;
 
-    const backgroundDimFactor = selectedPart !== null ? 0.8 : 1.0;
     for (const { mat } of sharedMaterials) {
-      mat.clippingPlanes = sharedSliced ? CLIPPING_PLANES_LIST : null;
+      mat.clippingPlanes = sharedSliced ? clippingPlanesList : null;
       mat.clipShadows = sharedSliced;
-      mat.side = THREE.DoubleSide;
-      mat.shadowSide = THREE.DoubleSide;
+      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      mat.shadowSide = mat.side;
       mat.transparent = effectiveTransparent;
       mat.opacity = effectiveOpacity;
       mat.depthWrite = effectiveDepthWrite;
-      setClinicalDimFactor(mat, backgroundDimFactor);
       const baseEmissive =
         (mat.userData?.__baseEmissive as THREE.Color | undefined) ??
         ZERO_EMISSIVE_COLOR;
@@ -572,31 +521,6 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
           if ((e.object as THREE.Mesh).isMesh && e.object.visible) {
             selectPart(parseAnatomicalMesh(e.object as THREE.Mesh));
             focusSelectedPart();
-          }
-        }}
-        onPointerOver={(e: ThreeEvent<PointerEvent>) => {
-          if (!isSystemActive || cameraInteractionState.isOrbiting) return;
-          e.stopPropagation();
-          const mesh = e.object as THREE.Mesh;
-          if (!mesh.isMesh || !mesh.visible) return;
-          const now = performance.now();
-          if (now - lastHoverTimestampRef.current < 60) return;
-          lastHoverTimestampRef.current = now;
-          document.body.style.cursor = 'pointer';
-          if (mesh.uuid === useAnatomyStore.getState().hoveredPart?.meshUuid) {
-            return;
-          }
-          setHoveredPart(
-            parseAnatomicalMesh(mesh),
-            { x: e.clientX, y: e.clientY },
-            e.pointerType === 'touch'
-          );
-        }}
-        onPointerOut={(e: ThreeEvent<PointerEvent>) => {
-          e.stopPropagation();
-          if (e.intersections.length === 0) {
-            setHoveredPart(null);
-            document.body.style.cursor = 'auto';
           }
         }}
       />

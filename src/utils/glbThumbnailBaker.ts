@@ -1,15 +1,12 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import type { AnatomicalSystem } from '../store/useAnatomyStore';
-import { getClinicalTissueProfile } from './clinicalReliefShader';
 import { resolveAssetUrl } from './assetUrl';
 
 const THUMB_WIDTH = 280;
 const THUMB_HEIGHT = 180;
 const SESSION_CACHE_PREFIX = 'aoa_glb_thumb_v1::';
-const DRACO_DECODER_PATH =
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.7/';
+const DRACO_DECODER_PATH = resolveAssetUrl('/draco/');
 const GLB_FETCH_TIMEOUT_MS = 12000;
 
 interface OffscreenBakeContext {
@@ -120,20 +117,8 @@ function ensureOffscreenContext(): OffscreenBakeContext | null {
 
 function normalizeTemporaryMeshMaterials(
   root: THREE.Object3D,
-  system?: string
+  _system?: string
 ): void {
-  const validSys: AnatomicalSystem | undefined =
-    system === 'muscular' ||
-    system === 'visceral' ||
-    system === 'nervous' ||
-    system === 'cardiovascular' ||
-    system === 'skeletal' ||
-    system === 'integumentary'
-      ? system
-      : undefined;
-  const profile = validSys ? getClinicalTissueProfile(validSys) : null;
-  const tempSrgb = { r: 0, g: 0, b: 0 };
-
   root.traverse((obj) => {
     if (!(obj as THREE.Mesh).isMesh) return;
     const mesh = obj as THREE.Mesh;
@@ -143,23 +128,7 @@ function normalizeTemporaryMeshMaterials(
 
     for (const mat of mats) {
       if (!mat) continue;
-      mat.side = THREE.DoubleSide;
-      const std = mat as THREE.MeshStandardMaterial;
-      if (profile && typeof std.roughness === 'number') {
-        std.roughness = profile.roughness;
-        std.metalness = profile.metalness;
-      }
-      if (std.color && !std.map && validSys !== 'cardiovascular') {
-        std.color.getRGB(tempSrgb, THREE.SRGBColorSpace);
-        const isBluePlaceholder =
-          /^Skin_mat\d*$/i.test((std.name || '').trim()) ||
-          (tempSrgb.b > 0.72 && tempSrgb.r < 0.35 && tempSrgb.g < 0.55);
-        if (isBluePlaceholder) {
-          std.color.set(
-            validSys === 'integumentary' ? '#e5b59a' : '#c7686c'
-          );
-        }
-      }
+      mat.side = THREE.FrontSide;
     }
   });
 }

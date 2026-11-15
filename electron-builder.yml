@@ -7,6 +7,7 @@ files:
   - dist/**/*
   - '!dist/**/*.part*'
   - '!dist/**/*.chunks.json'
+  - '!dist/models/female/**'
   - electron/**/*
   - build/**/*
   - package.json

@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { applyClinicalReliefToMaterial } from './clinicalReliefShader';
 
 export const FEMALE_PELVIC_ORGAN_IDS = [
   'uterus-female',
@@ -159,18 +158,14 @@ export function computeFilteredRawOrganBox(root: THREE.Object3D): THREE.Box3 {
 }
 
 /**
- * Replaces neon-blue raw NIH placeholder materials (`Skin_mat`) on mammary glands with
- * authentic histological tissue tones (`#dfa398` glandular parenchyma, `#c47a72` lactiferous ducts/areola)
- * and injects `applyClinicalReliefToMaterial` across all 7 mounted female organs.
+ * Hides noisy sub-meshes (`fat`) and remediates ONLY raw neon-blue NIH CAD
+ * marker materials (`Skin_mat`) while preserving 100% of original natural
+ * materials, textures, roughness, metalness, and colors.
  */
 export function calibrateFemaleZAnatomyMaterials(
-  organId: string,
+  _organId: string,
   root: THREE.Object3D
 ): void {
-  const isMammary = organId.includes('mammary');
-  const isOvary = organId.includes('ovary');
-  const isTube = organId.includes('fallopian');
-
   root.traverse((obj) => {
     const mesh = obj as THREE.Mesh;
     if (!mesh.isMesh) return;
@@ -190,40 +185,19 @@ export function calibrateFemaleZAnatomyMaterials(
 
     const updatedMats = srcMats.map((rawMat) => {
       if (!rawMat) return rawMat;
-      const cloned = (
-        rawMat instanceof THREE.MeshStandardMaterial
-          ? rawMat.clone()
-          : new THREE.MeshStandardMaterial({
-              name: rawMat.name || 'Female_Visceral_Mat',
-            })
-      ) as THREE.MeshStandardMaterial;
-
-      let hexTarget = '#b95559';
-      if (isMammary) {
-        const isDuctOrAreola =
-          /(?:lactiferous|duct|sinus|areola|nipple|tubercle)/i.test(meshName) ||
-          /skin_mat/i.test(cloned.name || '');
-        hexTarget = isDuctOrAreola ? '#c47a72' : '#dfa398';
-      } else if (isOvary) {
-        hexTarget = '#d8b792';
-      } else if (isTube) {
-        hexTarget = '#be5c60';
-      } else {
-        const isLigamentOrSerosa =
-          /broad|serosa|perimetrium/i.test(meshName) ||
-          /broadligament/i.test(cloned.name || '');
-        hexTarget = isLigamentOrSerosa ? '#c97878' : '#b2484d';
+      const cloned = rawMat.clone() as THREE.MeshStandardMaterial;
+      if (cloned.color && !cloned.map) {
+        if (
+          cloned.color.b > 0.5 &&
+          cloned.color.r < 0.2 &&
+          cloned.color.g < 0.25
+        ) {
+          // Remediate raw NIH CAD marker Skin_mat neon-blue without altering natural tissues
+          cloned.color.set('#d8a997');
+        }
       }
-
-      const tissueColor = new THREE.Color(hexTarget);
-      cloned.color.copy(tissueColor);
-      cloned.emissive.setHex(0x000000);
-      cloned.emissiveIntensity = 0;
-      cloned.side = THREE.DoubleSide;
-      cloned.shadowSide = THREE.DoubleSide;
-      cloned.needsUpdate = true;
-
-      applyClinicalReliefToMaterial(cloned, 'visceral', tissueColor);
+      cloned.side = THREE.FrontSide;
+      cloned.shadowSide = THREE.FrontSide;
       return cloned;
     });
 

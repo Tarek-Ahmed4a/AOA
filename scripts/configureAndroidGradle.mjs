@@ -40,32 +40,27 @@ const androidManifestPath = path.resolve(
 if (fs.existsSync(androidManifestPath)) {
   let manifest = fs.readFileSync(androidManifestPath, 'utf8');
   let changed = false;
-  if (!manifest.includes('android:hardwareAccelerated=')) {
-    manifest = manifest.replace(
-      '<application\n',
-      '<application\n        android:hardwareAccelerated="true"\n'
-    );
-    if (!manifest.includes('android:hardwareAccelerated=')) {
+
+  const ensureApplicationAttr = (attrName, attrValue) => {
+    if (manifest.includes(`${attrName}=`)) return;
+    if (manifest.includes('<application\n')) {
+      manifest = manifest.replace(
+        '<application\n',
+        `<application\n        ${attrName}="${attrValue}"\n`
+      );
+    } else {
       manifest = manifest.replace(
         '<application ',
-        '<application android:hardwareAccelerated="true" '
+        `<application ${attrName}="${attrValue}" `
       );
     }
     changed = true;
-  }
-  if (!manifest.includes('android:largeHeap=')) {
-    manifest = manifest.replace(
-      '<application\n',
-      '<application\n        android:largeHeap="true"\n'
-    );
-    if (!manifest.includes('android:largeHeap=')) {
-      manifest = manifest.replace(
-        '<application ',
-        '<application android:largeHeap="true" '
-      );
-    }
-    changed = true;
-  }
+  };
+
+  ensureApplicationAttr('android:hardwareAccelerated', 'true');
+  ensureApplicationAttr('android:largeHeap', 'true');
+  ensureApplicationAttr('android:extractNativeLibs', 'false');
+
   if (changed) {
     fs.writeFileSync(androidManifestPath, manifest, 'utf8');
   }

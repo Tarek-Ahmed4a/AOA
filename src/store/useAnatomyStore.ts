@@ -1,4 +1,6 @@
-import { create } from 'zustand';
+import React, { createContext, useContext } from 'react';
+import { create, useStore, type StoreApi } from 'zustand';
+import { createStore } from 'zustand/vanilla';
 import { resolveClinicalBaseline } from '../data/clinicalBaseline';
 import { fetchMedicalProfile } from '../services/medicalKnowledgeService';
 import type { AnatomicalClinicalProfile } from '../types/medicalData';
@@ -222,7 +224,54 @@ function cancelActiveMedicalFetch(): void {
   }
 }
 
-export const useAnatomyStore = create<AnatomyState>((set, get) => ({
+export interface ExplorerOpenedModel {
+  key: string;
+  title: string;
+  sourceLabel: string;
+  kind: 'native' | 'cloud-stream';
+  sketchfabUid?: string;
+  presetId?: OfficialAtlasPresetId;
+  glbUrl?: string;
+  system?: AnatomicalSystem;
+}
+
+export interface AppNavigationState {
+  activeTab: ActiveTab;
+  showSketchfabModal: boolean;
+  pdfReferenceTarget: PdfReferenceTarget | null;
+  explorerOpenedModel: ExplorerOpenedModel | null;
+  setActiveTab: (tab: ActiveTab) => void;
+  setShowSketchfabModal: (show: boolean) => void;
+  openTextbookReferenceTarget: (
+    target: Omit<PdfReferenceTarget, 'trigger'>
+  ) => void;
+  clearPdfReference: () => void;
+  setExplorerOpenedModel: (model: ExplorerOpenedModel | null) => void;
+}
+
+export const useAppNavigationStore = create<AppNavigationState>((set) => ({
+  activeTab: 'master-atlas',
+  showSketchfabModal: false,
+  pdfReferenceTarget: null,
+  explorerOpenedModel: null,
+  setActiveTab: (tab) => set({ activeTab: tab }),
+  setShowSketchfabModal: (show) => set({ showSketchfabModal: show }),
+  openTextbookReferenceTarget: (target) =>
+    set((state) => ({
+      activeTab: 'pdf-books',
+      pdfReferenceTarget: {
+        ...target,
+        trigger: (state.pdfReferenceTarget?.trigger ?? 0) + 1,
+      },
+    })),
+  clearPdfReference: () => set({ pdfReferenceTarget: null }),
+  setExplorerOpenedModel: (model) => set({ explorerOpenedModel: model }),
+}));
+
+export function createAnatomyViewportStore(
+  initialOverrides?: Partial<AnatomyState>
+): StoreApi<AnatomyState> {
+  return createStore<AnatomyState>((set, get) => ({
   selectedMeshId: null,
   selectedAnatomicalName: null,
   hoveredAnatomicalName: null,
@@ -785,16 +834,10 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
     });
   },
 
-  setShowSketchfabModal: (show) => set({ showSketchfabModal: show }),
+  setShowSketchfabModal: (show) =>
+    useAppNavigationStore.getState().setShowSketchfabModal(show),
 
-  setActiveTab: (tab) =>
-    set((state) => ({
-      activeTab: tab,
-      ...(tab === 'master-atlas'
-        ? { explorerCloudUid: null, explorerCloudTitle: null }
-        : {}),
-      resetViewCounter: state.resetViewCounter,
-    })),
+  setActiveTab: (tab) => useAppNavigationStore.getState().setActiveTab(tab),
 
   setActiveAtlasPreset: (preset) => {
     cancelActiveMedicalFetch();
@@ -889,66 +932,92 @@ export const useAnatomyStore = create<AnatomyState>((set, get) => ({
     });
   },
 
-  openTextbookReference: (target) =>
-    set((state) => {
-      const profile = state.medicalProfile;
-      const part = state.selectedPart;
-      const query =
-        target?.query ||
-        profile?.cleanNameEn ||
-        part?.cleanName ||
-        'Human Anatomy';
-      const citationLabel =
-        target?.citationLabel || profile?.textbookRefCitation || undefined;
-      const netterPlates =
-        target?.netterPlates ?? profile?.netterPlates ?? undefined;
+  openTextbookReference: (target) => {
+    const state = get();
+    const profile = state.medicalProfile;
+    const part = state.selectedPart;
+    const query =
+      target?.query ||
+      profile?.cleanNameEn ||
+      part?.cleanName ||
+      'Human Anatomy';
+    const citationLabel =
+      target?.citationLabel || profile?.textbookRefCitation || undefined;
+    const netterPlates =
+      target?.netterPlates ?? profile?.netterPlates ?? undefined;
 
-      let book2Page = target?.book2Page;
-      if (!book2Page && citationLabel) {
-        const grayMatch = citationLabel.match(/Gray's[^•]*\(p\.(\d+)\)/i);
-        if (grayMatch) book2Page = Number(grayMatch[1]);
-      }
+    let book2Page = target?.book2Page;
+    if (!book2Page && citationLabel) {
+      const grayMatch = citationLabel.match(/Gray's[^•]*\(p\.(\d+)\)/i);
+      if (grayMatch) book2Page = Number(grayMatch[1]);
+    }
 
-      let book1Plate = target?.book1Plate;
-      if (!book1Plate && netterPlates && netterPlates.length > 0) {
-        const pMatch = netterPlates[0].match(/(\d+)/);
-        if (pMatch) book1Plate = Number(pMatch[1]);
-      }
-      if (!book1Plate && citationLabel) {
-        const netterMatch = citationLabel.match(/Netter[^•]*Plate\s+(\d+)/i);
-        if (netterMatch) book1Plate = Number(netterMatch[1]);
-      }
+    let book1Plate = target?.book1Plate;
+    if (!book1Plate && netterPlates && netterPlates.length > 0) {
+      const pMatch = netterPlates[0].match(/(\d+)/);
+      if (pMatch) book1Plate = Number(pMatch[1]);
+    }
+    if (!book1Plate && citationLabel) {
+      const netterMatch = citationLabel.match(/Netter[^•]*Plate\s+(\d+)/i);
+      if (netterMatch) book1Plate = Number(netterMatch[1]);
+    }
 
-      let book1Page = target?.book1Page;
-      if (!book1Page && !book1Plate && citationLabel) {
-        const netterPageMatch = citationLabel.match(/Netter[^•]*\(p\.(\d+)\)/i);
-        if (netterPageMatch) book1Page = Number(netterPageMatch[1]);
-      }
+    let book1Page = target?.book1Page;
+    if (!book1Page && !book1Plate && citationLabel) {
+      const netterPageMatch = citationLabel.match(/Netter[^•]*\(p\.(\d+)\)/i);
+      if (netterPageMatch) book1Page = Number(netterPageMatch[1]);
+    }
 
-      const preferredView =
-        target?.preferredView ||
-        (book1Plate || book1Page
-          ? book2Page
-            ? 'split'
-            : 'book1'
-          : book2Page
-            ? 'book2'
-            : 'split');
+    const preferredView =
+      target?.preferredView ||
+      (book1Plate || book1Page
+        ? book2Page
+          ? 'split'
+          : 'book1'
+        : book2Page
+          ? 'book2'
+          : 'split');
 
-      return {
-        activeTab: 'pdf-books',
-        pdfReferenceTarget: {
-          query,
-          citationLabel,
-          book1Plate,
-          book1Page,
-          book2Page,
-          netterPlates,
-          preferredView,
-          trigger: (state.pdfReferenceTarget?.trigger ?? 0) + 1,
-        },
-      };
-    }),
+    useAppNavigationStore.getState().openTextbookReferenceTarget({
+      query,
+      citationLabel,
+      book1Plate,
+      book1Page,
+      book2Page,
+      netterPlates,
+      preferredView,
+    });
+  },
 
-  clearPdfReference: () => set({ pdfReferenceTarget: null }),
+  clearPdfReference: () =>
+    useAppNavigationStore.getState().clearPdfReference(),
+  ...(initialOverrides ?? {}),
 }));
+}
+
+export const masterAnatomyStore = createAnatomyViewportStore();
+export const explorerAnatomyStore = createAnatomyViewportStore();
+
+export const AnatomyStoreContext =
+  createContext<StoreApi<AnatomyState>>(masterAnatomyStore);
+
+export const AnatomyStoreProvider: React.FC<{
+  store: StoreApi<AnatomyState>;
+  children: React.ReactNode;
+}> = ({ store, children }) =>
+  React.createElement(AnatomyStoreContext.Provider, { value: store }, children);
+
+export function useAnatomyStoreApi(): StoreApi<AnatomyState> {
+  return useContext(AnatomyStoreContext);
+}
+
+export function useAnatomyStore(): AnatomyState;
+export function useAnatomyStore<T>(selector: (state: AnatomyState) => T): T;
+export function useAnatomyStore<T = AnatomyState>(
+  selector?: (state: AnatomyState) => T
+): T {
+  const store = useContext(AnatomyStoreContext);
+  const effectiveSelector =
+    selector ?? (((state: AnatomyState) => state) as (s: AnatomyState) => T);
+  return useStore(store, effectiveSelector);
+}

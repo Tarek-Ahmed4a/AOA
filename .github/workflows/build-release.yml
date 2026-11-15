@@ -108,7 +108,7 @@ jobs:
         run: npm run build
 
       - name: Strip Heavy PDFs & Desktop-Only Assets for Lean Android APK
-        run: node scripts/buildAndroidAssets.mjs
+        run: node scripts/cleanMobileBuild.mjs
 
       - name: Sync Capacitor Android Project
         run: |

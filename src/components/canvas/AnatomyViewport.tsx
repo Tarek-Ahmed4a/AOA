@@ -13,12 +13,21 @@ import {
   cameraInteractionState,
   DEFAULT_CAMERA_TARGET,
   useAnatomyStore,
+  useAnatomyStoreApi,
+  useAppNavigationStore,
   type CameraPresetView,
 } from '../../store/useAnatomyStore';
 import { cn } from '../../lib/utils';
-import { getRegisteredSceneMesh } from '../../utils/bvhSetup';
+import {
+  getRegisteredSceneMesh,
+  useSceneMeshRegistry,
+  type SceneMeshRegistry,
+} from '../../utils/bvhSetup';
 import { AnatomicalModelManager } from './AnatomicalModelManager';
-import type { AnatomicalPartInfo } from '../../utils/anatomyParser';
+import {
+  parseAnatomicalMesh,
+  type AnatomicalPartInfo,
+} from '../../utils/anatomyParser';
 
 const INITIAL_CAMERA_POSITION = new THREE.Vector3(0, 1.2, 3.2);
 const DEFAULT_TARGET_VECTOR = new THREE.Vector3(...DEFAULT_CAMERA_TARGET);
@@ -37,10 +46,11 @@ const PRESET_CAMERA_POSITIONS: Record<
 
 function resolveLivePartCenter(
   scene: THREE.Scene,
-  part: AnatomicalPartInfo
+  part: AnatomicalPartInfo,
+  registry: SceneMeshRegistry
 ): THREE.Vector3 {
   const obj =
-    getRegisteredSceneMesh(part.meshUuid, part.rawName) ??
+    getRegisteredSceneMesh(part.meshUuid, part.rawName, registry) ??
     scene.getObjectByProperty('uuid', part.meshUuid) ??
     scene.getObjectByName(part.rawName);
   const localCenter = obj?.userData?.__localCenter as THREE.Vector3 | undefined;
@@ -58,6 +68,7 @@ function resolveLivePartCenter(
 const CameraRig: React.FC = () => {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
   const { camera, scene, raycaster } = useThree();
+  const registry = useSceneMeshRegistry();
 
   const resetViewCounter = useAnatomyStore((s) => s.resetViewCounter);
   const cameraFocusTrigger = useAnatomyStore((s) => s.cameraFocusTrigger);
@@ -140,7 +151,7 @@ const CameraRig: React.FC = () => {
     const controls = controlsRef.current;
     if (!controls || !selectedPart) return;
 
-    const center = resolveLivePartCenter(scene, selectedPart);
+    const center = resolveLivePartCenter(scene, selectedPart, registry);
     targetGoalRef.current.copy(center);
 
     const viewDir = viewDirectionTempRef.current
@@ -169,7 +180,7 @@ const CameraRig: React.FC = () => {
     const presetCoords = PRESET_CAMERA_POSITIONS[cameraPresetView];
 
     if (isolatedPartId && selectedPart) {
-      const center = resolveLivePartCenter(scene, selectedPart);
+      const center = resolveLivePartCenter(scene, selectedPart, registry);
       targetGoalRef.current.copy(center);
 
       const dir = viewDirectionTempRef.current
@@ -259,139 +270,43 @@ const ClinicalEnvironment: React.FC = () => {
   return null;
 };
 
-const LIGHT_RADIUS = 6.0;
-
-function computeSphericalRigWeights(yawDeg: number, pitchDeg: number) {
-  const az = THREE.MathUtils.degToRad(yawDeg);
-  const el = THREE.MathUtils.degToRad(pitchDeg);
-  const cosEl = Math.cos(el);
-  return {
-    wx: cosEl * Math.sin(az) * LIGHT_RADIUS,
-    wy: Math.sin(el) * LIGHT_RADIUS,
-    wz: cosEl * Math.cos(az) * LIGHT_RADIUS,
-  };
-}
-
-// 3-Point Surgical Raking Light offsets locked in camera basis coordinates
-const KEY_RAKING_WEIGHTS = computeSphericalRigWeights(38, 28);
-const FILL_RAKING_WEIGHTS = computeSphericalRigWeights(-45, -20);
-const RIM_BACK_WEIGHTS = computeSphericalRigWeights(162, 24);
-
-function placeCameraRelativeLight(
-  light: THREE.DirectionalLight | null,
-  camRight: THREE.Vector3,
-  camUp: THREE.Vector3,
-  camBack: THREE.Vector3,
-  weights: { wx: number; wy: number; wz: number }
-): void {
-  if (!light) return;
-  light.position
-    .set(0, 0, 0)
-    .addScaledVector(camRight, weights.wx)
-    .addScaledVector(camUp, weights.wy)
-    .addScaledVector(camBack, weights.wz);
-}
-
 /**
  * Universal camera-locked 3-point surgical raking light rig.
- * Reorients zero-allocation directional lights every frame as the user orbits
- * so oblique surface relief, deep sulci, and underside organ crevices stay carved from every angle.
+ * Parented once to the active PerspectiveCamera so oblique surface relief
+ * rotates automatically with zero per-frame JS work.
  */
 export const CameraRakingLightRig: React.FC = () => {
-  const keyLightRef = useRef<THREE.DirectionalLight>(null);
-  const fillLightRef = useRef<THREE.DirectionalLight>(null);
-  const rimLightRef = useRef<THREE.DirectionalLight>(null);
   const { camera } = useThree();
 
-  const camRightRef = useRef(new THREE.Vector3(1, 0, 0));
-  const camUpRef = useRef(new THREE.Vector3(0, 1, 0));
-  const camBackRef = useRef(new THREE.Vector3(0, 0, 1));
-
   useEffect(() => {
-    camera.updateMatrixWorld();
-    camera.matrixWorld.extractBasis(
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current
-    );
-    placeCameraRelativeLight(
-      keyLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      KEY_RAKING_WEIGHTS
-    );
-    placeCameraRelativeLight(
-      fillLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      FILL_RAKING_WEIGHTS
-    );
-    placeCameraRelativeLight(
-      rimLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      RIM_BACK_WEIGHTS
-    );
+    const keyLight = new THREE.DirectionalLight('#fffcf5', 1.85);
+    keyLight.position.set(3.2, 2.8, 1.0);
+    keyLight.target.position.set(0, 0, -3.2);
+
+    const fillLight = new THREE.DirectionalLight('#fff7ed', 0.65);
+    fillLight.position.set(-4.0, -2.05, 0.8);
+    fillLight.target.position.set(0, 0, -3.2);
+
+    const rimLight = new THREE.DirectionalLight('#bae6fd', 0.55);
+    rimLight.position.set(1.7, 2.44, -8.4);
+    rimLight.target.position.set(0, 0, -3.2);
+
+    const attached: THREE.Object3D[] = [
+      keyLight,
+      keyLight.target,
+      fillLight,
+      fillLight.target,
+      rimLight,
+      rimLight.target,
+    ];
+    attached.forEach((obj) => camera.add(obj));
+
+    return () => {
+      attached.forEach((obj) => camera.remove(obj));
+    };
   }, [camera]);
 
-  useFrame(({ camera: activeCam }) => {
-    activeCam.matrixWorld.extractBasis(
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current
-    );
-    placeCameraRelativeLight(
-      keyLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      KEY_RAKING_WEIGHTS
-    );
-    placeCameraRelativeLight(
-      fillLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      FILL_RAKING_WEIGHTS
-    );
-    placeCameraRelativeLight(
-      rimLightRef.current,
-      camRightRef.current,
-      camUpRef.current,
-      camBackRef.current,
-      RIM_BACK_WEIGHTS
-    );
-  });
-
-  return (
-    <>
-      <directionalLight
-        ref={keyLightRef}
-        position={[3.2, 2.8, 4.2]}
-        intensity={1.85}
-        color="#fffcf5"
-        castShadow={false}
-      />
-      <directionalLight
-        ref={fillLightRef}
-        position={[-4.0, -2.05, 4.0]}
-        intensity={0.65}
-        color="#fff7ed"
-        castShadow={false}
-      />
-      <directionalLight
-        ref={rimLightRef}
-        position={[1.7, 2.44, -5.2]}
-        intensity={0.55}
-        color="#bae6fd"
-        castShadow={false}
-      />
-      <ambientLight intensity={0.28} color="#f8fafc" />
-    </>
-  );
+  return <ambientLight intensity={0.28} color="#f8fafc" />;
 };
 
 const StudioLighting: React.FC = () => {
@@ -454,10 +369,128 @@ const ViewportFrameloopSync: React.FC<{ active: boolean }> = ({ active }) => {
   return null;
 };
 
-export const AnatomyViewport: React.FC = () => {
+const IdleHoverPreviewController: React.FC<{ active: boolean }> = ({
+  active,
+}) => {
+  const { gl, camera, scene, raycaster } = useThree();
+  const storeApi = useAnatomyStoreApi();
+  const pointerNdcRef = useRef(new THREE.Vector2());
+
+  useEffect(() => {
+    const canvasEl = gl.domElement;
+    if (!active) {
+      if (storeApi.getState().hoveredPart !== null) {
+        storeApi.getState().setHoveredPart(null);
+      }
+      document.body.style.cursor = 'auto';
+      return;
+    }
+
+    let hoverTimer: number | null = null;
+    const clearTimer = () => {
+      if (hoverTimer !== null) {
+        window.clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+    };
+
+    const onPointerDown = () => {
+      clearTimer();
+    };
+
+    const onPointerLeave = () => {
+      clearTimer();
+      document.body.style.cursor = 'auto';
+      if (storeApi.getState().hoveredPart !== null) {
+        storeApi.getState().setHoveredPart(null);
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      clearTimer();
+      if (
+        e.buttons !== 0 ||
+        e.pointerType === 'touch' ||
+        cameraInteractionState.isOrbiting
+      ) {
+        return;
+      }
+
+      const clientX = e.clientX;
+      const clientY = e.clientY;
+      hoverTimer = window.setTimeout(() => {
+        hoverTimer = null;
+        if (cameraInteractionState.isOrbiting) return;
+        const rect = canvasEl.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        pointerNdcRef.current.set(
+          ((clientX - rect.left) / rect.width) * 2 - 1,
+          -((clientY - rect.top) / rect.height) * 2 + 1
+        );
+        raycaster.firstHitOnly = true;
+        raycaster.setFromCamera(pointerNdcRef.current, camera);
+        const hits = raycaster.intersectObjects(scene.children, true);
+        let hitMesh: THREE.Mesh | null = null;
+        for (const hit of hits) {
+          const obj = hit.object as THREE.Mesh;
+          if (
+            obj?.isMesh &&
+            obj.visible &&
+            !obj.userData?.__isNoiseSubmesh &&
+            obj.geometry?.attributes?.position
+          ) {
+            hitMesh = obj;
+            break;
+          }
+        }
+        const currentHover = storeApi.getState().hoveredPart;
+        if (!hitMesh) {
+          document.body.style.cursor = 'auto';
+          if (currentHover !== null) {
+            storeApi.getState().setHoveredPart(null);
+          }
+          return;
+        }
+        document.body.style.cursor = 'pointer';
+        if (currentHover?.meshUuid === hitMesh.uuid) return;
+        storeApi.getState().setHoveredPart(
+          parseAnatomicalMesh(hitMesh),
+          { x: clientX, y: clientY },
+          false
+        );
+      }, 220);
+    };
+
+    canvasEl.addEventListener('pointermove', onPointerMove, { passive: true });
+    canvasEl.addEventListener('pointerdown', onPointerDown, { passive: true });
+    canvasEl.addEventListener('pointerleave', onPointerLeave, { passive: true });
+
+    return () => {
+      clearTimer();
+      canvasEl.removeEventListener('pointermove', onPointerMove);
+      canvasEl.removeEventListener('pointerdown', onPointerDown);
+      canvasEl.removeEventListener('pointerleave', onPointerLeave);
+      document.body.style.cursor = 'auto';
+    };
+  }, [active, gl, camera, scene, raycaster, storeApi]);
+
+  return null;
+};
+
+export interface AnatomyViewportProps {
+  active?: boolean;
+  mountScene?: boolean;
+  showStreamingHud?: boolean;
+}
+
+export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
+  active,
+  mountScene = true,
+  showStreamingHud = true,
+}) => {
   const selectPart = useAnatomyStore((s) => s.selectPart);
-  const activeTab = useAnatomyStore((s) => s.activeTab);
-  const isAtlasActive = activeTab === 'master-atlas';
+  const activeTab = useAppNavigationStore((s) => s.activeTab);
+  const isAtlasActive = active ?? activeTab === 'master-atlas';
 
   const maxDpr =
     typeof window !== 'undefined'
@@ -482,7 +515,7 @@ export const AnatomyViewport: React.FC = () => {
           antialias: true,
           stencil: true,
           alpha: false,
-          logarithmicDepthBuffer: true,
+          logarithmicDepthBuffer: false,
           powerPreference: 'high-performance',
           localClippingEnabled: true,
           outputColorSpace: THREE.SRGBColorSpace,
@@ -498,16 +531,17 @@ export const AnatomyViewport: React.FC = () => {
         <PerspectiveCamera
           makeDefault
           fov={40}
-          near={0.01}
-          far={100}
+          near={0.05}
+          far={15}
           position={[0, 1.2, 3.2]}
         />
 
         <StudioLighting />
         <CameraRig />
-        <AnatomicalModelManager />
+        <IdleHoverPreviewController active={isAtlasActive} />
+        {mountScene && <AnatomicalModelManager />}
       </Canvas>
-      {isAtlasActive && <NihStreamingProgressHud />}
+      {isAtlasActive && showStreamingHud && <NihStreamingProgressHud />}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import React, { createContext, useContext } from 'react';
 import * as THREE from 'three';
 import {
   acceleratedRaycast,
@@ -8,26 +9,64 @@ import { cameraInteractionState } from '../store/useAnatomyStore';
 
 let isBVHInitialized = false;
 
-export const sceneMeshByUuid = new Map<string, THREE.Mesh>();
-export const sceneMeshByName = new Map<string, THREE.Mesh>();
+export interface SceneMeshRegistry {
+  byUuid: Map<string, THREE.Mesh>;
+  byName: Map<string, THREE.Mesh>;
+}
+
+export function createSceneMeshRegistry(): SceneMeshRegistry {
+  return {
+    byUuid: new Map<string, THREE.Mesh>(),
+    byName: new Map<string, THREE.Mesh>(),
+  };
+}
+
+export const defaultSceneMeshRegistry: SceneMeshRegistry =
+  createSceneMeshRegistry();
+export const sceneMeshByUuid = defaultSceneMeshRegistry.byUuid;
+export const sceneMeshByName = defaultSceneMeshRegistry.byName;
+
+export const SceneMeshRegistryContext = createContext<SceneMeshRegistry>(
+  defaultSceneMeshRegistry
+);
+
+export const SceneMeshRegistryProvider: React.FC<{
+  registry: SceneMeshRegistry;
+  children: React.ReactNode;
+}> = ({ registry, children }) =>
+  React.createElement(
+    SceneMeshRegistryContext.Provider,
+    { value: registry },
+    children
+  );
+
+export function useSceneMeshRegistry(): SceneMeshRegistry {
+  return useContext(SceneMeshRegistryContext);
+}
 
 /**
  * Registers a mounted anatomical mesh for O(1) lookup by UUID and name.
  */
-export function registerSceneMesh(mesh: THREE.Mesh): void {
-  sceneMeshByUuid.set(mesh.uuid, mesh);
+export function registerSceneMesh(
+  mesh: THREE.Mesh,
+  registry: SceneMeshRegistry = defaultSceneMeshRegistry
+): void {
+  registry.byUuid.set(mesh.uuid, mesh);
   if (mesh.name) {
-    sceneMeshByName.set(mesh.name, mesh);
+    registry.byName.set(mesh.name, mesh);
   }
 }
 
 /**
  * Unregisters an unmounted anatomical mesh from O(1) scene registries.
  */
-export function unregisterSceneMesh(mesh: THREE.Mesh): void {
-  sceneMeshByUuid.delete(mesh.uuid);
-  if (mesh.name && sceneMeshByName.get(mesh.name) === mesh) {
-    sceneMeshByName.delete(mesh.name);
+export function unregisterSceneMesh(
+  mesh: THREE.Mesh,
+  registry: SceneMeshRegistry = defaultSceneMeshRegistry
+): void {
+  registry.byUuid.delete(mesh.uuid);
+  if (mesh.name && registry.byName.get(mesh.name) === mesh) {
+    registry.byName.delete(mesh.name);
   }
 }
 
@@ -36,14 +75,15 @@ export function unregisterSceneMesh(mesh: THREE.Mesh): void {
  */
 export function getRegisteredSceneMesh(
   meshUuid?: string | null,
-  rawName?: string | null
+  rawName?: string | null,
+  registry: SceneMeshRegistry = defaultSceneMeshRegistry
 ): THREE.Mesh | null {
   if (meshUuid) {
-    const byUuid = sceneMeshByUuid.get(meshUuid);
+    const byUuid = registry.byUuid.get(meshUuid);
     if (byUuid) return byUuid;
   }
   if (rawName) {
-    const byName = sceneMeshByName.get(rawName);
+    const byName = registry.byName.get(rawName);
     if (byName) return byName;
   }
   return null;

@@ -20,7 +20,6 @@ import {
   MapPinOff,
   Microscope,
   RotateCcw,
-  Scan,
   Scissors,
   Search,
   Sliders,
@@ -36,6 +35,7 @@ import {
 } from '../../services/nihSceneService';
 import {
   useAnatomyStore,
+  useAppNavigationStore,
   type AnatomicalSystem,
   type BiologicalSex,
   type OfficialAtlasPresetId,
@@ -46,12 +46,12 @@ import {
   buildCloudNodeIndex,
   collectIsolationHideIds,
   matchZAnatomySystemBundle,
+  ZANATOMY_PRESET_GLB_URL,
   type CloudNodeIndex,
   type SketchfabAnnotationEntry,
-  type SketchfabMaterialEntry,
-  type SketchfabOpacityChannel,
   type SketchfabViewerApi,
 } from '../../utils/cloudDissectionBridge';
+import { AnatomyViewport } from './AnatomyViewport';
 import {
   bakeGlbThumbnail,
   getCachedGlbThumbnail,
@@ -1205,16 +1205,31 @@ const ExplorerCardThumbnail: React.FC<{
 ExplorerCardThumbnail.displayName = 'ExplorerCardThumbnail';
 
 export const LiveScientificExplorer: React.FC = () => {
+  const activeTab = useAppNavigationStore((s) => s.activeTab);
+  const explorerOpenedModel = useAppNavigationStore(
+    (s) => s.explorerOpenedModel
+  );
+  const setExplorerOpenedModel = useAppNavigationStore(
+    (s) => s.setExplorerOpenedModel
+  );
+
   const explorerCloudUid = useAnatomyStore((s) => s.explorerCloudUid);
   const explorerCloudTitle = useAnatomyStore((s) => s.explorerCloudTitle);
-  const setActiveTab = useAnatomyStore((s) => s.setActiveTab);
   const loadCustomGlb = useAnatomyStore((s) => s.loadCustomGlb);
   const loadExplorerCloudModel = useAnatomyStore(
     (s) => s.loadExplorerCloudModel
   );
   const setActiveAtlasPreset = useAnatomyStore((s) => s.setActiveAtlasPreset);
-  const soloSystem = useAnatomyStore((s) => s.soloSystem);
   const selectPart = useAnatomyStore((s) => s.selectPart);
+
+  const [hasMountedNativeStage, setHasMountedNativeStage] = useState(
+    () => explorerOpenedModel?.kind === 'native'
+  );
+  useEffect(() => {
+    if (explorerOpenedModel?.kind === 'native') {
+      setHasMountedNativeStage(true);
+    }
+  }, [explorerOpenedModel]);
 
   const [searchInput, setSearchInput] = useState('');
   const [translatedLabel, setTranslatedLabel] = useState<string | null>(null);
@@ -1234,7 +1249,6 @@ export const LiveScientificExplorer: React.FC = () => {
     useState<CloudSelectedNodeState | null>(null);
   const [cloudPeeledStack, setCloudPeeledStack] = useState<number[]>([]);
   const [cloudIsolatedId, setCloudIsolatedId] = useState<number | null>(null);
-  const [cloudXrayEnabled, setCloudXrayEnabled] = useState(false);
   const [cloudSliceEnabled, setCloudSliceEnabled] = useState(false);
   const [cloudSliceDepth, setCloudSliceDepth] = useState(35);
   const [cloudExplodePct, setCloudExplodePct] = useState(0);
@@ -1247,10 +1261,6 @@ export const LiveScientificExplorer: React.FC = () => {
   const cloudIframeRef = useRef<HTMLIFrameElement>(null);
   const cloudApiRef = useRef<SketchfabViewerApi | null>(null);
   const cloudNodeIndexRef = useRef<CloudNodeIndex | null>(null);
-  const cloudMaterialsRef = useRef<SketchfabMaterialEntry[]>([]);
-  const cloudOriginalOpacityRef = useRef<
-    Map<string, SketchfabOpacityChannel>
-  >(new Map());
   const cloudAnnotationsRef = useRef<SketchfabAnnotationEntry[]>([]);
   const cloudHiddenIdsRef = useRef<Set<number>>(new Set());
 
@@ -1474,7 +1484,7 @@ export const LiveScientificExplorer: React.FC = () => {
     void executeSearch(query, sourceFilter);
   };
 
-  // Mode A: Auto-route direct .glb, local Z-Anatomy bundles, or downloadable Sketchfab .glb into Native Three.js Engine
+  // Mode A: Auto-route direct .glb, local Z-Anatomy bundles, or downloadable Sketchfab .glb into Tab 2's isolated Native Three.js Engine
   const launchInLocalEngine = useCallback(
     async (card: ExplorerModelCard) => {
       setLoadingCardId(card.id);
@@ -1482,11 +1492,16 @@ export const LiveScientificExplorer: React.FC = () => {
 
       try {
         if (card.glbUrl) {
+          loadExplorerCloudModel(null);
           loadCustomGlb(resolveAssetUrl(card.glbUrl), card.title);
-          selectPart(
-            parseAnatomicalString(card.title, card.title, card.system)
-          );
-          setActiveTab('master-atlas');
+          setExplorerOpenedModel({
+            key: card.id,
+            title: card.title,
+            sourceLabel: card.sourceLabel,
+            kind: 'native',
+            glbUrl: card.glbUrl,
+            system: card.system,
+          });
           return;
         }
 
@@ -1501,24 +1516,36 @@ export const LiveScientificExplorer: React.FC = () => {
             : null;
 
         if (matchedBundle) {
-          setActiveAtlasPreset(matchedBundle.preset);
-          if (!matchedBundle.isFullBody) {
-            soloSystem(matchedBundle.system);
+          loadExplorerCloudModel(null);
+          const bundleGlbUrl = ZANATOMY_PRESET_GLB_URL[matchedBundle.preset];
+          if (bundleGlbUrl && !matchedBundle.isFullBody) {
+            loadCustomGlb(resolveAssetUrl(bundleGlbUrl), card.title);
+          } else {
+            setActiveAtlasPreset('zanatomy-full-body');
           }
-          selectPart(
-            parseAnatomicalString(
-              card.title,
-              card.title,
-              matchedBundle.system
-            )
-          );
-          setActiveTab('master-atlas');
+          setExplorerOpenedModel({
+            key: card.id,
+            title: card.title,
+            sourceLabel: card.sourceLabel,
+            kind: 'native',
+            presetId: matchedBundle.preset,
+            glbUrl: bundleGlbUrl ?? undefined,
+            system: matchedBundle.system,
+          });
           return;
         }
 
         if (!card.uid || !card.isDownloadable) {
           if (card.uid) {
             loadExplorerCloudModel(card.uid, card.title);
+            setExplorerOpenedModel({
+              key: card.id,
+              title: card.title,
+              sourceLabel: card.sourceLabel,
+              kind: 'cloud-stream',
+              sketchfabUid: card.uid,
+              system: card.system,
+            });
           }
           return;
         }
@@ -1538,8 +1565,16 @@ export const LiveScientificExplorer: React.FC = () => {
         const assetUrl = dlJson.glb?.url;
         if (!assetUrl) {
           loadExplorerCloudModel(card.uid, card.title);
+          setExplorerOpenedModel({
+            key: card.id,
+            title: card.title,
+            sourceLabel: card.sourceLabel,
+            kind: 'cloud-stream',
+            sketchfabUid: card.uid,
+            system: card.system,
+          });
           setStatusMessage(
-            'Model uses archived GLTF — opened in interactive Cloud 3D Dissector.'
+            'Model uses archived GLTF — opened in Cloud 3D Stage.'
           );
           return;
         }
@@ -1551,16 +1586,29 @@ export const LiveScientificExplorer: React.FC = () => {
         const blob = await binaryRes.blob();
         const objectUrl = URL.createObjectURL(blob);
 
+        loadExplorerCloudModel(null);
         loadCustomGlb(objectUrl, card.title);
-        selectPart(
-          parseAnatomicalString(card.title, card.title, card.system)
-        );
-        setActiveTab('master-atlas');
+        setExplorerOpenedModel({
+          key: card.id,
+          title: card.title,
+          sourceLabel: card.sourceLabel,
+          kind: 'native',
+          glbUrl: objectUrl,
+          system: card.system,
+        });
       } catch {
-        if (card.uid) {
+        if (card.uid && card.sourceKind !== 'z-anatomy' && !card.localBundlePreset) {
           loadExplorerCloudModel(card.uid, card.title);
+          setExplorerOpenedModel({
+            key: card.id,
+            title: card.title,
+            sourceLabel: card.sourceLabel,
+            kind: 'cloud-stream',
+            sketchfabUid: card.uid,
+            system: card.system,
+          });
           setStatusMessage(
-            'Direct GLB fetch unavailable — opened in interactive Cloud 3D Stage.'
+            'Direct GLB fetch unavailable — opened in Cloud 3D Stage.'
           );
         } else {
           setStatusMessage('Failed to load GLB asset from source.');
@@ -1572,10 +1620,8 @@ export const LiveScientificExplorer: React.FC = () => {
     [
       loadCustomGlb,
       loadExplorerCloudModel,
-      selectPart,
       setActiveAtlasPreset,
-      setActiveTab,
-      soloSystem,
+      setExplorerOpenedModel,
     ]
   );
 
@@ -1619,43 +1665,6 @@ export const LiveScientificExplorer: React.FC = () => {
     cloudSliceEnabled,
     cloudSliceDepth,
   ]);
-
-  // Cloud X-Ray translucency toggle via Sketchfab `getMaterialList` / `setMaterial`
-  useEffect(() => {
-    const api = cloudApiRef.current;
-    const materials = cloudMaterialsRef.current;
-    if (!api || !cloudReady || materials.length === 0) return;
-
-    const keepMatName = cloudSelectedNode?.materialName;
-    for (const mat of materials) {
-      const origOpacity = cloudOriginalOpacityRef.current.get(mat.id);
-      const isSelectedMat = Boolean(
-        cloudSelectedNode && keepMatName && mat.name === keepMatName
-      );
-      if (cloudXrayEnabled && !isSelectedMat) {
-        api.setMaterial?.({
-          ...mat,
-          channels: {
-            ...mat.channels,
-            Opacity: {
-              ...(origOpacity ?? {}),
-              enable: true,
-              factor: 0.2,
-              type: 'alphaBlend',
-            },
-          },
-        });
-      } else if (origOpacity) {
-        api.setMaterial?.({
-          ...mat,
-          channels: {
-            ...mat.channels,
-            Opacity: { ...origOpacity },
-          },
-        });
-      }
-    }
-  }, [cloudReady, cloudXrayEnabled, cloudSelectedNode]);
 
   // Cloud Explode View via radial `api.translate` across movable transform nodes
   useEffect(() => {
@@ -1727,16 +1736,21 @@ export const LiveScientificExplorer: React.FC = () => {
   const handleCloudRestoreAll = useCallback(() => {
     setCloudPeeledStack([]);
     setCloudIsolatedId(null);
-    setCloudXrayEnabled(false);
     setCloudSliceEnabled(false);
     setCloudExplodePct(0);
     setCloudPinsVisible(true);
     cloudApiRef.current?.recenterCamera?.();
   }, []);
 
-  // Cloud Stage Keyboard Shortcuts ([I] Isolate, [H] Peel, [Z] Undo Peel, [X] X-Ray, [S] Slice, [R] Restore, [A] Pins)
+  // Cloud Stage Keyboard Shortcuts ([I] Isolate, [H] Peel, [Z] Undo Peel, [S] Slice, [R] Restore, [A] Pins)
   useEffect(() => {
-    if (!explorerCloudUid) return;
+    if (
+      activeTab !== 'cloud-explorer' ||
+      explorerOpenedModel?.kind !== 'cloud-stream' ||
+      !explorerCloudUid
+    ) {
+      return;
+    }
     const onKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (
@@ -1755,8 +1769,6 @@ export const LiveScientificExplorer: React.FC = () => {
         handleCloudPeel();
       } else if (k === 'z') {
         handleCloudUndoPeel();
-      } else if (k === 'x') {
-        setCloudXrayEnabled((v) => !v);
       } else if (k === 's') {
         setCloudSliceEnabled((v) => !v);
       } else if (k === 'r') {
@@ -1768,6 +1780,8 @@ export const LiveScientificExplorer: React.FC = () => {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [
+    activeTab,
+    explorerOpenedModel,
     explorerCloudUid,
     handleCloudIsolate,
     handleCloudPeel,
@@ -1775,13 +1789,11 @@ export const LiveScientificExplorer: React.FC = () => {
     handleCloudRestoreAll,
   ]);
 
-  // Mode B: Sketchfab Viewer API 1.12.1 on #000000 stage, bridged to Full Dissection Dock + Clinical Inspector Sidebar
+  // Mode B: Sketchfab Viewer API 1.12.1 on #000000 stage (strictly read-only materials, zero inspector UI)
   useEffect(() => {
-    if (!explorerCloudUid) {
+    if (!explorerCloudUid || explorerOpenedModel?.kind !== 'cloud-stream') {
       cloudApiRef.current = null;
       cloudNodeIndexRef.current = null;
-      cloudMaterialsRef.current = [];
-      cloudOriginalOpacityRef.current.clear();
       cloudAnnotationsRef.current = [];
       cloudHiddenIdsRef.current.clear();
       setCloudReady(false);
@@ -1791,7 +1803,6 @@ export const LiveScientificExplorer: React.FC = () => {
       setCloudSelectedNode(null);
       setCloudPeeledStack([]);
       setCloudIsolatedId(null);
-      setCloudXrayEnabled(false);
       setCloudSliceEnabled(false);
       setCloudExplodePct(0);
       setCloudPinsVisible(true);
@@ -1805,7 +1816,6 @@ export const LiveScientificExplorer: React.FC = () => {
     setCloudSelectedNode(null);
     setCloudPeeledStack([]);
     setCloudIsolatedId(null);
-    setCloudXrayEnabled(false);
     setCloudSliceEnabled(false);
     setCloudExplodePct(0);
     setCloudPinsVisible(true);
@@ -1823,12 +1833,14 @@ export const LiveScientificExplorer: React.FC = () => {
           preload: 1,
           transparent: 0,
           ui_theme: 'dark',
+          ui_controls: 0,
           ui_infos: 0,
           ui_watermark: 0,
           ui_stop: 0,
           ui_help: 0,
           ui_settings: 0,
           ui_inspector: 0,
+          ui_annotations: 0,
           ui_ar: 0,
           ui_vr: 0,
           ui_hint: 0,
@@ -1847,17 +1859,6 @@ export const LiveScientificExplorer: React.FC = () => {
                 const index = buildCloudNodeIndex(nodes);
                 cloudNodeIndexRef.current = index;
                 setCloudNodeCount(index.nameByInstanceId.size);
-              });
-
-              api.getMaterialList?.((err, materials) => {
-                if (cancelled || err || !Array.isArray(materials)) return;
-                cloudMaterialsRef.current = materials;
-                cloudOriginalOpacityRef.current.clear();
-                for (const m of materials) {
-                  cloudOriginalOpacityRef.current.set(m.id, {
-                    ...(m.channels?.Opacity ?? { enable: false, factor: 1 }),
-                  });
-                }
               });
 
               api.getAnnotationList?.((err, annotations) => {
@@ -1939,44 +1940,72 @@ export const LiveScientificExplorer: React.FC = () => {
     [cards, explorerCloudUid]
   );
 
-  // Mode B Active Cloud Stage View (#000000)
-  if (explorerCloudUid) {
-    return (
-      <div className="fixed inset-0 z-10 bg-black">
-        <iframe
-          ref={cloudIframeRef}
-          title={explorerCloudTitle || 'Sketchfab Cloud 3D Specimen'}
-          allow="autoplay; fullscreen; xr-spatial-tracking"
-          className="h-full w-full border-0 bg-black"
+  const isCloudTabActive = activeTab === 'cloud-explorer';
+  const isNativeStageVisible =
+    isCloudTabActive && explorerOpenedModel?.kind === 'native';
+  const isCloudStreamVisible =
+    isCloudTabActive &&
+    explorerOpenedModel?.kind === 'cloud-stream' &&
+    Boolean(explorerCloudUid);
+  const isCatalogVisible = isCloudTabActive && explorerOpenedModel === null;
+
+  return (
+    <>
+      {hasMountedNativeStage && (
+        <AnatomyViewport
+          active={isNativeStageVisible}
+          mountScene={hasMountedNativeStage}
+          showStreamingHud={false}
         />
+      )}
 
-        {!cloudReady && !cloudError && (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="flex items-center gap-3 rounded-2xl border border-sky-400/30 bg-zinc-950/90 px-5 py-3 font-mono text-xs text-sky-200 shadow-2xl">
-              <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-              <span>Initializing 3D Scientific Cloud Stage...</span>
+      {explorerOpenedModel?.kind === 'cloud-stream' && explorerCloudUid && (
+        <div
+          aria-hidden={!isCloudStreamVisible}
+          className={cn(
+            'fixed inset-0 bg-black',
+            isCloudStreamVisible
+              ? 'visible pointer-events-auto z-20'
+              : 'invisible pointer-events-none -z-20'
+          )}
+        >
+          <iframe
+            ref={cloudIframeRef}
+            title={explorerCloudTitle || 'Sketchfab Cloud 3D Specimen'}
+            allow="autoplay; fullscreen; xr-spatial-tracking"
+            className="h-full w-full border-0 bg-black"
+          />
+
+          {!cloudReady && !cloudError && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+              <div className="flex items-center gap-3 rounded-2xl border border-sky-400/30 bg-zinc-950/90 px-5 py-3 font-mono text-xs text-sky-200 shadow-2xl">
+                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                <span>Initializing 3D Scientific Cloud Stage...</span>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {cloudError && (
-          <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/90 p-6">
-            <div className="max-w-md rounded-2xl border border-rose-500/35 bg-zinc-950 p-5 text-center shadow-2xl">
-              <p className="text-sm font-semibold text-rose-200">{cloudError}</p>
-              <button
-                type="button"
-                onClick={() => loadExplorerCloudModel(null)}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20"
-              >
-                <ArrowLeft className="h-3.5 w-3.5" />
-                <span>Back to Explorer</span>
-              </button>
+          {cloudError && (
+            <div className="pointer-events-auto absolute inset-0 flex items-center justify-center bg-black/90 p-6">
+              <div className="max-w-md rounded-2xl border border-rose-500/35 bg-zinc-950 p-5 text-center shadow-2xl">
+                <p className="text-sm font-semibold text-rose-200">{cloudError}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadExplorerCloudModel(null);
+                    setExplorerOpenedModel(null);
+                  }}
+                  className="mt-4 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold text-white hover:bg-white/20"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" />
+                  <span>Back to Explorer</span>
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Left Surgical Dissection Dock (Cloud API Mirror of Engine 1 HUD) */}
-        <aside className="pointer-events-auto fixed left-3 top-16 z-20 w-[238px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/10 bg-[#07070c]/90 p-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl">
+          {/* Left Dissection Controls for Stream-Only Third-Party Cloud Models */}
+          <aside className="pointer-events-auto fixed left-3 top-16 z-20 w-[238px] max-w-[calc(100vw-1.5rem)] rounded-2xl border border-white/10 bg-[#07070c]/90 p-2.5 shadow-[0_12px_36px_rgba(0,0,0,0.85)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-1.5">
               <Sliders className="h-3.5 w-3.5 text-sky-400" />
@@ -2068,27 +2097,6 @@ export const LiveScientificExplorer: React.FC = () => {
                     <span className="truncate">Undo Peel</span>
                   </span>
                   <kbd className="font-mono text-[9px] text-zinc-400">Z</kbd>
-                </button>
-
-                {/* X-Ray [X] */}
-                <button
-                  type="button"
-                  onClick={() => setCloudXrayEnabled((v) => !v)}
-                  disabled={!cloudReady}
-                  aria-pressed={cloudXrayEnabled}
-                  title="Toggle translucent X-Ray context [X]"
-                  className={cn(
-                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
-                    cloudXrayEnabled
-                      ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-100'
-                      : 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10'
-                  )}
-                >
-                  <span className="flex items-center gap-1.5 truncate">
-                    <Scan className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">X-Ray</span>
-                  </span>
-                  <kbd className="font-mono text-[9px] text-zinc-400">X</kbd>
                 </button>
 
                 {/* Slice Tool [S] */}
@@ -2201,7 +2209,10 @@ export const LiveScientificExplorer: React.FC = () => {
         <div className="pointer-events-auto fixed bottom-4 left-4 z-20 flex max-w-[calc(100vw-2rem)] flex-wrap items-center gap-2 rounded-2xl border border-white/15 bg-zinc-950/90 px-3.5 py-2.5 shadow-2xl backdrop-blur-xl">
           <button
             type="button"
-            onClick={() => loadExplorerCloudModel(null)}
+            onClick={() => {
+              loadExplorerCloudModel(null);
+              setExplorerOpenedModel(null);
+            }}
             className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 font-mono text-[11px] font-semibold text-zinc-200 transition-colors hover:bg-white/15 hover:text-white active:scale-95"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
@@ -2253,16 +2264,20 @@ export const LiveScientificExplorer: React.FC = () => {
             </button>
           )}
         </div>
-      </div>
-    );
-  }
+        </div>
+      )}
 
-  // Search & Browse Dashboard View
-  return (
-    <section
-      aria-label="Live 3D Scientific Explorer"
-      className="fixed inset-0 z-20 overflow-y-auto touch-pan-y bg-zinc-950/92 px-3 pb-10 pt-20 backdrop-blur-xl sm:px-6 xl:pt-20"
-    >
+      {/* Search & Browse Dashboard View (persists state across tab switches) */}
+      <section
+        aria-label="Live 3D Scientific Explorer"
+        aria-hidden={!isCatalogVisible}
+        className={cn(
+          'fixed inset-0 overflow-y-auto touch-pan-y bg-zinc-950/92 px-3 pb-10 pt-20 backdrop-blur-xl transition-opacity duration-150 sm:px-6 xl:pt-20',
+          isCatalogVisible
+            ? 'visible pointer-events-auto opacity-100 z-20'
+            : 'invisible pointer-events-none opacity-0 -z-20'
+        )}
+      >
       <div className="mx-auto max-w-6xl">
         {/* Header & Bilingual Query Box */}
         <div className="rounded-2xl border border-white/10 bg-[#090910]/95 p-4 shadow-2xl sm:p-5">
@@ -2470,7 +2485,9 @@ export const LiveScientificExplorer: React.FC = () => {
 
                     {/* Action Footer */}
                     <div className="mt-3 flex items-center gap-2">
-                      {card.isDownloadable && (
+                      {card.sourceKind === 'z-anatomy' ||
+                      Boolean(card.localBundlePreset) ||
+                      card.isDownloadable ? (
                         <button
                           type="button"
                           onClick={() => void launchInLocalEngine(card)}
@@ -2484,25 +2501,16 @@ export const LiveScientificExplorer: React.FC = () => {
                           )}
                           <span>Load in 3D Engine</span>
                         </button>
-                      )}
-
-                      {card.uid && (
+                      ) : card.uid ? (
                         <button
                           type="button"
-                          onClick={() =>
-                            loadExplorerCloudModel(card.uid!, card.title)
-                          }
-                          className={cn(
-                            'inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-[11px] font-semibold transition-all active:scale-95',
-                            card.isDownloadable
-                              ? 'border-white/15 bg-white/5 text-zinc-200 hover:bg-white/15 hover:text-white'
-                              : 'flex-1 border-emerald-400/40 bg-emerald-500/20 text-white hover:bg-emerald-500/35'
-                          )}
+                          onClick={() => void launchInLocalEngine(card)}
+                          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-[11px] font-semibold text-white transition-all hover:bg-emerald-500/35 active:scale-95"
                         >
                           <Cloud className="h-3.5 w-3.5 text-emerald-300" />
                           <span>Cloud 3D</span>
                         </button>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </article>
@@ -2511,6 +2519,7 @@ export const LiveScientificExplorer: React.FC = () => {
           </div>
         )}
       </div>
-    </section>
+      </section>
+    </>
   );
 };
