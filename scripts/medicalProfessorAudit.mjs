@@ -835,12 +835,15 @@ async function runAudit() {
     }
 
     // -----------------------------------------------------------------------
-    // Traverse ALL 73 NIH GLBs
+    // Traverse downloaded local NIH GLBs (e.g. 7 female supplement organs)
     // -----------------------------------------------------------------------
     for (const sex of ['male', 'female']) {
       for (const organ of nihManifest[sex] || []) {
         const rel = organ.localPath.replace(/^\//, '');
         const glbPath = path.join(ROOT, 'public', rel);
+        if (!organ.downloaded || !fs.existsSync(glbPath)) {
+          continue;
+        }
         const { root } = loadGlbAsThreeScene(glbPath);
         const [tx, ty, tz] = organ.placement?.translation || [0, 0, 0];
         const [rx, ry, rz] = organ.placement?.rotation || [0, 0, 0];

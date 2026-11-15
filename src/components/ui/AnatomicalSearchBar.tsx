@@ -369,7 +369,7 @@ export const AnatomicalSearchBar: React.FC = () => {
         {/* Desktop (>=768px) Inline Search Input */}
         <div
           className={cn(
-            'hidden md:flex h-9 w-44 items-center gap-1.5 rounded-full border bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md transition-colors xl:w-56 2xl:w-64',
+            'hidden md:flex h-9 w-36 items-center gap-1.5 rounded-full border bg-[#0a0a0c]/90 px-2.5 shadow-2xl backdrop-blur-md transition-colors xl:w-44 2xl:w-60',
             isOpen
               ? 'border-sky-500/40 ring-1 ring-sky-500/20'
               : 'border-white/10 hover:border-white/20'

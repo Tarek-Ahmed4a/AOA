@@ -1,18 +1,14 @@
 import '../../utils/bvhSetup';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import {
-  AdaptiveDpr,
-  OrbitControls,
-  PerspectiveCamera,
-  useProgress,
-} from '@react-three/drei';
+import { OrbitControls, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import {
   cameraInteractionState,
   DEFAULT_CAMERA_TARGET,
   useAnatomyStore,
+  useAnatomyStoreApi,
   useAppNavigationStore,
   type CameraPresetView,
 } from '../../store/useAnatomyStore';
@@ -25,8 +21,16 @@ import {
 import { AnatomicalModelManager } from './AnatomicalModelManager';
 import { type AnatomicalPartInfo } from '../../utils/anatomyParser';
 
-const INITIAL_CAMERA_POSITION = new THREE.Vector3(0, 1.2, 3.2);
+const DESKTOP_INITIAL_CAMERA_POSITION: [number, number, number] = [0, 1.2, 3.2];
+const MOBILE_INITIAL_CAMERA_POSITION: [number, number, number] = [0, 1.12, 3.55];
 const DEFAULT_TARGET_VECTOR = new THREE.Vector3(...DEFAULT_CAMERA_TARGET);
+
+function getResponsiveInitialCameraTuple(): [number, number, number] {
+  if (typeof window !== 'undefined' && window.innerWidth < 640) {
+    return MOBILE_INITIAL_CAMERA_POSITION;
+  }
+  return DESKTOP_INITIAL_CAMERA_POSITION;
+}
 
 const PRESET_CAMERA_POSITIONS: Record<
   CameraPresetView,
@@ -63,7 +67,7 @@ function resolveLivePartCenter(
 
 const CameraRig: React.FC = () => {
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
-  const { camera, scene, raycaster, gl } = useThree();
+  const { camera, scene, raycaster, invalidate } = useThree();
   const registry = useSceneMeshRegistry();
 
   const resetViewCounter = useAnatomyStore((s) => s.resetViewCounter);
@@ -79,8 +83,11 @@ const CameraRig: React.FC = () => {
   const prevPresetTriggerRef = useRef(cameraPresetTrigger);
   const flightModeRef = useRef<'idle' | 'reset' | 'focus' | 'preset'>('idle');
   const targetGoalRef = useRef(DEFAULT_TARGET_VECTOR.clone());
-  const cameraPosGoalRef = useRef(INITIAL_CAMERA_POSITION.clone());
+  const cameraPosGoalRef = useRef(
+    new THREE.Vector3(...getResponsiveInitialCameraTuple())
+  );
   const viewDirectionTempRef = useRef(new THREE.Vector3());
+  const initializedControlsRef = useRef<WeakSet<object>>(new WeakSet());
 
   // Initialize OrbitControls target & configure fast firstHitOnly raycasting + orbiting guard
   useEffect(() => {
@@ -91,31 +98,36 @@ const CameraRig: React.FC = () => {
     const controls = controlsRef.current;
     if (!controls) return;
 
-    controls.target.copy(DEFAULT_TARGET_VECTOR);
-    controls.update();
+    if (!initializedControlsRef.current.has(controls)) {
+      initializedControlsRef.current.add(controls);
+      controls.target.copy(DEFAULT_TARGET_VECTOR);
+      camera.lookAt(DEFAULT_TARGET_VECTOR);
+      controls.update();
+      invalidate();
+    }
 
     let isControlActive = false;
 
     const handleControlStart = () => {
       isControlActive = true;
       flightModeRef.current = 'idle';
-      gl.setPixelRatio(0.8);
+      invalidate();
     };
 
     const handleControlChange = () => {
       if (isControlActive) {
         cameraInteractionState.isOrbiting = true;
       }
+      invalidate();
     };
 
     const handleControlEnd = () => {
+      const wasActive = isControlActive || cameraInteractionState.isOrbiting;
       isControlActive = false;
       cameraInteractionState.isOrbiting = false;
-      const idleDpr =
-        typeof window !== 'undefined'
-          ? Math.min(window.devicePixelRatio || 1, 1.35)
-          : 1.35;
-      gl.setPixelRatio(idleDpr);
+      if (wasActive) {
+        invalidate();
+      }
     };
 
     controls.addEventListener('start', handleControlStart);
@@ -127,28 +139,24 @@ const CameraRig: React.FC = () => {
     });
     return () => {
       cameraInteractionState.isOrbiting = false;
-      const idleDpr =
-        typeof window !== 'undefined'
-          ? Math.min(window.devicePixelRatio || 1, 1.35)
-          : 1.35;
-      gl.setPixelRatio(idleDpr);
       controls.removeEventListener('start', handleControlStart);
       controls.removeEventListener('change', handleControlChange);
       controls.removeEventListener('end', handleControlEnd);
       window.removeEventListener('pointerup', handleControlEnd);
       window.removeEventListener('pointercancel', handleControlEnd);
     };
-  }, [gl, raycaster]);
+  }, [camera, raycaster, invalidate]);
 
   // Trigger smooth camera & target reset whenever resetViewCounter increments
   useEffect(() => {
     if (resetViewCounter !== prevResetCounterRef.current) {
       prevResetCounterRef.current = resetViewCounter;
       targetGoalRef.current.set(...cameraTarget);
-      cameraPosGoalRef.current.copy(INITIAL_CAMERA_POSITION);
+      cameraPosGoalRef.current.set(...getResponsiveInitialCameraTuple());
       flightModeRef.current = 'reset';
+      invalidate();
     }
-  }, [resetViewCounter, cameraTarget]);
+  }, [resetViewCounter, cameraTarget, invalidate]);
 
   // Trigger smooth auto-fly to frame selected anatomical part whenever cameraFocusTrigger increments
   useEffect(() => {
@@ -176,7 +184,8 @@ const CameraRig: React.FC = () => {
       .addScaledVector(viewDir, desiredDistance);
 
     flightModeRef.current = 'focus';
-  }, [cameraFocusTrigger, selectedPart, camera, scene]);
+    invalidate();
+  }, [cameraFocusTrigger, selectedPart, camera, scene, registry, invalidate]);
 
   // Trigger standard anatomical view presets (Anterior / Posterior / Left / Right / Superior / Inferior)
   useEffect(() => {
@@ -207,12 +216,15 @@ const CameraRig: React.FC = () => {
     }
 
     flightModeRef.current = 'preset';
+    invalidate();
   }, [
     cameraPresetTrigger,
     cameraPresetView,
     isolatedPartId,
     selectedPart,
     scene,
+    registry,
+    invalidate,
   ]);
 
   useFrame((_, delta) => {
@@ -233,6 +245,7 @@ const CameraRig: React.FC = () => {
       controls.update();
       flightModeRef.current = 'idle';
     }
+    invalidate();
   });
 
   return (
@@ -365,13 +378,22 @@ const NihStreamingProgressHud: React.FC = () => {
 const ViewportFrameloopSync: React.FC<{ active: boolean }> = ({ active }) => {
   const setFrameloop = useThree((s) => s.setFrameloop);
   const invalidate = useThree((s) => s.invalidate);
+  const size = useThree((s) => s.size);
+  const storeApi = useAnatomyStoreApi();
 
   useEffect(() => {
-    setFrameloop(active ? 'always' : 'never');
+    setFrameloop(active ? 'demand' : 'never');
     if (active) {
       invalidate();
     }
-  }, [active, setFrameloop, invalidate]);
+  }, [active, setFrameloop, invalidate, size.width, size.height]);
+
+  useEffect(() => {
+    if (!active) return;
+    return storeApi.subscribe(() => {
+      invalidate();
+    });
+  }, [active, storeApi, invalidate]);
 
   return null;
 };
@@ -389,11 +411,15 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
 }) => {
   const activeTab = useAppNavigationStore((s) => s.activeTab);
   const isAtlasActive = active ?? activeTab === 'master-atlas';
+  const initialCameraPos = useMemo(
+    () => getResponsiveInitialCameraTuple(),
+    []
+  );
 
   const maxDpr =
     typeof window !== 'undefined'
-      ? Math.min(window.devicePixelRatio || 1, 1.35)
-      : 1.35;
+      ? Math.min(window.devicePixelRatio || 1, 1.15)
+      : 1.15;
 
   return (
     <div
@@ -406,9 +432,15 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
       )}
     >
       <Canvas
-        frameloop={isAtlasActive ? 'always' : 'never'}
+        frameloop={isAtlasActive ? 'demand' : 'never'}
         shadows={false}
-        dpr={[0.8, maxDpr]}
+        dpr={[0.75, maxDpr]}
+        camera={{
+          position: initialCameraPos,
+          fov: 40,
+          near: 0.05,
+          far: 15,
+        }}
         gl={{
           antialias: true,
           stencil: true,
@@ -423,15 +455,6 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
       >
         <color attach="background" args={['#000000']} />
         <ViewportFrameloopSync active={isAtlasActive} />
-        <AdaptiveDpr pixelated />
-
-        <PerspectiveCamera
-          makeDefault
-          fov={40}
-          near={0.05}
-          far={15}
-          position={[0, 1.2, 3.2]}
-        />
 
         <StudioLighting />
         <CameraRig />

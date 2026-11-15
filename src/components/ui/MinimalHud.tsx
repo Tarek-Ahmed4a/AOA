@@ -1,9 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { type OfficialAtlasPresetId } from '../../store/useAnatomyStore';
-import {
-  DEFAULT_PDF_BOOKS,
-  usePdfSessionStore,
-} from '../../store/usePdfSessionStore';
 import { AnatomicalSearchBar } from './AnatomicalSearchBar';
 
 interface AtlasPresetOption {
@@ -113,8 +109,6 @@ export const MinimalHud: React.FC = () => {
   const setExplorerOpenedModel = useAppNavigationStore(
     (s) => s.setExplorerOpenedModel
   );
-  const clearPdfReference = useAppNavigationStore((s) => s.clearPdfReference);
-  const pdfReferenceTarget = useAppNavigationStore((s) => s.pdfReferenceTarget);
   const storeApi = useAnatomyStoreApi();
   const isNativeViewportActive =
     activeTab === 'master-atlas' ||
@@ -218,43 +212,9 @@ export const MinimalHud: React.FC = () => {
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
   const setActiveAtlasPreset = useAnatomyStore((s) => s.setActiveAtlasPreset);
   const customGlbUrl = useAnatomyStore((s) => s.customGlbUrl);
-  const medicalProfile = useAnatomyStore((s) => s.medicalProfile);
-
-  const pdfBooks = usePdfSessionStore((s) => s.books);
-  const pdfViewMode = usePdfSessionStore((s) => s.viewMode);
-  const pdfBook1Page = usePdfSessionStore((s) => s.book1Page);
-  const pdfBook2Page = usePdfSessionStore((s) => s.book2Page);
-  const dismissedStructureKey = usePdfSessionStore(
-    (s) => s.dismissedStructureKey
-  );
-  const ensurePdfManifestLoaded = usePdfSessionStore(
-    (s) => s.ensureManifestLoaded
-  );
-  const setPdfViewMode = usePdfSessionStore((s) => s.setViewMode);
-  const jumpBook1 = usePdfSessionStore((s) => s.jumpBook1);
-  const jumpBook2 = usePdfSessionStore((s) => s.jumpBook2);
-  const jumpActiveBook = usePdfSessionStore((s) => s.jumpActiveBook);
-  const loadLocalPdf = usePdfSessionStore((s) => s.loadLocalPdf);
-  const dismissStructureBadge = usePdfSessionStore(
-    (s) => s.dismissStructureBadge
-  );
 
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const presetMenuRef = useRef<HTMLDivElement>(null);
-  const pdfFileInputRef = useRef<HTMLInputElement>(null);
-  const [pdfPageInput, setPdfPageInput] = useState(String(pdfBook1Page));
-
-  useEffect(() => {
-    if (activeTab === 'pdf-books') {
-      ensurePdfManifestLoaded();
-    }
-  }, [activeTab, ensurePdfManifestLoaded]);
-
-  useEffect(() => {
-    setPdfPageInput(
-      String(pdfViewMode === 'book2' ? pdfBook2Page : pdfBook1Page)
-    );
-  }, [pdfViewMode, pdfBook1Page, pdfBook2Page]);
 
   useEffect(() => {
     if (!presetMenuOpen) return;
@@ -284,36 +244,6 @@ export const MinimalHud: React.FC = () => {
     ATLAS_PRESET_OPTIONS[0];
 
   const activeSelectedPart = useAnatomyStore((s) => s.selectedPart);
-  const pdfBook1 =
-    pdfBooks.find((b) => b.id === 'book1' || b.role === 'atlas') ??
-    DEFAULT_PDF_BOOKS[0];
-  const pdfBook2 =
-    pdfBooks.find((b) => b.id === 'book2' || b.role === 'textbook') ??
-    DEFAULT_PDF_BOOKS[1];
-
-  const focusedPdfLabel =
-    pdfReferenceTarget?.query ||
-    activeSelectedPart?.cleanName ||
-    medicalProfile?.cleanNameEn ||
-    '';
-  const focusedPdfPage =
-    pdfReferenceTarget?.book2Page ??
-    pdfReferenceTarget?.book1Page ??
-    (pdfReferenceTarget?.book1Plate
-      ? (pdfBook1.plateToPage?.[String(pdfReferenceTarget.book1Plate)] ??
-        pdfReferenceTarget.book1Plate + (pdfBook1.plateOffsetEstimate ?? 36))
-      : undefined);
-  const focusedBadgeKey = `${focusedPdfLabel}:${focusedPdfPage ?? ''}:${pdfReferenceTarget?.trigger ?? ''}`;
-  const showFocusedPdfBadge =
-    Boolean(focusedPdfLabel) && dismissedStructureKey !== focusedBadgeKey;
-
-  const handlePdfPageSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const parsed = Number.parseInt(pdfPageInput, 10);
-    if (Number.isFinite(parsed) && parsed >= 1) {
-      jumpActiveBook(parsed);
-    }
-  };
   const isHoveringSelected = Boolean(
     hoveredPart &&
       activeSelectedPart &&
@@ -353,94 +283,17 @@ export const MinimalHud: React.FC = () => {
       <header
         aria-label="Primary Studio Top Navigation"
         className={cn(
-          'pointer-events-auto fixed left-0 right-0 z-50 flex items-center justify-between overflow-x-auto overflow-y-hidden flex-nowrap whitespace-nowrap touch-pan-x no-scrollbar scroll-smooth px-2 gap-2 md:left-3 md:right-3 md:px-0 md:overflow-visible',
+          'pointer-events-auto fixed left-0 right-0 z-50 flex items-center overflow-x-auto overflow-y-hidden flex-nowrap whitespace-nowrap touch-pan-x no-scrollbar scroll-smooth px-2 gap-2 md:left-3 md:right-3 md:px-0 md:overflow-visible',
           activeTab === 'pdf-books'
-            ? 'top-1.5 h-10 md:top-2 md:h-11'
-            : 'top-2 h-10 md:top-3 md:h-12'
+            ? 'top-1.5 h-10 justify-center md:top-2 md:h-11 md:justify-between'
+            : 'top-2 h-10 justify-between md:top-3 md:h-12'
         )}
       >
         {/* Top-Left Zone */}
+        {activeTab === 'pdf-books' ? (
+          <div className="hidden md:block md:flex-1" />
+        ) : (
         <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 md:min-w-0 md:flex-1">
-          {activeTab === 'pdf-books' ? (
-            <>
-              <div
-                role="group"
-                aria-label="Reference Book Layout Selector"
-                className="flex h-7 md:h-8 shrink-0 items-center gap-0.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 p-0.5 shadow-xl backdrop-blur-md"
-              >
-                <button
-                  type="button"
-                  onClick={() => setPdfViewMode('book1')}
-                  aria-pressed={pdfViewMode === 'book1'}
-                  className={cn(
-                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
-                    pdfViewMode === 'book1'
-                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
-                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
-                  )}
-                >
-                  <span>📘</span>
-                  <span className="md:hidden"> 1</span>
-                  <span className="hidden md:inline"> Book 1</span>
-                  <span className="hidden xl:inline">: Atlas</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPdfViewMode('book2')}
-                  aria-pressed={pdfViewMode === 'book2'}
-                  className={cn(
-                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
-                    pdfViewMode === 'book2'
-                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
-                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
-                  )}
-                >
-                  <span>📗</span>
-                  <span className="md:hidden"> 2</span>
-                  <span className="hidden md:inline"> Book 2</span>
-                  <span className="hidden xl:inline">: Text</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPdfViewMode('split')}
-                  aria-pressed={pdfViewMode === 'split'}
-                  className={cn(
-                    'whitespace-nowrap rounded-full border px-1.5 md:px-2 py-0.5 md:py-1 text-[10px] md:text-[10.5px] font-medium transition-all active:scale-95',
-                    pdfViewMode === 'split'
-                      ? 'border-sky-500/40 bg-sky-500/15 text-sky-400'
-                      : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
-                  )}
-                >
-                  <span>⚖️</span>
-                  <span className="hidden md:inline"> Split View</span>
-                </button>
-              </div>
-
-              {showFocusedPdfBadge && (
-                <div className="hidden sm:flex h-8 min-w-0 max-w-[190px] items-center gap-1 rounded-full border border-emerald-500/35 bg-emerald-500/10 px-2.5 text-[10.5px] font-medium text-emerald-300 shadow-lg backdrop-blur-md">
-                  <span aria-hidden="true" className="shrink-0">
-                    📍
-                  </span>
-                  <span className="truncate text-white">
-                    {focusedPdfLabel}
-                    {focusedPdfPage ? ` (p.${focusedPdfPage})` : ''}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      clearPdfReference();
-                      dismissStructureBadge(focusedBadgeKey);
-                    }}
-                    aria-label="Clear focused organ pill"
-                    className="ml-0.5 shrink-0 rounded-full p-0.5 text-emerald-300/80 transition-colors hover:bg-white/10 hover:text-white"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
               {activeTab === 'cloud-explorer' &&
               explorerOpenedModel?.kind === 'native' ? (
                 <>
@@ -451,7 +304,7 @@ export const MinimalHud: React.FC = () => {
                     className="flex h-8 md:h-9 shrink-0 items-center gap-1.5 rounded-full border border-sky-400/35 bg-[#0a0a0c]/90 px-2.5 md:px-3 font-mono text-[10px] font-semibold text-sky-200 shadow-2xl backdrop-blur-md transition-colors hover:border-sky-400/60 hover:bg-sky-500/15 hover:text-white active:scale-95"
                   >
                     <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-sky-400" />
-                    <span>Explorer</span>
+                    <span>Back to Results</span>
                   </button>
                   <div className="hidden sm:flex h-8 md:h-9 min-w-0 max-w-[200px] items-center gap-1.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 shadow-2xl backdrop-blur-md">
                     <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
@@ -563,9 +416,8 @@ export const MinimalHud: React.FC = () => {
                   )}
                 </div>
               )}
-            </>
-          )}
         </div>
+        )}
 
         {/* Top-Center Zone: 3-Tab Minimalist Cockpit Switcher */}
         <nav
@@ -602,7 +454,7 @@ export const MinimalHud: React.FC = () => {
                 aria-selected={isActive}
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
-                  'shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[9.5px] md:px-3 md:text-[11px] font-medium tracking-wide transition-all active:scale-95',
+                  'shrink-0 whitespace-nowrap rounded-full border px-2 py-1 text-[9.5px] md:px-2.5 md:text-[10.5px] 2xl:px-3 2xl:text-[11px] font-medium tracking-wide transition-all active:scale-95',
                   isActive
                     ? 'border-sky-500/40 bg-sky-500/15 text-sky-400 shadow-[0_0_16px_rgba(56,189,248,0.16)]'
                     : 'border-transparent text-zinc-400 hover:bg-white/5 hover:text-zinc-100'
@@ -616,110 +468,13 @@ export const MinimalHud: React.FC = () => {
         </nav>
 
         {/* Top-Right Zone */}
-        <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-1.5 md:min-w-0 md:flex-1">
-          {isNativeViewportActive && <AnatomicalSearchBar />}
-          {activeTab === 'pdf-books' && (
-            <>
-              <form
-                onSubmit={handlePdfPageSubmit}
-                className="flex h-7 md:h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-1.5 md:px-2 shadow-xl backdrop-blur-md"
-              >
-                <label
-                  htmlFor="header-pdf-page-jump"
-                  className="hidden sm:inline font-mono text-[10px] uppercase tracking-wider text-zinc-400"
-                >
-                  Pg
-                </label>
-                <input
-                  id="header-pdf-page-jump"
-                  type="number"
-                  min={1}
-                  value={pdfPageInput}
-                  onChange={(e) => setPdfPageInput(e.target.value)}
-                  aria-label="Quick Page Jump"
-                  className="w-8 md:w-11 bg-transparent text-center font-mono text-[10.5px] md:text-[11px] tabular-nums text-white outline-none"
-                />
-                <button
-                  type="submit"
-                  className="rounded-full bg-white/10 px-1.5 md:px-2 py-0.5 font-mono text-[9.5px] md:text-[10px] font-medium text-zinc-200 transition-colors hover:bg-sky-500/20 hover:text-sky-300"
-                >
-                  Go
-                </button>
-              </form>
-
-              <select
-                aria-label="Jump to PDF chapter"
-                value=""
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (!val) return;
-                  const [slot, pageStr] = val.split(':');
-                  const pageNum = Number.parseInt(pageStr, 10);
-                  if (!Number.isFinite(pageNum) || pageNum < 1) return;
-                  if (slot === 'book2') {
-                    jumpBook2(pageNum);
-                  } else {
-                    jumpBook1(pageNum);
-                  }
-                }}
-                className="hidden sm:block h-8 max-w-[125px] rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 font-mono text-[10px] text-zinc-300 shadow-xl outline-none backdrop-blur-md transition-colors hover:border-white/25 focus:border-sky-500/50 xl:max-w-[165px]"
-              >
-                <option value="" disabled>
-                  Chapters...
-                </option>
-                {(pdfViewMode === 'book1' || pdfViewMode === 'split') &&
-                  pdfBook1.chapters &&
-                  pdfBook1.chapters.length > 0 && (
-                    <optgroup label="Book 1: Atlas">
-                      {pdfBook1.chapters.map((ch) => (
-                        <option
-                          key={`b1-${ch.title}-${ch.page}`}
-                          value={`book1:${ch.page}`}
-                        >
-                          {ch.title} (p.{ch.page})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                {(pdfViewMode === 'book2' || pdfViewMode === 'split') &&
-                  pdfBook2.chapters &&
-                  pdfBook2.chapters.length > 0 && (
-                    <optgroup label="Book 2: Text">
-                      {pdfBook2.chapters.map((ch) => (
-                        <option
-                          key={`b2-${ch.title}-${ch.page}`}
-                          value={`book2:${ch.page}`}
-                        >
-                          {ch.title} (p.{ch.page})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-              </select>
-
-              <input
-                ref={pdfFileInputRef}
-                type="file"
-                accept=".pdf,application/pdf"
-                className="hidden"
-                onChange={(e) => {
-                  const slot = pdfViewMode === 'book2' ? 'book2' : 'book1';
-                  loadLocalPdf(slot, e.target.files?.[0]);
-                  e.target.value = '';
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => pdfFileInputRef.current?.click()}
-                title="Open a local .pdf file into active reader pane"
-                className="flex h-7 md:h-8 shrink-0 items-center gap-1 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2 md:px-2.5 font-mono text-[10px] font-medium text-zinc-200 shadow-xl backdrop-blur-md transition-all hover:border-sky-500/40 hover:bg-sky-500/15 hover:text-sky-300 active:scale-95"
-              >
-                <span aria-hidden="true">📂</span>
-                <span className="hidden lg:inline">Open PDF</span>
-              </button>
-            </>
-          )}
-        </div>
+        {activeTab === 'pdf-books' ? (
+          <div className="hidden md:block md:flex-1" />
+        ) : (
+          <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-1.5 md:min-w-0 md:flex-1">
+            {isNativeViewportActive && <AnatomicalSearchBar />}
+          </div>
+        )}
       </header>
 
       {isNativeViewportActive && (

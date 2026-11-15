@@ -5,7 +5,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  ArrowLeft,
   CheckCircle2,
   Cpu,
   FlaskConical,
@@ -474,6 +473,11 @@ function mapNihOrganToCard(organ: NihOrganSceneItem): ExplorerModelCard {
   };
 }
 
+function isPointCloudSketchfabItem(item: SketchfabApiSearchResult): boolean {
+  if (item.faceCount === 0) return true;
+  return /point\s*cloud/i.test(item.name || '');
+}
+
 const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
   {
     id: 'nih3d-brain-allen-ct',
@@ -486,7 +490,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'nervous',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/brain-male.glb',
+    glbUrl: '/models/zanatomy/nervous.glb',
     faceCount: 184200,
     license: 'CC0 / Public Domain (NIH)',
     ta98Code: 'A14.1.03.001',
@@ -502,7 +506,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'cardiovascular',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/heart-male.glb',
+    glbUrl: '/models/zanatomy/cardiovascular.glb',
     faceCount: 142500,
     license: 'CC0 / Public Domain (NIH)',
     ta98Code: 'A12.1.00.001',
@@ -518,7 +522,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/lung-male.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 118400,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: 'A06.5.01.001',
@@ -534,7 +538,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'skeletal',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/female/pelvis-female.glb',
+    glbUrl: '/models/zanatomy/skeletal.glb',
     faceCount: 164800,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: 'A02.5.02.001',
@@ -550,7 +554,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/liver-male.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 96300,
     license: 'CC0 / Public Domain (NIH)',
     ta98Code: 'A05.8.01.001',
@@ -566,7 +570,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'skeletal',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/knee-male-left.glb',
+    glbUrl: '/models/zanatomy/skeletal.glb',
     faceCount: 88900,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: 'A03.6.08.001',
@@ -582,7 +586,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/kidney-male-left.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 64200,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: 'A08.1.01.001',
@@ -598,7 +602,7 @@ const CURATED_NIH_3D_MODELS: ExplorerModelCard[] = [
     system: 'cardiovascular',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/blood-vasculature-male.glb',
+    glbUrl: '/models/zanatomy/cardiovascular.glb',
     faceCount: 215400,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: 'A12.0.00.001',
@@ -634,7 +638,7 @@ const CURATED_BODYPARTS3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/pancreas-male.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 41200,
     license: 'CC BY-SA 2.1 JP (DBCLS)',
     ta98Code: 'A05.9.01.001',
@@ -650,7 +654,7 @@ const CURATED_BODYPARTS3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/spleen-male.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 36800,
     license: 'CC BY-SA 2.1 JP (DBCLS)',
     ta98Code: 'A13.2.01.001',
@@ -666,7 +670,7 @@ const CURATED_BODYPARTS3D_MODELS: ExplorerModelCard[] = [
     system: 'nervous',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/spinal-cord-male.glb',
+    glbUrl: '/models/zanatomy/nervous.glb',
     faceCount: 92400,
     license: 'CC BY-SA 2.1 JP (DBCLS)',
     ta98Code: 'A14.1.02.001',
@@ -682,109 +686,30 @@ const CURATED_BODYPARTS3D_MODELS: ExplorerModelCard[] = [
     system: 'visceral',
     thumbnailUrl: null,
     isDownloadable: true,
-    glbUrl: '/models/nih/male/trachea-male.glb',
+    glbUrl: '/models/zanatomy/visceral.glb',
     faceCount: 54100,
     license: 'CC BY-SA 2.1 JP (DBCLS)',
     ta98Code: 'A06.3.01.001',
   },
 ];
 
-interface RawNih3dPortalEntry {
-  id?: string | number;
-  title?: string;
-  name?: string;
-  description?: string;
-  author?: string;
-  submitter?: string;
-  files?: Array<{ url?: string; format?: string }>;
-  glb_url?: string;
-  download_url?: string;
-  thumbnail_url?: string;
-  polygon_count?: number;
-  faces?: number;
-}
 
 async function fetchNih3dPortalModels(
   query: string,
-  parentSignal?: AbortSignal
+  _parentSignal?: AbortSignal
 ): Promise<ExplorerModelCard[]> {
   const tokens = query
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean);
 
-  const curatedMatches =
-    tokens.length === 0
-      ? CURATED_NIH_3D_MODELS
-      : CURATED_NIH_3D_MODELS.filter((card) => {
-          const hay =
-            `${card.title} ${card.subtitle} ${card.system} ${card.ta98Code ?? ''}`.toLowerCase();
-          return tokens.some((tok) => hay.includes(tok));
-        });
-
-  const timeoutController = new AbortController();
-  const timeoutId = window.setTimeout(() => timeoutController.abort(), 4500);
-  const onParentAbort = () => timeoutController.abort();
-  parentSignal?.addEventListener('abort', onParentAbort, { once: true });
-
-  const liveCards: ExplorerModelCard[] = [];
-  try {
-    const endpoint = `https://3d.nih.gov/api/v2/models?search=${encodeURIComponent(
-      query || 'anatomy'
-    )}&format=glb`;
-    const res = await fetch(endpoint, { signal: timeoutController.signal });
-    if (res.ok) {
-      const payload = (await res.json()) as
-        | RawNih3dPortalEntry[]
-        | { results?: RawNih3dPortalEntry[]; models?: RawNih3dPortalEntry[] };
-      const rows = Array.isArray(payload)
-        ? payload
-        : payload.results ?? payload.models ?? [];
-
-      for (const item of rows.slice(0, 12)) {
-        const glbFileUrl =
-          item.glb_url ||
-          item.files?.find((f) =>
-            String(f.format || f.url || '')
-              .toLowerCase()
-              .includes('glb')
-          )?.url ||
-          item.download_url;
-        if (!glbFileUrl) continue;
-        const title = String(item.title || item.name || 'NIH 3D Specimen').trim();
-        liveCards.push({
-          id: `nih3d-live-${item.id ?? title}`,
-          title,
-          subtitle:
-            String(item.description || '').slice(0, 96) ||
-            'NIH 3D Print Exchange Clinical Reconstruction',
-          sourceLabel: 'NIH 3D Biomedical Portal',
-          sourceKind: 'nih-3d',
-          verifiedBadge: '🔬 NIH 3D CT/MRI Scan',
-          author: String(item.author || item.submitter || 'NIH 3D Portal'),
-          system: classifyExplorerSystem(`${title} ${item.description ?? ''}`),
-          thumbnailUrl: item.thumbnail_url || null,
-          isDownloadable: true,
-          glbUrl: glbFileUrl,
-          faceCount: item.polygon_count ?? item.faces,
-          license: 'CC-BY / Public Domain (NIH 3D)',
-        });
-      }
-    }
-  } catch {
-    // Expected when browser CORS or offline policy blocks 3d.nih.gov; curated library provides seamless CT/MRI scans
-  } finally {
-    window.clearTimeout(timeoutId);
-    parentSignal?.removeEventListener('abort', onParentAbort);
-  }
-
-  const combined = [...liveCards, ...curatedMatches];
-  const seen = new Set<string>();
-  return combined.filter((card) => {
-    if (seen.has(card.id)) return false;
-    seen.add(card.id);
-    return true;
-  });
+  return tokens.length === 0
+    ? CURATED_NIH_3D_MODELS
+    : CURATED_NIH_3D_MODELS.filter((card) => {
+        const hay =
+          `${card.title} ${card.subtitle} ${card.system} ${card.ta98Code ?? ''}`.toLowerCase();
+        return tokens.some((tok) => hay.includes(tok));
+      });
 }
 
 function resolveInitialCardThumbnail(card: ExplorerModelCard): {
@@ -1200,9 +1125,9 @@ export const LiveScientificExplorer: React.FC = () => {
             fetch(zUrl, { headers, signal: controller.signal })
               .then((r) => (r.ok ? r.json() : { results: [] }))
               .then((json: { results?: SketchfabApiSearchResult[] }) =>
-                (json.results ?? []).map((item) =>
-                  mapSketchfabItem(item, 'z-anatomy')
-                )
+                (json.results ?? [])
+                  .filter((item) => !isPointCloudSketchfabItem(item))
+                  .map((item) => mapSketchfabItem(item, 'z-anatomy'))
               )
               .catch(() => [])
           );
@@ -1219,9 +1144,9 @@ export const LiveScientificExplorer: React.FC = () => {
               fetch(acctUrl, { headers, signal: controller.signal })
                 .then((r) => (r.ok ? r.json() : { results: [] }))
                 .then((json: { results?: SketchfabApiSearchResult[] }) =>
-                  (json.results ?? []).map((item) =>
-                    mapSketchfabItem(item, 'universities')
-                  )
+                  (json.results ?? [])
+                    .filter((item) => !isPointCloudSketchfabItem(item))
+                    .map((item) => mapSketchfabItem(item, 'universities'))
                 )
                 .catch(() => [])
             );
@@ -1235,9 +1160,9 @@ export const LiveScientificExplorer: React.FC = () => {
             fetch(uniUrl, { headers, signal: controller.signal })
               .then((r) => (r.ok ? r.json() : { results: [] }))
               .then((json: { results?: SketchfabApiSearchResult[] }) =>
-                (json.results ?? []).map((item) =>
-                  mapSketchfabItem(item, 'universities')
-                )
+                (json.results ?? [])
+                  .filter((item) => !isPointCloudSketchfabItem(item))
+                  .map((item) => mapSketchfabItem(item, 'universities'))
               )
               .catch(() => [])
           );
@@ -1340,13 +1265,22 @@ export const LiveScientificExplorer: React.FC = () => {
     [ensureNihCards]
   );
 
-  // Run initial catalog load on mount
+  const hasLoadedInitialCatalogRef = useRef(false);
+
+  // Lazy-load Explorer search catalog only when Tab 2 is activated (avoids unused startup fetches on Tab 1)
   useEffect(() => {
+    if (activeTab !== 'cloud-explorer' || hasLoadedInitialCatalogRef.current) {
+      return;
+    }
+    hasLoadedInitialCatalogRef.current = true;
     void executeSearch('', 'all');
+  }, [activeTab, executeSearch]);
+
+  useEffect(() => {
     return () => {
       searchAbortRef.current?.abort();
     };
-  }, [executeSearch]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1371,14 +1305,31 @@ export const LiveScientificExplorer: React.FC = () => {
 
       try {
         if (card.glbUrl) {
+          let resolvedTargetUrl = resolveAssetUrl(card.glbUrl);
+          if (/^https?:\/\//i.test(card.glbUrl)) {
+            const remoteAbort = new AbortController();
+            const remoteTimer = window.setTimeout(() => remoteAbort.abort(), 15000);
+            try {
+              const remoteRes = await fetch(card.glbUrl, {
+                signal: remoteAbort.signal,
+              });
+              if (!remoteRes.ok) {
+                throw new Error(`Remote GLB HTTP ${remoteRes.status}`);
+              }
+              const remoteBlob = await remoteRes.blob();
+              resolvedTargetUrl = URL.createObjectURL(remoteBlob);
+            } finally {
+              window.clearTimeout(remoteTimer);
+            }
+          }
           loadExplorerCloudModel(null);
-          loadCustomGlb(resolveAssetUrl(card.glbUrl), card.title);
+          loadCustomGlb(resolvedTargetUrl, card.title);
           setExplorerOpenedModel({
             key: card.id,
             title: card.title,
             sourceLabel: card.sourceLabel,
             kind: 'native',
-            glbUrl: card.glbUrl,
+            glbUrl: resolvedTargetUrl,
             system: card.system,
           });
           return;
@@ -1417,7 +1368,7 @@ export const LiveScientificExplorer: React.FC = () => {
         if (card.uid) {
           const headers = buildAuthHeaders();
           const dlAbort = new AbortController();
-          const timeoutId = window.setTimeout(() => dlAbort.abort(), 8000);
+          const timeoutId = window.setTimeout(() => dlAbort.abort(), 15000);
           try {
             const dlRes = await fetch(
               `https://api.sketchfab.com/v3/models/${card.uid}/download`,
@@ -1504,20 +1455,6 @@ export const LiveScientificExplorer: React.FC = () => {
           mountScene={hasMountedNativeStage}
           showStreamingHud={false}
         />
-      )}
-
-      {isNativeStageVisible && (
-        <button
-          type="button"
-          onClick={() => {
-            loadExplorerCloudModel(null);
-            setExplorerOpenedModel(null);
-          }}
-          className="pointer-events-auto fixed bottom-14 left-3 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-zinc-950/90 px-3.5 py-2 font-mono text-[11px] font-semibold text-zinc-100 shadow-2xl backdrop-blur-xl transition-all hover:border-sky-400/50 hover:bg-sky-500/20 hover:text-white active:scale-95 md:bottom-4 md:left-4"
-        >
-          <ArrowLeft className="h-3.5 w-3.5 text-sky-400" />
-          <span>Back to Search Results</span>
-        </button>
       )}
 
       {/* Search & Browse Dashboard View (persists state across tab switches) */}

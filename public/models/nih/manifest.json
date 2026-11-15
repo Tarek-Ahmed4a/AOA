@@ -3,8 +3,8 @@
   "source": "nih-hra-api-v1",
   "stats": {
     "totalTargets": 73,
-    "downloadedCount": 73,
-    "offlineFallbackCount": 0
+    "downloadedCount": 7,
+    "offlineFallbackCount": 66
   },
   "male": [
     {
@@ -18,7 +18,7 @@
       "ta98Code": "A01.0.00.000",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/adipose-male/v1.0/assets/3d-vh-m-adipose.glb",
       "localPath": "/models/nih/male/adipose-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -48,7 +48,7 @@
       "ta98Code": "A12.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/blood-vasculature-male/v1.3/assets/3d-vh-m-blood-vasculature.glb",
       "localPath": "/models/nih/male/blood-vasculature-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -78,7 +78,7 @@
       "ta98Code": "A14.1.03.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/brain-male/v1.4/assets/3d-allen-m-brain.glb",
       "localPath": "/models/nih/male/brain-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -108,7 +108,7 @@
       "ta98Code": "A05.7.03.005",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/epiploic-appendage-of-transverse-colon-male/v1.0/assets/3d-vh-m-epiploic-appendage-of-transverse-colon.glb",
       "localPath": "/models/nih/male/epiploic-appendage-of-transverse-colon-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -138,7 +138,7 @@
       "ta98Code": "A12.1.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-male/v1.3/assets/3d-vh-m-heart.glb",
       "localPath": "/models/nih/male/heart-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -168,7 +168,7 @@
       "ta98Code": "A03.2.02.003",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/intervertebral-disk-male/v1.0/assets/3d-vh-m-intervertebral-disk.glb",
       "localPath": "/models/nih/male/intervertebral-disk-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -198,7 +198,7 @@
       "ta98Code": "A08.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-male-left/v1.3/assets/3d-vh-m-kidney-l.glb",
       "localPath": "/models/nih/male/kidney-male-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -228,7 +228,7 @@
       "ta98Code": "A08.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-male-right/v1.3/assets/3d-vh-m-kidney-r.glb",
       "localPath": "/models/nih/male/kidney-male-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -258,7 +258,7 @@
       "ta98Code": "A03.6.08.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-male-left/v1.2/assets/3d-vh-m-knee-l.glb",
       "localPath": "/models/nih/male/knee-male-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -288,7 +288,7 @@
       "ta98Code": "A03.6.08.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-male-right/v1.2/assets/3d-vh-m-knee-r.glb",
       "localPath": "/models/nih/male/knee-male-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -318,7 +318,7 @@
       "ta98Code": "A05.7.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/large-intestine-male/v1.3/assets/3d-sbu-m-large-intestine.glb",
       "localPath": "/models/nih/male/large-intestine-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -348,7 +348,7 @@
       "ta98Code": "A06.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/larynx-male/v1.1/assets/3d-vh-m-larynx.glb",
       "localPath": "/models/nih/male/larynx-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -378,7 +378,7 @@
       "ta98Code": "A05.8.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/liver-male/v1.2/assets/3d-vh-m-liver.glb",
       "localPath": "/models/nih/male/liver-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -408,7 +408,7 @@
       "ta98Code": "A06.5.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lung-male/v1.4/assets/3d-vh-m-lung.glb",
       "localPath": "/models/nih/male/lung-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -438,7 +438,7 @@
       "ta98Code": "A13.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lymph-node-male/v1.4/assets/3d-nih-m-lymph-node.glb",
       "localPath": "/models/nih/male/lymph-node-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -468,7 +468,7 @@
       "ta98Code": "A06.4.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/main-bronchus-male/v1.1/assets/3d-vh-m-main-bronchus.glb",
       "localPath": "/models/nih/male/main-bronchus-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -498,7 +498,7 @@
       "ta98Code": "A10.1.02.201",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/omentum-male/v1.0/assets/3d-vh-m-omentum.glb",
       "localPath": "/models/nih/male/omentum-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -528,7 +528,7 @@
       "ta98Code": "A05.2.01.011",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-male-left/v1.2/assets/3d-vh-m-palatine-tonsil-l.glb",
       "localPath": "/models/nih/male/palatine-tonsil-male-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -558,7 +558,7 @@
       "ta98Code": "A05.2.01.011",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-male-right/v1.2/assets/3d-vh-m-palatine-tonsil-r.glb",
       "localPath": "/models/nih/male/palatine-tonsil-male-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -588,7 +588,7 @@
       "ta98Code": "A05.9.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pancreas-male/v1.3/assets/3d-vh-m-pancreas.glb",
       "localPath": "/models/nih/male/pancreas-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -618,7 +618,7 @@
       "ta98Code": "A02.5.02.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pelvis-male/v1.3/assets/3d-vh-m-pelvis.glb",
       "localPath": "/models/nih/male/pelvis-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -648,7 +648,7 @@
       "ta98Code": "A09.3.08.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/prostate-male/v1.2/assets/3d-vh-m-prostate.glb",
       "localPath": "/models/nih/male/prostate-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -678,7 +678,7 @@
       "ta98Code": "A08.1.05.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-male-left/v1.0/assets/3d-vh-m-renal-pelvis-l.glb",
       "localPath": "/models/nih/male/renal-pelvis-male-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -708,7 +708,7 @@
       "ta98Code": "A08.1.05.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-male-right/v1.0/assets/3d-vh-m-renal-pelvis-r.glb",
       "localPath": "/models/nih/male/renal-pelvis-male-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -738,7 +738,7 @@
       "ta98Code": "A16.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/skin-male/v1.4/assets/3d-vh-m-skin.glb",
       "localPath": "/models/nih/male/skin-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -768,7 +768,7 @@
       "ta98Code": "A05.6.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/small-intestine-male/v1.2/assets/3d-vh-m-small-intestine.glb",
       "localPath": "/models/nih/male/small-intestine-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -798,7 +798,7 @@
       "ta98Code": "A14.1.02.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spinal-cord-male/v1.1/assets/3d-vh-m-spinal-cord.glb",
       "localPath": "/models/nih/male/spinal-cord-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -828,7 +828,7 @@
       "ta98Code": "A13.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spleen-male/v1.3/assets/3d-vh-m-spleen.glb",
       "localPath": "/models/nih/male/spleen-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -858,7 +858,7 @@
       "ta98Code": "A13.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/thymus-male/v1.3/assets/3d-vh-m-thymus.glb",
       "localPath": "/models/nih/male/thymus-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -888,7 +888,7 @@
       "ta98Code": "A06.3.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/trachea-male/v1.1/assets/3d-vh-m-trachea.glb",
       "localPath": "/models/nih/male/trachea-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -918,7 +918,7 @@
       "ta98Code": "A08.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-male-left/v1.2/assets/3d-vh-m-ureter-l.glb",
       "localPath": "/models/nih/male/ureter-male-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -948,7 +948,7 @@
       "ta98Code": "A08.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-male-right/v1.2/assets/3d-vh-m-ureter-r.glb",
       "localPath": "/models/nih/male/ureter-male-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -978,7 +978,7 @@
       "ta98Code": "A08.3.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/urinary-bladder-male/v1.2/assets/3d-vh-m-urinary-bladder.glb",
       "localPath": "/models/nih/male/urinary-bladder-male.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1010,7 +1010,7 @@
       "ta98Code": "A01.0.00.000",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/adipose-female/v1.0/assets/3d-vh-f-adipose.glb",
       "localPath": "/models/nih/female/adipose-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1040,7 +1040,7 @@
       "ta98Code": "A12.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/blood-vasculature-female/v1.3/assets/3d-vh-f-blood-vasculature.glb",
       "localPath": "/models/nih/female/blood-vasculature-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1070,7 +1070,7 @@
       "ta98Code": "A14.1.03.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/brain-female/v1.4/assets/3d-allen-f-brain.glb",
       "localPath": "/models/nih/female/brain-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1100,7 +1100,7 @@
       "ta98Code": "A05.7.03.005",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/epiploic-appendage-of-transverse-colon-female/v1.0/assets/3d-vh-f-epiploic-appendage-of-transverse-colon.glb",
       "localPath": "/models/nih/female/epiploic-appendage-of-transverse-colon-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1190,7 +1190,7 @@
       "ta98Code": "A12.1.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/heart-female/v1.3/assets/3d-vh-f-heart.glb",
       "localPath": "/models/nih/female/heart-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1220,7 +1220,7 @@
       "ta98Code": "A08.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-female-left/v1.3/assets/3d-vh-f-kidney-l.glb",
       "localPath": "/models/nih/female/kidney-female-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1250,7 +1250,7 @@
       "ta98Code": "A08.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/kidney-female-right/v1.3/assets/3d-vh-f-kidney-r.glb",
       "localPath": "/models/nih/female/kidney-female-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1280,7 +1280,7 @@
       "ta98Code": "A03.6.08.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-female-left/v1.3/assets/3d-vh-f-knee-l.glb",
       "localPath": "/models/nih/female/knee-female-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1310,7 +1310,7 @@
       "ta98Code": "A03.6.08.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/knee-female-right/v1.3/assets/3d-vh-f-knee-r.glb",
       "localPath": "/models/nih/female/knee-female-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1340,7 +1340,7 @@
       "ta98Code": "A05.7.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/large-intestine-female/v1.3/assets/3d-sbu-f-large-intestine.glb",
       "localPath": "/models/nih/female/large-intestine-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1370,7 +1370,7 @@
       "ta98Code": "A06.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/larynx-female/v1.1/assets/3d-vh-f-larynx.glb",
       "localPath": "/models/nih/female/larynx-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1400,7 +1400,7 @@
       "ta98Code": "A05.8.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/liver-female/v1.2/assets/3d-vh-f-liver.glb",
       "localPath": "/models/nih/female/liver-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1430,7 +1430,7 @@
       "ta98Code": "A06.5.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lung-female/v1.4/assets/3d-vh-f-lung.glb",
       "localPath": "/models/nih/female/lung-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1460,7 +1460,7 @@
       "ta98Code": "A13.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/lymph-node-female/v1.4/assets/3d-nih-f-lymph-node.glb",
       "localPath": "/models/nih/female/lymph-node-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1490,7 +1490,7 @@
       "ta98Code": "A06.4.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/main-bronchus-female/v1.1/assets/3d-vh-f-main-bronchus.glb",
       "localPath": "/models/nih/female/main-bronchus-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1580,7 +1580,7 @@
       "ta98Code": "A02.3.03.002",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/manubrium-female/v1.0/assets/3d-vh-f-manubrium.glb",
       "localPath": "/models/nih/female/manubrium-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1610,7 +1610,7 @@
       "ta98Code": "A10.1.02.201",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/omentum-female/v1.0/assets/3d-vh-f-omentum.glb",
       "localPath": "/models/nih/female/omentum-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1700,7 +1700,7 @@
       "ta98Code": "A05.2.01.011",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-female-left/v1.2/assets/3d-vh-f-palatine-tonsil-l.glb",
       "localPath": "/models/nih/female/palatine-tonsil-female-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1730,7 +1730,7 @@
       "ta98Code": "A05.2.01.011",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/palatine-tonsil-female-right/v1.2/assets/3d-vh-f-palatine-tonsil-r.glb",
       "localPath": "/models/nih/female/palatine-tonsil-female-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1760,7 +1760,7 @@
       "ta98Code": "A05.9.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pancreas-female/v1.3/assets/3d-vh-f-pancreas.glb",
       "localPath": "/models/nih/female/pancreas-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1790,7 +1790,7 @@
       "ta98Code": "A02.5.02.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/pelvis-female/v1.3/assets/3d-vh-f-pelvis.glb",
       "localPath": "/models/nih/female/pelvis-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1820,7 +1820,7 @@
       "ta98Code": "A08.1.05.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-female-left/v1.0/assets/3d-vh-f-renal-pelvis-l.glb",
       "localPath": "/models/nih/female/renal-pelvis-female-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1850,7 +1850,7 @@
       "ta98Code": "A08.1.05.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/renal-pelvis-female-right/v1.0/assets/3d-vh-f-renal-pelvis-r.glb",
       "localPath": "/models/nih/female/renal-pelvis-female-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1880,7 +1880,7 @@
       "ta98Code": "A16.0.00.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/skin-female/v1.5/assets/3d-vh-f-skin.glb",
       "localPath": "/models/nih/female/skin-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1910,7 +1910,7 @@
       "ta98Code": "A05.6.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/small-intestine-female/v1.2/assets/3d-vh-f-small-intestine.glb",
       "localPath": "/models/nih/female/small-intestine-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1940,7 +1940,7 @@
       "ta98Code": "A14.1.02.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spinal-cord-female/v1.1/assets/3d-vh-f-spinal-cord.glb",
       "localPath": "/models/nih/female/spinal-cord-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -1970,7 +1970,7 @@
       "ta98Code": "A13.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/spleen-female/v1.3/assets/3d-vh-f-spleen.glb",
       "localPath": "/models/nih/female/spleen-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2000,7 +2000,7 @@
       "ta98Code": "A02.3.03.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/sternum-female/v1.0/assets/3d-vh-f-sternum.glb",
       "localPath": "/models/nih/female/sternum-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2030,7 +2030,7 @@
       "ta98Code": "A13.1.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/thymus-female/v1.3/assets/3d-vh-f-thymus.glb",
       "localPath": "/models/nih/female/thymus-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2060,7 +2060,7 @@
       "ta98Code": "A06.3.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/trachea-female/v1.1/assets/3d-vh-f-trachea.glb",
       "localPath": "/models/nih/female/trachea-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2090,7 +2090,7 @@
       "ta98Code": "A08.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-female-left/v1.2/assets/3d-vh-f-ureter-l.glb",
       "localPath": "/models/nih/female/ureter-female-left.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2120,7 +2120,7 @@
       "ta98Code": "A08.2.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/ureter-female-right/v1.2/assets/3d-vh-f-ureter-r.glb",
       "localPath": "/models/nih/female/ureter-female-right.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,
@@ -2150,7 +2150,7 @@
       "ta98Code": "A08.3.01.001",
       "remoteUrl": "https://cdn.humanatlas.io/digital-objects/ref-organ/urinary-bladder-female/v1.2/assets/3d-vh-f-urinary-bladder.glb",
       "localPath": "/models/nih/female/urinary-bladder-female.glb",
-      "downloaded": true,
+      "downloaded": false,
       "placement": {
         "translation": [
           0,

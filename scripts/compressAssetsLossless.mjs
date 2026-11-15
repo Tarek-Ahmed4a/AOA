@@ -15,7 +15,7 @@ import draco3d from 'draco3d';
 import { MeshoptSimplifier } from 'meshoptimizer';
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
-import { dedup, prune, draco, weld, simplify } from '@gltf-transform/functions';
+import { dedup, prune, draco, weld, simplify, normals } from '@gltf-transform/functions';
 
 const TARGET_DIRS = [
   path.resolve('public', 'models', 'zanatomy'),
@@ -81,6 +81,32 @@ function countVertices(doc) {
   return total;
 }
 
+function countTriangles(doc) {
+  let total = 0;
+  for (const mesh of doc.getRoot().listMeshes()) {
+    for (const prim of mesh.listPrimitives()) {
+      const indices = prim.getIndices();
+      if (indices) {
+        total += Math.floor(indices.getCount() / 3);
+      } else {
+        const pos = prim.getAttribute('POSITION');
+        if (pos) total += Math.floor(pos.getCount() / 3);
+      }
+    }
+  }
+  return total;
+}
+
+const SIMPLIFY_TARGETS = {
+  'skeletal.glb': { rev: 1, ratio: 0.55, error: 0.0015, lockBorder: true, unweldNormals: false },
+  'muscular.glb': { rev: 4, ratio: 0.65, error: 0.015, lockBorder: false, unweldNormals: true },
+  'nervous.glb': { rev: 4, ratio: 0.52, error: 0.015, lockBorder: false, unweldNormals: true },
+  'cardiovascular.glb': { rev: 4, ratio: 0.62, error: 0.015, lockBorder: false, unweldNormals: true },
+  'visceral.glb': { rev: 2, ratio: 0.42, error: 0.0025, lockBorder: true, unweldNormals: false },
+  'mammary-gland-female-left.glb': { rev: 4, ratio: 0.09, error: 0.05, lockBorder: false, unweldNormals: true },
+  'mammary-gland-female-right.glb': { rev: 4, ratio: 0.09, error: 0.05, lockBorder: false, unweldNormals: true },
+};
+
 async function main() {
   const decoderModule = await draco3d.createDecoderModule();
   const encoderModule = await draco3d.createEncoderModule();
@@ -115,16 +141,22 @@ async function main() {
       .getRoot()
       .listExtensionsUsed()
       .some((ext) => ext.extensionName === 'KHR_draco_mesh_compression');
-    const isHeavyZAnatomy = /^(?:skeletal|muscular)\.glb$/i.test(
-      path.basename(filePath)
-    );
+    const basename = path.basename(filePath).toLowerCase();
+    const simplifySpec = SIMPLIFY_TARGETS[basename] ?? null;
     const extras = doc.getRoot().getExtras() ?? {};
-    const alreadySimplified = Boolean(extras.aoaMeshoptSimplified);
+    const currentRev =
+      typeof extras.aoaOptimizeRev === 'number'
+        ? extras.aoaOptimizeRev
+        : extras.aoaMeshoptSimplified
+          ? 1
+          : 0;
+    const needsSimplify = Boolean(simplifySpec && currentRev < simplifySpec.rev);
 
-    if (alreadyDraco && (!isHeavyZAnatomy || alreadySimplified)) {
+    if (alreadyDraco && !needsSimplify) {
+      const tris = countTriangles(doc);
       totalAfter += beforeBytes;
       skippedCount += 1;
-      console.log(`[SKIP ] ${rel}: already optimal (${fmtMiB(beforeBytes)})`);
+      console.log(`[SKIP ] ${rel}: already optimal (${fmtMiB(beforeBytes)}, ${tris.toLocaleString()} tris)`);
       if (beforeBytes > GITHUB_SAFE_MAX_BYTES) oversized.push({ rel, bytes: beforeBytes });
       continue;
     }
@@ -132,18 +164,29 @@ async function main() {
     const origMeshes = doc.getRoot().listMeshes().length;
     const origNodes = doc.getRoot().listNodes().length;
     const origVerts = countVertices(doc);
+    const origTris = countTriangles(doc);
 
     const transforms = [dedup()];
-    if (isHeavyZAnatomy && !alreadySimplified) {
+    if (needsSimplify && simplifySpec) {
+      if (simplifySpec.unweldNormals) {
+        for (const mesh of doc.getRoot().listMeshes()) {
+          for (const prim of mesh.listPrimitives()) {
+            prim.setAttribute('NORMAL', null);
+          }
+        }
+      }
       transforms.push(
-        weld(),
+        weld({ overwrite: Boolean(simplifySpec.unweldNormals) }),
         simplify({
           simplifier: MeshoptSimplifier,
-          ratio: 0.55,
-          error: 0.0015,
-          lockBorder: true,
+          ratio: simplifySpec.ratio,
+          error: simplifySpec.error,
+          lockBorder: simplifySpec.lockBorder,
         })
       );
+      if (simplifySpec.unweldNormals) {
+        transforms.push(normals({ overwrite: true }));
+      }
     }
     transforms.push(
       prune({ keepLeaves: true, keepAttributes: true }),
@@ -161,11 +204,16 @@ async function main() {
 
     await doc.transform(...transforms);
 
-    if (isHeavyZAnatomy && !alreadySimplified) {
-      doc.getRoot().setExtras({ ...extras, aoaMeshoptSimplified: true });
+    if (needsSimplify && simplifySpec) {
+      doc.getRoot().setExtras({
+        ...extras,
+        aoaMeshoptSimplified: true,
+        aoaOptimizeRev: simplifySpec.rev,
+      });
     }
 
     const newVerts = countVertices(doc);
+    const newTris = countTriangles(doc);
     const tmpPath = `${filePath}.tmp.glb`;
     await io.write(tmpPath, doc);
     const tmpBytes = fs.statSync(tmpPath).size;
@@ -181,13 +229,13 @@ async function main() {
       );
     }
 
-    if (tmpBytes < beforeBytes || (isHeavyZAnatomy && !alreadySimplified)) {
+    if (tmpBytes < beforeBytes || needsSimplify) {
       await replaceFileWithRetry(tmpPath, filePath);
       totalAfter += tmpBytes;
       compressedCount += 1;
       const pct = (((beforeBytes - tmpBytes) / beforeBytes) * 100).toFixed(1);
       console.log(
-        `[DRACO] ${rel}: ${fmtMiB(beforeBytes)} -> ${fmtMiB(tmpBytes)} (-${pct}%, ${origMeshes} meshes, verts ${origVerts}->${newVerts})`
+        `[DRACO] ${rel}: ${fmtMiB(beforeBytes)} -> ${fmtMiB(tmpBytes)} (-${pct}%, ${origMeshes} meshes, verts ${origVerts}->${newVerts}, tris ${origTris.toLocaleString()}->${newTris.toLocaleString()})`
       );
       if (tmpBytes > GITHUB_SAFE_MAX_BYTES) oversized.push({ rel, bytes: tmpBytes });
     } else {

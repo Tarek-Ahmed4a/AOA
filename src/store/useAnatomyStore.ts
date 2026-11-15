@@ -268,6 +268,31 @@ export const useAppNavigationStore = create<AppNavigationState>((set) => ({
   setExplorerOpenedModel: (model) => set({ explorerOpenedModel: model }),
 }));
 
+function buildFilteredCatalog(
+  baseParts: AnatomicalPartInfo[],
+  supplementalParts: AnatomicalPartInfo[],
+  biologicalSex: BiologicalSex
+): AnatomicalPartInfo[] {
+  const seen = new Set<string>();
+  const deduped: AnatomicalPartInfo[] = [];
+  const merged =
+    biologicalSex === 'female'
+      ? [...baseParts, ...supplementalParts]
+      : baseParts;
+  for (const p of merged) {
+    if (!isPartVisibleForSex(p, biologicalSex)) continue;
+    const key = `${p.meshUuid}::${p.rawName}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      deduped.push(p);
+    }
+  }
+  deduped.sort((a, b) =>
+    a.cleanName === b.cleanName ? 0 : a.cleanName < b.cleanName ? -1 : 1
+  );
+  return deduped;
+}
+
 export function createAnatomyViewportStore(
   initialOverrides?: Partial<AnatomyState>
 ): StoreApi<AnatomyState> {
@@ -548,50 +573,24 @@ export function createAnatomyViewportStore(
   setLanguage: (lang) => set({ language: lang }),
 
   registerCatalog: (parts) =>
-    set((state) => {
-      const seen = new Set<string>();
-      const deduped: AnatomicalPartInfo[] = [];
-      const merged = [
-        ...parts,
-        ...(state.biologicalSex === 'female' ? state.supplementalCatalogParts : []),
-      ];
-      for (const p of merged) {
-        if (!isPartVisibleForSex(p, state.biologicalSex)) continue;
-        const key = `${p.meshUuid}::${p.rawName}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduped.push(p);
-        }
-      }
-      deduped.sort((a, b) => a.cleanName.localeCompare(b.cleanName));
-      return {
-        baseCatalogParts: parts,
-        anatomicalCatalog: deduped,
-      };
-    }),
+    set((state) => ({
+      baseCatalogParts: parts,
+      anatomicalCatalog: buildFilteredCatalog(
+        parts,
+        state.supplementalCatalogParts,
+        state.biologicalSex
+      ),
+    })),
 
   setSupplementalCatalogParts: (parts) =>
-    set((state) => {
-      const seen = new Set<string>();
-      const deduped: AnatomicalPartInfo[] = [];
-      const merged = [
-        ...state.baseCatalogParts,
-        ...(state.biologicalSex === 'female' ? parts : []),
-      ];
-      for (const p of merged) {
-        if (!isPartVisibleForSex(p, state.biologicalSex)) continue;
-        const key = `${p.meshUuid}::${p.rawName}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          deduped.push(p);
-        }
-      }
-      deduped.sort((a, b) => a.cleanName.localeCompare(b.cleanName));
-      return {
-        supplementalCatalogParts: parts,
-        anatomicalCatalog: deduped,
-      };
-    }),
+    set((state) => ({
+      supplementalCatalogParts: parts,
+      anatomicalCatalog: buildFilteredCatalog(
+        state.baseCatalogParts,
+        parts,
+        state.biologicalSex
+      ),
+    })),
 
   setSearchQuery: (q) => set({ searchQuery: q }),
 
@@ -766,7 +765,14 @@ export function createAnatomyViewportStore(
         isolatedPartId: null,
         xrayGhostMode: false,
         explodeFactor: 0,
-        activeSystems: { ...DEFAULT_ACTIVE_SYSTEMS },
+        activeSystems: {
+          integumentary: true,
+          skeletal: true,
+          muscular: true,
+          visceral: true,
+          nervous: true,
+          cardiovascular: true,
+        },
         systemOpacity: { ...DEFAULT_SYSTEM_OPACITY },
         cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
         resetViewCounter: state.resetViewCounter + 1,
@@ -787,9 +793,11 @@ export function createAnatomyViewportStore(
       if (state.biologicalSex === sex) return state;
       return {
         biologicalSex: sex,
-        supplementalCatalogParts: sex === 'female' ? state.supplementalCatalogParts : [],
-        anatomicalCatalog: state.anatomicalCatalog.filter((part) =>
-          isPartVisibleForSex(part, sex)
+        supplementalCatalogParts: state.supplementalCatalogParts,
+        anatomicalCatalog: buildFilteredCatalog(
+          state.baseCatalogParts,
+          state.supplementalCatalogParts,
+          sex
         ),
         selectedPart: null,
         selectedMeshId: null,

@@ -11,6 +11,7 @@ import { useThree } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import {
+  cameraInteractionState,
   useAnatomyStore,
   useAnatomyStoreApi,
   type AnatomicalSystem,
@@ -277,7 +278,44 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const clone = gltf.scene.clone(true);
       clone.updateMatrixWorld(true);
 
-      // Isolate cranial/skull subtree when a Skull card falls back to full-body skeletal.glb
+      // Preserve anatomical proportions first so height checks map reliably to real [0.02m..1.78m] space
+      const normalizeSceneToBodyBounds = (targetDim: number, targetCenterY: number) => {
+        clone.scale.set(1, 1, 1);
+        clone.position.set(0, 0, 0);
+        clone.updateMatrixWorld(true);
+        const box = new THREE.Box3().setFromObject(clone);
+        if (box.isEmpty()) return false;
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const horizMax = Math.max(size.x, size.z, 1e-4);
+        const isFullBodyAspect = size.y / horizMax > 2.1;
+        const resolvedTargetDim = targetDim > 0 ? targetDim : isFullBodyAspect ? 1.76 : 0.78;
+        const refDim = isFullBodyAspect
+          ? Math.max(size.y, 1e-4)
+          : Math.max(size.y, size.x, size.z, 1e-4);
+        const uniformScale = resolvedTargetDim / refDim;
+        clone.scale.multiplyScalar(uniformScale);
+        clone.updateMatrixWorld(true);
+
+        const scaledBox = new THREE.Box3().setFromObject(clone);
+        const scaledCenter = new THREE.Vector3();
+        scaledBox.getCenter(scaledCenter);
+        const resolvedCenterY =
+          targetCenterY >= 0 ? targetCenterY : isFullBodyAspect ? 0.9 : 1.0;
+        clone.position.add(
+          new THREE.Vector3(
+            0 - scaledCenter.x,
+            resolvedCenterY - scaledCenter.y,
+            0 - scaledCenter.z
+          )
+        );
+        clone.updateMatrixWorld(true);
+        return true;
+      };
+
+      normalizeSceneToBodyBounds(0, -1);
+
+      // Isolate cranial/skull subtree cleanly when a Skull card falls back to full-body skeletal.glb
       if (CRANIAL_SKULL_REQUEST_REGEX.test(customGlbName ?? '')) {
         const fullBox = new THREE.Box3().setFromObject(clone);
         let rawMeshCount = 0;
@@ -290,8 +328,6 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
         });
         const fullHeight = fullBox.isEmpty() ? 0 : fullBox.max.y - fullBox.min.y;
         if (!fullBox.isEmpty() && (fullHeight > 1.2 || rawMeshCount > 150)) {
-          const skullHeightThreshold = fullBox.max.y - fullHeight * 0.165;
-          const skullLowerBound = fullBox.max.y - fullHeight * 0.28;
           const meshBox = new THREE.Box3();
           const meshCenter = new THREE.Vector3();
           const keepMeshes: THREE.Mesh[] = [];
@@ -310,10 +346,11 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
             if (hasBox) {
               meshBox.getCenter(meshCenter);
             }
-            const inTopCrown = hasBox && meshCenter.y >= skullHeightThreshold;
-            const inHeadBand = !hasBox || meshCenter.y >= skullLowerBound;
-            const matchesName = CRANIAL_MESH_KEEP_REGEX.test(labelChain);
-            if ((matchesName && inHeadBand) || inTopCrown) {
+            const inHeadZone = hasBox && meshCenter.y >= 1.48;
+            const matchesCranial =
+              CRANIAL_MESH_KEEP_REGEX.test(labelChain) &&
+              (!hasBox || meshCenter.y >= 1.32);
+            if (inHeadZone || matchesCranial) {
               keepMeshes.push(m);
             } else {
               removeMeshes.push(m);
@@ -324,39 +361,9 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
             for (const m of removeMeshes) {
               m.removeFromParent();
             }
-            clone.updateMatrixWorld(true);
+            normalizeSceneToBodyBounds(0.78, 1.0);
           }
         }
-      }
-
-      // Preserve anatomical proportions: full-body GLBs scale to 1.76m height centered at Y=0.9,
-      // while isolated regional organs fit comfortably at 0.78m max dimension centered at Y=1.0.
-      const overallBox = new THREE.Box3().setFromObject(clone);
-      if (!overallBox.isEmpty()) {
-        const size = new THREE.Vector3();
-        overallBox.getSize(size);
-        const horizMax = Math.max(size.x, size.z, 1e-4);
-        const isFullBodyAspect = size.y / horizMax > 2.1;
-        const targetDim = isFullBodyAspect ? 1.76 : 0.78;
-        const refDim = isFullBodyAspect
-          ? Math.max(size.y, 1e-4)
-          : Math.max(size.y, size.x, size.z, 1e-4);
-        const uniformScale = targetDim / refDim;
-        clone.scale.multiplyScalar(uniformScale);
-        clone.updateMatrixWorld(true);
-
-        const scaledBox = new THREE.Box3().setFromObject(clone);
-        const scaledCenter = new THREE.Vector3();
-        scaledBox.getCenter(scaledCenter);
-        const targetCenterY = isFullBodyAspect ? 0.9 : 1.0;
-        clone.position.add(
-          new THREE.Vector3(
-            0 - scaledCenter.x,
-            targetCenterY - scaledCenter.y,
-            0 - scaledCenter.z
-          )
-        );
-        clone.updateMatrixWorld(true);
       }
 
       void ATLAS_PROCESSING_REV;
@@ -400,11 +407,8 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
         }
         mesh.name = candidateName;
 
-        if (mesh.geometry) {
-          if (!mesh.geometry.boundingBox) {
-            mesh.geometry.computeBoundingBox();
-          }
-          enqueueGeometryBVH(mesh.geometry);
+        if (mesh.geometry && !mesh.geometry.boundingBox) {
+          mesh.geometry.computeBoundingBox();
         }
 
         const parsed = parseAnatomicalMesh(mesh, contextHint, meshIdx - 1);
@@ -677,8 +681,8 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const rawId = mesh.name;
       const sys = (mesh.userData?.system as AnatomicalSystem) ?? 'visceral';
       const organGroupId = mesh.userData?.organGroupId as string | undefined;
-      const isSysActive = activeSystems[sys];
-      const sysOpacity = systemOpacity[sys];
+      const isSysActive = activeSystems[sys] ?? true;
+      const sysOpacity = systemOpacity[sys] ?? 1.0;
 
       const isHiddenForSex = !isMeshVisibleForSex(
         mesh,
@@ -707,6 +711,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
         : NOOP_RAYCAST;
       if (isVisible) {
         mesh.layers.enable(0);
+        enqueueGeometryBVH(mesh.geometry);
       } else {
         mesh.layers.disable(0);
       }
@@ -1374,11 +1379,8 @@ const SketchfabSystemGlbContent: React.FC<{
         const mesh = child as THREE.Mesh;
         partIndex += 1;
 
-        if (mesh.geometry) {
-          if (!mesh.geometry.boundingBox) {
-            mesh.geometry.computeBoundingBox();
-          }
-          enqueueGeometryBVH(mesh.geometry);
+        if (mesh.geometry && !mesh.geometry.boundingBox) {
+          mesh.geometry.computeBoundingBox();
         }
 
         meshWorldBox.setFromObject(mesh);
@@ -1804,6 +1806,7 @@ const SketchfabSystemGlbContent: React.FC<{
       mesh.raycast = isVisible ? origRaycast : NOOP_RAYCAST;
       if (isVisible) {
         mesh.layers.enable(0);
+        enqueueGeometryBVH(mesh.geometry);
       } else {
         mesh.layers.disable(0);
       }
@@ -1933,6 +1936,7 @@ const SketchfabSystemGlbNode: React.FC<{
 const ExternalSpatialCalloutPin: React.FC = () => {
   const pinGroupRef = useRef<THREE.Group>(null);
   const livePosTempRef = useRef(new THREE.Vector3());
+  const registry = useSceneMeshRegistry();
 
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const activeSystems = useAnatomyStore((s) => s.activeSystems);
@@ -1945,7 +1949,8 @@ const ExternalSpatialCalloutPin: React.FC = () => {
     if (!pinGroupRef.current || !selectedPart) return;
     const obj = getRegisteredSceneMesh(
       selectedPart.meshUuid,
-      selectedPart.rawName
+      selectedPart.rawName,
+      registry
     );
     const localCenter = obj?.userData?.__localCenter as
       | THREE.Vector3
@@ -1958,19 +1963,20 @@ const ExternalSpatialCalloutPin: React.FC = () => {
     } else {
       pinGroupRef.current.position.set(...selectedPart.worldCenter);
     }
-  }, [selectedPart, explodeFactor]);
+  }, [selectedPart, explodeFactor, registry]);
 
   if (!selectedPart) return null;
 
   const selectedMeshObj = getRegisteredSceneMesh(
     selectedPart.meshUuid,
-    selectedPart.rawName
+    selectedPart.rawName,
+    registry
   );
   const selectedGroupId = selectedMeshObj?.userData?.organGroupId as
     | string
     | undefined;
   const isolatedMeshObj = isolatedPartId
-    ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId)
+    ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
     : null;
   const isolatedGroupId = isolatedMeshObj?.userData?.organGroupId as
     | string
@@ -2002,9 +2008,44 @@ const ExternalSpatialCalloutPin: React.FC = () => {
  * Lazily clones ONLY the active hovered/selected/isolated mesh's shared material
  * in a React effect (zero per-frame traversals and zero duplicate geometry Outlines).
  */
+type HighlightRole = 'selected' | 'hover' | 'isolated';
+
+function getHighlightRoleState(role: HighlightRole): 0 | 1 | 2 {
+  if (role === 'selected') return 2;
+  if (role === 'hover') return 1;
+  return 0;
+}
+
+function syncPooledHighlightMaterial(
+  target: THREE.Material,
+  srcMat: THREE.Material,
+  role: HighlightRole,
+  focusOverride: boolean,
+  isMeshSliced: boolean,
+  clippingPlanesList: THREE.Plane[]
+): void {
+  setClinicalHighlightState(target, getHighlightRoleState(role));
+
+  if (focusOverride) {
+    target.opacity = 1.0;
+    target.transparent = false;
+    target.depthWrite = true;
+  } else {
+    target.opacity = srcMat.opacity;
+    target.transparent = srcMat.transparent;
+    target.depthWrite = srcMat.depthWrite;
+  }
+
+  target.side = isMeshSliced ? THREE.DoubleSide : THREE.FrontSide;
+  target.shadowSide = target.side;
+  target.clippingPlanes = isMeshSliced ? clippingPlanesList : null;
+  target.clipShadows = isMeshSliced;
+}
+
 const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   nihCatalogTick,
 }) => {
+  const { invalidate } = useThree();
   const registry = useSceneMeshRegistry();
   const clippingPlane = useClippingPlane();
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
@@ -2023,6 +2064,34 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   const anatomicalCatalog = useAnatomyStore((s) => s.anatomicalCatalog);
 
   const highlightedMeshesRef = useRef<Set<THREE.Mesh>>(new Set());
+  const highlightPoolRef = useRef<Map<string, THREE.Material>>(new Map());
+  const groupIndexRef = useRef<{
+    version: number;
+    byGroup: Map<string, THREE.Mesh[]>;
+  }>({ version: -1, byGroup: new Map() });
+
+  const restoreAllHighlightedMeshes = useCallback(() => {
+    if (highlightedMeshesRef.current.size === 0) return;
+    for (const mesh of highlightedMeshesRef.current) {
+      if (mesh.userData?.__sharedMaterial) {
+        mesh.material = mesh.userData.__sharedMaterial;
+      }
+      mesh.userData.__highlightMaterial = undefined;
+    }
+    highlightedMeshesRef.current.clear();
+  }, []);
+
+  // Dispose pooled highlight clones only on unmount or when switching models/presets
+  // so hovering/selecting never reallocates or recompiles materials per interaction.
+  useEffect(() => {
+    return () => {
+      restoreAllHighlightedMeshes();
+      for (const pooled of highlightPoolRef.current.values()) {
+        pooled.dispose();
+      }
+      highlightPoolRef.current.clear();
+    };
+  }, [customGlbUrl, activeAtlasPreset, restoreAllHighlightedMeshes]);
 
   useEffect(() => {
     void nihCatalogTick;
@@ -2030,28 +2099,9 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     void systemOpacity;
     void hiddenPartIds;
     void biologicalSex;
-    void customGlbUrl;
-    void activeAtlasPreset;
     void anatomicalCatalog;
 
-    const restoreAll = () => {
-      for (const mesh of highlightedMeshesRef.current) {
-        const hi = mesh.userData?.__highlightMaterial as
-          | THREE.Material
-          | THREE.Material[]
-          | undefined;
-        if (hi) {
-          (Array.isArray(hi) ? hi : [hi]).forEach((m) => m?.dispose());
-          mesh.userData.__highlightMaterial = undefined;
-        }
-        if (mesh.userData?.__sharedMaterial) {
-          mesh.material = mesh.userData.__sharedMaterial;
-        }
-      }
-      highlightedMeshesRef.current.clear();
-    };
-
-    restoreAll();
+    restoreAllHighlightedMeshes();
 
     const selectedMesh = selectedPart
       ? getRegisteredSceneMesh(selectedPart.meshUuid, selectedPart.rawName, registry)
@@ -2063,20 +2113,44 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
       ? getRegisteredSceneMesh(isolatedPartId, isolatedPartId, registry)
       : null;
 
+    if (!selectedMesh && !hoveredMesh && !isolatedMesh) {
+      invalidate();
+      return restoreAllHighlightedMeshes;
+    }
+
+    if (groupIndexRef.current.version !== registry.version) {
+      const nextByGroup = new Map<string, THREE.Mesh[]>();
+      for (const m of registry.byUuid.values()) {
+        const grp = m.userData?.organGroupId as string | undefined;
+        if (!grp) continue;
+        let bucket = nextByGroup.get(grp);
+        if (!bucket) {
+          bucket = [];
+          nextByGroup.set(grp, bucket);
+        }
+        bucket.push(m);
+      }
+      groupIndexRef.current = {
+        version: registry.version,
+        byGroup: nextByGroup,
+      };
+    }
+
     const collectGroupSiblings = (anchor: THREE.Mesh | null): THREE.Mesh[] => {
       if (!anchor || !anchor.visible) return [];
       const grp = anchor.userData?.organGroupId as string | undefined;
       if (!grp) return [anchor];
+      const bucket = groupIndexRef.current.byGroup.get(grp);
+      if (!bucket || bucket.length === 0) return [anchor];
       const matches: THREE.Mesh[] = [];
-      for (const m of registry.byUuid.values()) {
-        if (m.visible && m.userData?.organGroupId === grp) {
-          matches.push(m);
-        }
+      for (let i = 0; i < bucket.length; i++) {
+        const m = bucket[i];
+        if (m.visible) matches.push(m);
       }
       return matches.length > 0 ? matches : [anchor];
     };
 
-    const targets: { mesh: THREE.Mesh; role: 'selected' | 'hover' | 'isolated' }[] = [];
+    const targets: { mesh: THREE.Mesh; role: HighlightRole }[] = [];
     const queuedSet = new Set<THREE.Mesh>();
 
     for (const m of collectGroupSiblings(selectedMesh)) {
@@ -2107,45 +2181,41 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
 
       const isFocusTarget =
         isolatedMesh !== null ? mesh === isolatedMesh : mesh === selectedMesh;
+      const focusOverride = Boolean(xrayGhostMode && isFocusTarget);
       const isMeshSliced =
         slicingEnabled &&
         (slicingScope === 'all' ||
           mesh === selectedMesh ||
           mesh === isolatedMesh);
 
-      const configureClone = (srcMat: THREE.Material) => {
-        const cloned = cloneClinicalHighlightMaterial(srcMat);
-        if (role === 'selected') {
-          setClinicalHighlightState(cloned, 2);
-        } else if (role === 'hover') {
-          setClinicalHighlightState(cloned, 1);
-        } else {
-          setClinicalHighlightState(cloned, 0);
+      const getPooledMaterial = (srcMat: THREE.Material): THREE.Material => {
+        const poolKey = `${srcMat.uuid}::${role}::${focusOverride ? 1 : 0}::${isMeshSliced ? 1 : 0}`;
+        let pooled = highlightPoolRef.current.get(poolKey);
+        if (!pooled) {
+          pooled = cloneClinicalHighlightMaterial(srcMat);
+          highlightPoolRef.current.set(poolKey, pooled);
         }
-
-        if (xrayGhostMode && isFocusTarget) {
-          cloned.opacity = 1.0;
-          cloned.transparent = false;
-          cloned.depthWrite = true;
-        }
-
-        cloned.side = isMeshSliced ? THREE.DoubleSide : THREE.FrontSide;
-        cloned.shadowSide = cloned.side;
-        cloned.clippingPlanes = isMeshSliced ? clippingPlanesList : null;
-        cloned.clipShadows = isMeshSliced;
-        return cloned;
+        syncPooledHighlightMaterial(
+          pooled,
+          srcMat,
+          role,
+          focusOverride,
+          isMeshSliced,
+          clippingPlanesList
+        );
+        return pooled;
       };
 
       const nextMat = Array.isArray(shared)
-        ? shared.map(configureClone)
-        : configureClone(shared);
+        ? shared.map(getPooledMaterial)
+        : getPooledMaterial(shared);
 
-      mesh.userData.__highlightMaterial = nextMat;
       mesh.material = nextMat;
       highlightedMeshesRef.current.add(mesh);
     }
 
-    return restoreAll;
+    invalidate();
+    return restoreAllHighlightedMeshes;
   }, [
     hoveredPart,
     selectedPart,
@@ -2161,16 +2231,32 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     activeAtlasPreset,
     anatomicalCatalog,
     nihCatalogTick,
+    registry,
+    clippingPlanesList,
+    invalidate,
+    restoreAllHighlightedMeshes,
   ]);
 
   return null;
 };
 
 /**
- * Zero-overhead pure DOM click-only BVH raycaster attached to `gl.domElement`.
- * Keeps `@react-three/fiber`'s `internal.interaction` array at length 0 so continuous
- * mouse movement and orbit dragging incur 0.0ms of raycasting overhead.
+ * Zero-overhead pure DOM click + throttled BVH hover raycaster attached to `gl.domElement`.
+ * Keeps `@react-three/fiber`'s `internal.interaction` array at length 0 so orbit dragging
+ * and pointer movement incur zero synchronous per-frame scene traversals.
  */
+const HOVER_RAYCAST_THROTTLE_MS = 55;
+
+function isGeometryHoverReady(geom: THREE.BufferGeometry | undefined): boolean {
+  if (!geom) return false;
+  if ((geom as THREE.BufferGeometry & { boundsTree?: unknown }).boundsTree) {
+    return true;
+  }
+  // Small meshes (< ~1,000 tris) raycast in <0.15ms even before idle BVH finishes.
+  if (geom.index) return geom.index.count <= 3000;
+  return (geom.attributes?.position?.count ?? Infinity) <= 3000;
+}
+
 const NativeCanvasClickPicker: React.FC = () => {
   const { gl, camera, raycaster } = useThree();
   const registry = useSceneMeshRegistry();
@@ -2187,14 +2273,29 @@ const NativeCanvasClickPicker: React.FC = () => {
     } | null = null;
     let lastClick: { x: number; y: number; time: number } | null = null;
 
-    const onPointerDown = (e: PointerEvent) => {
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
-      downPos = {
-        x: e.clientX,
-        y: e.clientY,
-        time: performance.now(),
-        pointerId: e.pointerId,
-      };
+    let visibleMeshes: THREE.Mesh[] = [];
+    let hoverReadyMeshes: THREE.Mesh[] = [];
+    let hoverPendingMeshes: THREE.Mesh[] = [];
+    let meshesDirty = true;
+    let lastRegistryVersion = -1;
+    let dirtyRafId: number | null = null;
+
+    let hoverTimerId: number | null = null;
+    let lastHoverTime = 0;
+    let latestHoverClient: { x: number; y: number } | null = null;
+
+    const clearPendingHover = () => {
+      if (hoverTimerId !== null) {
+        window.clearTimeout(hoverTimerId);
+        hoverTimerId = null;
+      }
+      latestHoverClient = null;
+    };
+
+    const setCanvasCursor = (nextCursor: 'pointer' | 'auto') => {
+      if (canvas.style.cursor !== nextCursor) {
+        canvas.style.cursor = nextCursor;
+      }
     };
 
     const isHierarchyVisible = (obj: THREE.Object3D): boolean => {
@@ -2204,6 +2305,201 @@ const NativeCanvasClickPicker: React.FC = () => {
         curr = curr.parent;
       }
       return true;
+    };
+
+    const resolveMeshPartInfo = (mesh: THREE.Mesh): AnatomicalPartInfo => {
+      const existing =
+        (mesh.userData?.partInfo as AnatomicalPartInfo | undefined) ??
+        (mesh.userData?.__cachedPartInfo as AnatomicalPartInfo | undefined);
+      if (existing) return existing;
+      const computed = parseAnatomicalMesh(mesh);
+      mesh.userData.__cachedPartInfo = computed;
+      return computed;
+    };
+
+    const promotePendingHoverMeshes = () => {
+      for (let i = hoverPendingMeshes.length - 1; i >= 0; i--) {
+        const mesh = hoverPendingMeshes[i];
+        if (isGeometryHoverReady(mesh.geometry)) {
+          hoverReadyMeshes.push(mesh);
+          const lastIdx = hoverPendingMeshes.length - 1;
+          if (i !== lastIdx) {
+            hoverPendingMeshes[i] = hoverPendingMeshes[lastIdx];
+          }
+          hoverPendingMeshes.pop();
+        }
+      }
+    };
+
+    const ensureMeshCaches = () => {
+      if (meshesDirty || registry.version !== lastRegistryVersion) {
+        visibleMeshes = [];
+        hoverReadyMeshes = [];
+        hoverPendingMeshes = [];
+
+        for (const mesh of registry.byUuid.values()) {
+          if (
+            mesh.visible &&
+            !mesh.userData?.__isNoiseFiltered &&
+            !mesh.userData?.__isNoiseSubmesh &&
+            !mesh.userData?.__isStencilHelper &&
+            isHierarchyVisible(mesh)
+          ) {
+            visibleMeshes.push(mesh);
+            if (isGeometryHoverReady(mesh.geometry)) {
+              hoverReadyMeshes.push(mesh);
+            } else {
+              hoverPendingMeshes.push(mesh);
+            }
+          }
+        }
+
+        lastRegistryVersion = registry.version;
+        meshesDirty = false;
+        return;
+      }
+
+      if (hoverPendingMeshes.length > 0) {
+        promotePendingHoverMeshes();
+      }
+    };
+
+    const unsubscribeStore = storeApi.subscribe((state, prev) => {
+      if (
+        state.activeSystems === prev.activeSystems &&
+        state.hiddenPartIds === prev.hiddenPartIds &&
+        state.isolatedPartId === prev.isolatedPartId &&
+        state.biologicalSex === prev.biologicalSex &&
+        state.customGlbUrl === prev.customGlbUrl &&
+        state.activeAtlasPreset === prev.activeAtlasPreset &&
+        state.systemOpacity === prev.systemOpacity &&
+        state.anatomicalCatalog === prev.anatomicalCatalog
+      ) {
+        return;
+      }
+      meshesDirty = true;
+      if (dirtyRafId === null) {
+        // Re-mark dirty after React visibility effects finish mutating `mesh.visible`.
+        dirtyRafId = window.requestAnimationFrame(() => {
+          dirtyRafId = null;
+          meshesDirty = true;
+        });
+      }
+    });
+
+    const runHoverRaycast = () => {
+      hoverTimerId = null;
+      const point = latestHoverClient;
+      latestHoverClient = null;
+      if (!point) return;
+
+      if (
+        downPos !== null ||
+        cameraInteractionState.isOrbiting ||
+        !canvas.isConnected
+      ) {
+        return;
+      }
+
+      const rect = canvas.getBoundingClientRect();
+      if (
+        rect.width <= 0 ||
+        rect.height <= 0 ||
+        point.x < rect.left ||
+        point.x > rect.right ||
+        point.y < rect.top ||
+        point.y > rect.bottom
+      ) {
+        return;
+      }
+
+      lastHoverTime = performance.now();
+      ensureMeshCaches();
+
+      const state = storeApi.getState();
+      if (hoverReadyMeshes.length === 0) {
+        setCanvasCursor('auto');
+        if (state.hoveredPart !== null) {
+          state.setHoveredPart(null);
+        }
+        return;
+      }
+
+      ndcRef.current.set(
+        ((point.x - rect.left) / rect.width) * 2 - 1,
+        -((point.y - rect.top) / rect.height) * 2 + 1
+      );
+
+      (
+        raycaster as THREE.Raycaster & { firstHitOnly?: boolean }
+      ).firstHitOnly = true;
+      raycaster.setFromCamera(ndcRef.current, camera);
+
+      const hits = raycaster.intersectObjects(hoverReadyMeshes, false);
+      if (hits.length === 0) {
+        setCanvasCursor('auto');
+        if (state.hoveredPart !== null) {
+          state.setHoveredPart(null);
+        }
+        return;
+      }
+
+      const hitMesh = hits[0].object as THREE.Mesh;
+      const partInfo = resolveMeshPartInfo(hitMesh);
+      setCanvasCursor('pointer');
+
+      if (
+        state.hoveredPart?.meshUuid !== partInfo.meshUuid ||
+        state.isTouchInteraction
+      ) {
+        state.setHoveredPart(partInfo, { x: point.x, y: point.y }, false);
+      }
+    };
+
+    const onPointerDown = (e: PointerEvent) => {
+      clearPendingHover();
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      downPos = {
+        x: e.clientX,
+        y: e.clientY,
+        time: performance.now(),
+        pointerId: e.pointerId,
+      };
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch') return;
+      if (
+        e.buttons !== 0 ||
+        downPos !== null ||
+        cameraInteractionState.isOrbiting
+      ) {
+        clearPendingHover();
+        setCanvasCursor('auto');
+        return;
+      }
+
+      latestHoverClient = { x: e.clientX, y: e.clientY };
+      if (hoverTimerId !== null) return;
+
+      const elapsed = performance.now() - lastHoverTime;
+      if (elapsed >= HOVER_RAYCAST_THROTTLE_MS) {
+        runHoverRaycast();
+      } else {
+        hoverTimerId = window.setTimeout(
+          runHoverRaycast,
+          HOVER_RAYCAST_THROTTLE_MS - elapsed
+        );
+      }
+    };
+
+    const onPointerLeave = () => {
+      clearPendingHover();
+      setCanvasCursor('auto');
+      const state = storeApi.getState();
+      if (state.hoveredPart !== null) {
+        state.setHoveredPart(null);
+      }
     };
 
     const onPointerUp = (e: PointerEvent) => {
@@ -2226,18 +2522,7 @@ const NativeCanvasClickPicker: React.FC = () => {
       ).firstHitOnly = true;
       raycaster.setFromCamera(ndcRef.current, camera);
 
-      const visibleMeshes: THREE.Object3D[] = [];
-      for (const mesh of registry.byUuid.values()) {
-        if (
-          mesh.visible &&
-          !mesh.userData?.__isNoiseFiltered &&
-          !mesh.userData?.__isNoiseSubmesh &&
-          !mesh.userData?.__isStencilHelper &&
-          isHierarchyVisible(mesh)
-        ) {
-          visibleMeshes.push(mesh);
-        }
-      }
+      ensureMeshCaches();
 
       if (visibleMeshes.length === 0) {
         lastClick = null;
@@ -2255,12 +2540,7 @@ const NativeCanvasClickPicker: React.FC = () => {
       }
 
       const hitMesh = hits[0].object as THREE.Mesh;
-      const partInfo =
-        (hitMesh.userData?.partInfo as AnatomicalPartInfo | undefined) ??
-        (hitMesh.userData?.__cachedPartInfo as
-          | AnatomicalPartInfo
-          | undefined) ??
-        parseAnatomicalMesh(hitMesh);
+      const partInfo = resolveMeshPartInfo(hitMesh);
 
       const isDoubleClick =
         lastClick !== null &&
@@ -2280,16 +2560,29 @@ const NativeCanvasClickPicker: React.FC = () => {
 
     const onPointerCancel = () => {
       downPos = null;
+      clearPendingHover();
+      setCanvasCursor('auto');
     };
 
     canvas.addEventListener('pointerdown', onPointerDown, { passive: true });
+    canvas.addEventListener('pointermove', onPointerMove, { passive: true });
+    canvas.addEventListener('pointerleave', onPointerLeave, { passive: true });
     canvas.addEventListener('pointerup', onPointerUp, { passive: true });
     canvas.addEventListener('pointercancel', onPointerCancel, {
       passive: true,
     });
 
     return () => {
+      unsubscribeStore();
+      if (dirtyRafId !== null) {
+        window.cancelAnimationFrame(dirtyRafId);
+        dirtyRafId = null;
+      }
+      clearPendingHover();
+      setCanvasCursor('auto');
       canvas.removeEventListener('pointerdown', onPointerDown);
+      canvas.removeEventListener('pointermove', onPointerMove);
+      canvas.removeEventListener('pointerleave', onPointerLeave);
       canvas.removeEventListener('pointerup', onPointerUp);
       canvas.removeEventListener('pointercancel', onPointerCancel);
     };
@@ -2331,17 +2624,14 @@ export const AnatomicalModelManager: React.FC = () => {
     () => biologicalSex === 'female'
   );
 
+  // Lazy-mount the female organ overlay ONLY once the user actually switches to
+  // Female mode; once warm it stays mounted (hidden in Male mode) for instant re-entry
+  // without loading/anchoring 7 female GLBs on initial Male startup.
   useEffect(() => {
     if (biologicalSex === 'female') {
       setFemaleSupplementWarm(true);
-      return;
     }
-    if (femaleSupplementWarm) return;
-    const timerId = window.setTimeout(() => {
-      setFemaleSupplementWarm(true);
-    }, 1100);
-    return () => window.clearTimeout(timerId);
-  }, [biologicalSex, femaleSupplementWarm]);
+  }, [biologicalSex]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2497,7 +2787,6 @@ export const AnatomicalModelManager: React.FC = () => {
   }, [
     customGlbUrl,
     activeAtlasPreset,
-    activeSystems,
     biologicalSex,
     nihCatalogTick,
     showFemaleZAnatomyOrgans,
@@ -2505,6 +2794,10 @@ export const AnatomicalModelManager: React.FC = () => {
     registerCatalog,
     registry,
   ]);
+
+  const handleFemaleCatalogUpdated = useCallback(() => {
+    setNihCatalogTick((v) => v + 1);
+  }, []);
 
   const handleCustomGlbError = useCallback(
     (err: Error) => {
@@ -2591,7 +2884,7 @@ export const AnatomicalModelManager: React.FC = () => {
             visible={showFemaleZAnatomyOrgans}
             nihOrgans={allFemaleNihOrgans}
             atlasAssemblyGroupRef={atlasAssemblyGroupRef}
-            onCatalogUpdated={() => setNihCatalogTick((v) => v + 1)}
+            onCatalogUpdated={handleFemaleCatalogUpdated}
           />
         )}
     </group>

@@ -22,6 +22,7 @@ import { ANATOMICAL_SYSTEMS } from '../../config/anatomicalSystems';
 import { cn } from '../../lib/utils';
 import {
   useAnatomyStore,
+  useAppNavigationStore,
   type MobileSheetSnap,
 } from '../../store/useAnatomyStore';
 
@@ -44,7 +45,7 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const slicing = useAnatomyStore((s) => s.slicing);
   const mobileSheetSnap = useAnatomyStore((s) => s.mobileSheetSnap);
-  const activeTab = useAnatomyStore((s) => s.activeTab);
+  const activeTab = useAppNavigationStore((s) => s.activeTab);
 
   const setLanguage = useAnatomyStore((s) => s.setLanguage);
   const selectPart = useAnatomyStore((s) => s.selectPart);

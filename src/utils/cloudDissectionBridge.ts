@@ -65,143 +65,11 @@ export function matchZAnatomySystemBundle(
 export function resolveLocalFallbackGlb(
   title: string,
   system: AnatomicalSystem,
-  sex?: BiologicalSex
+  _sex?: BiologicalSex
 ): { glbUrl: string; system: AnatomicalSystem } {
   const lower = title.toLowerCase();
-  const resolvedSex: BiologicalSex =
-    /\b(?:female|woman|uterus|ovar|fallopian|mammary)\b/i.test(lower)
-      ? 'female'
-      : (sex ?? 'male');
-  const isFemale = resolvedSex === 'female';
 
-  if (
-    /\b(?:skull|crani|mandib|maxilla|ethmoid|sphenoid|temporal|frontal|parietal|occipital|hyoid|calvaria|orbit|zygoma|suture|tooth|teeth|jaw)\b/i.test(
-      lower
-    )
-  ) {
-    return { glbUrl: '/models/zanatomy/skeletal.glb', system: 'skeletal' };
-  }
-  if (
-    /\b(?:spine|vertebr|sacrum|coccyx|atlas|axis|thorax|rib|sternum|manubrium|clavicle|scapula|humerus|radius|ulna|carpal|hand|femur|tibia|fibula|patella|tarsal|foot)\b/i.test(
-      lower
-    )
-  ) {
-    return { glbUrl: '/models/zanatomy/skeletal.glb', system: 'skeletal' };
-  }
-  if (/\b(?:pelvis|pelvic|iliac|ischium|pubis|hip\s*bone)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/pelvis-female.glb'
-        : '/models/nih/male/pelvis-male.glb',
-      system: 'skeletal',
-    };
-  }
-  if (/\b(?:knee|menisc|cruciate)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/knee-female-left.glb'
-        : '/models/nih/male/knee-male-left.glb',
-      system: 'skeletal',
-    };
-  }
-  if (
-    /\b(?:brain|cerebr|cerebell|encephal|cortex|gyr|sulc|ventricle|hippocamp|thalam|brainstem|pons|medulla)\b/i.test(
-      lower
-    )
-  ) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/brain-female.glb'
-        : '/models/nih/male/brain-male.glb',
-      system: 'nervous',
-    };
-  }
-  if (/\bspinal\s*cord\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/spinal-cord-female.glb'
-        : '/models/nih/male/spinal-cord-male.glb',
-      system: 'nervous',
-    };
-  }
-  if (
-    /\b(?:heart|cardiac|myocardi|pericardi|coronary|atrium|mitral|tricuspid|aortic\s*valve)\b/i.test(
-      lower
-    )
-  ) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/heart-female.glb'
-        : '/models/nih/male/heart-male.glb',
-      system: 'cardiovascular',
-    };
-  }
-  if (
-    /\b(?:aort|arter|vein|vena|vascul|angiolog|blood\s*vessel)\b/i.test(lower)
-  ) {
-    return {
-      glbUrl: '/models/zanatomy/cardiovascular.glb',
-      system: 'cardiovascular',
-    };
-  }
-  if (/\b(?:lung|pulmon|bronch|pleura)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/lung-female.glb'
-        : '/models/nih/male/lung-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\btrachea\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/trachea-female.glb'
-        : '/models/nih/male/trachea-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (
-    /\b(?:larynx|epiglottis|thyroid\s*cartilage|cricoid|vocal)\b/i.test(lower)
-  ) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/larynx-female.glb'
-        : '/models/nih/male/larynx-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\b(?:liver|hepat|gallbladder|biliary)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/liver-female.glb'
-        : '/models/nih/male/liver-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\b(?:kidney|renal|nephr)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/kidney-female-left.glb'
-        : '/models/nih/male/kidney-male-left.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\bureter\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/ureter-female-left.glb'
-        : '/models/nih/male/ureter-male-left.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\b(?:bladder|vesic)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/urinary-bladder-female.glb'
-        : '/models/nih/male/urinary-bladder-male.glb',
-      system: 'visceral',
-    };
-  }
+  // Retained 7 NIH/Z-Anatomy female supplement organs (always bundled locally)
   if (/\b(?:uterus|womb|endometri|cervix)\b/i.test(lower)) {
     return {
       glbUrl: '/models/nih/female/uterus-female.glb',
@@ -226,55 +94,43 @@ export function resolveLocalFallbackGlb(
       system: 'visceral',
     };
   }
-  if (/\bprostate\b/i.test(lower)) {
-    return {
-      glbUrl: '/models/nih/male/prostate-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\bpancreas\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/pancreas-female.glb'
-        : '/models/nih/male/pancreas-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\b(?:spleen|splenic)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/spleen-female.glb'
-        : '/models/nih/male/spleen-male.glb',
-      system: 'visceral',
-    };
-  }
-  if (/\b(?:colon|large\s*intestine|cecum|appendix|rectum)\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/large-intestine-female.glb'
-        : '/models/nih/male/large-intestine-male.glb',
-      system: 'visceral',
-    };
+
+  if (
+    /\b(?:skull|crani|mandib|maxilla|ethmoid|sphenoid|temporal|frontal|parietal|occipital|hyoid|calvaria|orbit|zygoma|suture|tooth|teeth|jaw|spine|vertebr|sacrum|coccyx|atlas|axis|thorax|rib|sternum|manubrium|clavicle|scapula|humerus|radius|ulna|carpal|hand|femur|tibia|fibula|patella|tarsal|foot|pelvis|pelvic|iliac|ischium|pubis|hip\s*bone|knee|menisc|cruciate|skelet|osteolog|bone)\b/i.test(
+      lower
+    )
+  ) {
+    return { glbUrl: '/models/zanatomy/skeletal.glb', system: 'skeletal' };
   }
   if (
-    /\b(?:small\s*intestine|duodenum|jejunum|ileum|stomach|gastric)\b/i.test(
+    /\b(?:brain|cerebr|cerebell|encephal|cortex|gyr|sulc|ventricle|hippocamp|thalam|brainstem|pons|medulla|spinal\s*cord|nerve|nervous|plexus|gangli|neuro)\b/i.test(
+      lower
+    )
+  ) {
+    return { glbUrl: '/models/zanatomy/nervous.glb', system: 'nervous' };
+  }
+  if (
+    /\b(?:heart|cardiac|myocardi|pericardi|coronary|atrium|mitral|tricuspid|aortic\s*valve|aort|arter|vein|vena|vascul|angiolog|blood\s*vessel)\b/i.test(
       lower
     )
   ) {
     return {
-      glbUrl: isFemale
-        ? '/models/nih/female/small-intestine-female.glb'
-        : '/models/nih/male/small-intestine-male.glb',
-      system: 'visceral',
+      glbUrl: '/models/zanatomy/cardiovascular.glb',
+      system: 'cardiovascular',
     };
   }
-  if (/\bthymus\b/i.test(lower)) {
-    return {
-      glbUrl: isFemale
-        ? '/models/nih/female/thymus-female.glb'
-        : '/models/nih/male/thymus-male.glb',
-      system: 'visceral',
-    };
+  if (/\b(?:musc|myolog|bicep|tricep|deltoid|pectoral|glute|femoral|tendon)\b/i.test(lower)) {
+    return { glbUrl: '/models/zanatomy/muscular.glb', system: 'muscular' };
+  }
+  if (/\b(?:skin|integument|dermal|epiderm)\b/i.test(lower)) {
+    return { glbUrl: '/models/zanatomy/integumentary.glb', system: 'integumentary' };
+  }
+  if (
+    /\b(?:lung|pulmon|bronch|pleura|trachea|larynx|epiglottis|thyroid|cricoid|vocal|liver|hepat|gallbladder|biliary|kidney|renal|nephr|ureter|bladder|vesic|prostate|pancreas|spleen|splenic|colon|large\s*intestine|cecum|appendix|rectum|small\s*intestine|duodenum|jejunum|ileum|stomach|gastric|thymus|viscer|digest|respirat|urin)\b/i.test(
+      lower
+    )
+  ) {
+    return { glbUrl: '/models/zanatomy/visceral.glb', system: 'visceral' };
   }
 
   return {

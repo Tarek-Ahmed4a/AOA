@@ -177,3 +177,7 @@ export function getTextbookDatasetSummary(): {
     totalEntries: Object.keys(dataset.entries || {}).length,
   };
 }
+
+export function getAllTextbookEntries(): TextbookEntryRecord[] {
+  return Object.values(dataset.entries || {});
+}

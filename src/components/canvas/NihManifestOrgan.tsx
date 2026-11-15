@@ -230,11 +230,8 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
         mesh.name = `${entry.name || entry.id}_sub_${meshIndex}`;
       }
 
-      if (mesh.geometry) {
-        if (!mesh.geometry.boundingBox) {
-          mesh.geometry.computeBoundingBox();
-        }
-        enqueueGeometryBVH(mesh.geometry);
+      if (mesh.geometry && !mesh.geometry.boundingBox) {
+        mesh.geometry.computeBoundingBox();
       }
 
       box.setFromObject(mesh);
@@ -485,6 +482,7 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       mesh.raycast = isVisible ? origRaycast : NOOP_RAYCAST;
       if (isVisible) {
         mesh.layers.enable(0);
+        enqueueGeometryBVH(mesh.geometry);
       } else {
         mesh.layers.disable(0);
       }

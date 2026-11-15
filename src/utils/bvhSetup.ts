@@ -12,12 +12,14 @@ let isBVHInitialized = false;
 export interface SceneMeshRegistry {
   byUuid: Map<string, THREE.Mesh>;
   byName: Map<string, THREE.Mesh>;
+  version: number;
 }
 
 export function createSceneMeshRegistry(): SceneMeshRegistry {
   return {
     byUuid: new Map<string, THREE.Mesh>(),
     byName: new Map<string, THREE.Mesh>(),
+    version: 0,
   };
 }
 
@@ -55,6 +57,7 @@ export function registerSceneMesh(
   if (mesh.name) {
     registry.byName.set(mesh.name, mesh);
   }
+  registry.version += 1;
 }
 
 /**
@@ -68,6 +71,7 @@ export function unregisterSceneMesh(
   if (mesh.name && registry.byName.get(mesh.name) === mesh) {
     registry.byName.delete(mesh.name);
   }
+  registry.version += 1;
 }
 
 /**
@@ -93,10 +97,25 @@ const bvhQueue: THREE.BufferGeometry[] = [];
 const queuedGeometries = new WeakSet<THREE.BufferGeometry>();
 let bvhTimerHandle: number | null = null;
 
-function processBvhChunk(): void {
+function processBvhChunk(deadline?: IdleDeadline): void {
   bvhTimerHandle = null;
+  if (cameraInteractionState.isOrbiting) {
+    if (bvhQueue.length > 0) {
+      scheduleNextBvhChunk();
+    }
+    return;
+  }
   let processed = 0;
-  while (bvhQueue.length > 0 && processed < 5) {
+  while (bvhQueue.length > 0 && processed < 6) {
+    if (cameraInteractionState.isOrbiting) {
+      break;
+    }
+    if (processed > 0 && deadline && deadline.timeRemaining() <= 4.5) {
+      break;
+    }
+    if (processed >= 2 && !deadline) {
+      break;
+    }
     const geom = bvhQueue.shift();
     if (!geom) continue;
     const vertCount = geom.attributes?.position?.count ?? 0;
@@ -118,16 +137,13 @@ function scheduleNextBvhChunk(): void {
   if (bvhTimerHandle !== null || typeof window === 'undefined') return;
   const ric = (
     window as Window & {
-      requestIdleCallback?: (
-        cb: () => void,
-        opts?: { timeout: number }
-      ) => number;
+      requestIdleCallback?: (cb: (deadline: IdleDeadline) => void) => number;
     }
   ).requestIdleCallback;
   if (typeof ric === 'function') {
-    bvhTimerHandle = ric(processBvhChunk, { timeout: 50 });
+    bvhTimerHandle = ric((deadline) => processBvhChunk(deadline));
   } else {
-    bvhTimerHandle = window.setTimeout(processBvhChunk, 16);
+    bvhTimerHandle = window.setTimeout(() => processBvhChunk(), 32);
   }
 }
 

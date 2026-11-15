@@ -157,6 +157,8 @@ export function computeFilteredRawOrganBox(root: THREE.Object3D): THREE.Box3 {
   return box;
 }
 
+const calibratedMaterialPool = new Map<string, THREE.MeshStandardMaterial>();
+
 /**
  * Hides noisy sub-meshes (`fat`) and remediates ONLY raw neon-blue NIH CAD
  * marker materials (`Skin_mat`) while preserving 100% of original natural
@@ -185,27 +187,54 @@ export function calibrateFemaleZAnatomyMaterials(
 
     const updatedMats = srcMats.map((rawMat) => {
       if (!rawMat) return rawMat;
-      const cloned = rawMat.clone() as THREE.MeshStandardMaterial;
-      if (cloned.color && !cloned.map) {
-        if (
-          cloned.color.b > 0.5 &&
-          cloned.color.r < 0.2 &&
-          cloned.color.g < 0.25
-        ) {
+      const stdMat = rawMat as THREE.MeshStandardMaterial;
+      const isNeonBlueCadSkin = Boolean(
+        stdMat.color &&
+          !stdMat.map &&
+          stdMat.color.b > 0.5 &&
+          stdMat.color.r < 0.2 &&
+          stdMat.color.g < 0.25
+      );
+      const colorHex = isNeonBlueCadSkin
+        ? 'd8a997'
+        : stdMat.color
+          ? stdMat.color.getHexString()
+          : 'none';
+      const poolKey = [
+        stdMat.type,
+        stdMat.name ?? '',
+        colorHex,
+        Number(stdMat.roughness ?? 0.5).toFixed(2),
+        Number(stdMat.metalness ?? 0).toFixed(2),
+        Number(stdMat.opacity ?? 1).toFixed(2),
+        stdMat.transparent ? 1 : 0,
+        stdMat.map?.uuid ?? 'nomap',
+      ].join('|');
+
+      let pooled = calibratedMaterialPool.get(poolKey);
+      if (!pooled) {
+        const cloned = rawMat.clone() as THREE.MeshStandardMaterial;
+        if (isNeonBlueCadSkin && cloned.color) {
           // Remediate raw NIH CAD marker Skin_mat neon-blue without altering natural tissues
           cloned.color.set('#d8a997');
         }
+        cloned.side = THREE.FrontSide;
+        cloned.shadowSide = THREE.FrontSide;
+        cloned.userData = {
+          ...cloned.userData,
+          __isPooledMaterial: true,
+        };
+        calibratedMaterialPool.set(poolKey, cloned);
+        pooled = cloned;
       }
-      cloned.side = THREE.FrontSide;
-      cloned.shadowSide = THREE.FrontSide;
-      return cloned;
+      return pooled;
     });
 
     mesh.material = Array.isArray(mesh.material)
       ? updatedMats
       : updatedMats[0];
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
     mesh.userData.originalMaterial = mesh.material;
     mesh.userData.__anatomicalSystem = 'visceral';
     mesh.userData.system = 'visceral';

@@ -192,7 +192,6 @@ const FemaleOrganPieceLoader: React.FC<{
         )
       );
 
-      enqueueGeometryBVH(mesh.geometry);
       meshes.push(mesh);
     });
 
@@ -220,7 +219,11 @@ const FemaleOrganPieceLoader: React.FC<{
         const mats = Array.isArray(m.userData?.__sharedMaterial)
           ? (m.userData.__sharedMaterial as THREE.Material[])
           : [m.userData?.__sharedMaterial as THREE.Material | undefined];
-        mats.forEach((mat) => mat?.dispose());
+        mats.forEach((mat) => {
+          if (mat && !mat.userData?.__isPooledMaterial) {
+            mat.dispose();
+          }
+        });
         unregisterSceneMesh(m, registry);
       });
       onDisposed(spec.id);
@@ -247,7 +250,6 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const loadedPiecesRef = useRef<Map<string, LoadedFemalePieceState>>(
     new Map()
   );
-  const cachedPartsRef = useRef<AnatomicalPartInfo[]>([]);
   const anchoredVersionRef = useRef<number>(-1);
   const hasRealLandmarksRef = useRef<boolean>(false);
   const [mountVersion, setMountVersion] = useState(0);
@@ -269,6 +271,10 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     (s) => s.setSupplementalCatalogParts
   );
   const catalogLength = useAnatomyStore((s) => s.baseCatalogParts.length);
+  const onCatalogUpdatedRef = useRef(onCatalogUpdated);
+  onCatalogUpdatedRef.current = onCatalogUpdated;
+  const setSupplementalCatalogPartsRef = useRef(setSupplementalCatalogParts);
+  setSupplementalCatalogPartsRef.current = setSupplementalCatalogParts;
 
   const nihUrlMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -292,10 +298,10 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
 
   useEffect(() => {
     return () => {
-      setSupplementalCatalogParts([]);
-      onCatalogUpdated();
+      setSupplementalCatalogPartsRef.current([]);
+      onCatalogUpdatedRef.current();
     };
-  }, [setSupplementalCatalogParts, onCatalogUpdated]);
+  }, []);
 
   // Dynamically anchor & register all 7 female organs inside Z-Anatomy coordinates once loaded
   useEffect(() => {
@@ -419,30 +425,14 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
       }
     }
 
-    cachedPartsRef.current = parts;
-    if (visible && activeSystems.visceral) {
-      setSupplementalCatalogParts(parts);
-      onCatalogUpdated();
-    }
+    setSupplementalCatalogPartsRef.current(parts);
+    onCatalogUpdatedRef.current();
   }, [
     mountVersion,
     catalogLength,
-    visible,
     activeSystems.muscular,
-    activeSystems.visceral,
     atlasAssemblyGroupRef,
-    setSupplementalCatalogParts,
-    onCatalogUpdated,
   ]);
-
-  // O(1) catalog sync when toggling MALE <-> FEMALE without recomputing transforms or traversing the scene
-  useEffect(() => {
-    if (cachedPartsRef.current.length === 0) return;
-    setSupplementalCatalogParts(
-      visible && activeSystems.visceral ? cachedPartsRef.current : []
-    );
-    onCatalogUpdated();
-  }, [visible, activeSystems.visceral, setSupplementalCatalogParts, onCatalogUpdated]);
 
   // Apply rigid macro-unit Explode View displacement seamlessly alongside Z-Anatomy clusters
   useEffect(() => {
@@ -520,6 +510,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
           : NOOP_RAYCAST;
         if (isVisible) {
           mesh.layers.enable(0);
+          enqueueGeometryBVH(mesh.geometry);
         } else {
           mesh.layers.disable(0);
         }
