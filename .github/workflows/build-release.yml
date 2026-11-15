@@ -39,7 +39,7 @@ jobs:
           Get-ChildItem dist/books | Select-Object Name, Length
 
       - name: Build Windows One-Click Silent Installer (AnatomyAtlas3D-Setup.exe)
-        run: npx electron-builder --win --x64 --publish never
+        run: npx electron-builder --config electron-builder.yml --win --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
