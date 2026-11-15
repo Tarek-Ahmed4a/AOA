@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   BookOpen,
@@ -6,6 +7,7 @@ import {
   ChevronUp,
   Crosshair,
   Database,
+  Dna,
   ExternalLink,
   EyeOff,
   Focus,
@@ -13,6 +15,9 @@ import {
   Globe,
   HeartPulse,
   Loader2,
+  Maximize2,
+  Microscope,
+  Ruler,
   Scissors,
   Stethoscope,
   X,
@@ -20,6 +25,14 @@ import {
 } from 'lucide-react';
 import { ANATOMICAL_SYSTEMS } from '../../config/anatomicalSystems';
 import { cn } from '../../lib/utils';
+import {
+  fetchHraClinicalEnrichment,
+  getCachedHraSurgicalLandmarksSync,
+  getHraSurgicalLandmarks,
+  matchLandmarksForOrgan,
+  type HraClinicalEnrichment,
+  type HraSurgicalLandmarkGlb,
+} from '../../services/hraClinicalService';
 import {
   useAnatomyStore,
   useAppNavigationStore,
@@ -36,16 +49,37 @@ const MOBILE_SNAP_HEIGHT_CLASSES: Record<MobileSheetSnap, string> = {
 
 export const AnatomicalInspectorSidebar: React.FC = () => {
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const [hraEnrichment, setHraEnrichment] =
+    useState<HraClinicalEnrichment | null>(null);
+  const [isLoadingHra, setIsLoadingHra] = useState(false);
+  const [activeFtuIndex, setActiveFtuIndex] = useState(0);
+  const [ftuModalOpen, setFtuModalOpen] = useState(false);
+  const [landmarksCatalog, setLandmarksCatalog] = useState<
+    HraSurgicalLandmarkGlb[]
+  >(() => getCachedHraSurgicalLandmarksSync());
   const dragStartYRef = useRef<number | null>(null);
 
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const medicalProfile = useAnatomyStore((s) => s.medicalProfile);
   const isLoadingMedicalData = useAnatomyStore((s) => s.isLoadingMedicalData);
   const language = useAnatomyStore((s) => s.language);
+  const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const slicing = useAnatomyStore((s) => s.slicing);
   const mobileSheetSnap = useAnatomyStore((s) => s.mobileSheetSnap);
   const activeTab = useAppNavigationStore((s) => s.activeTab);
+  const explorerOpenedModel = useAppNavigationStore(
+    (s) => s.explorerOpenedModel
+  );
+  const showSurgicalLandmarks = useAnatomyStore(
+    (s) => s.showSurgicalLandmarks
+  );
+  const anatomicalCatalog = useAnatomyStore((s) => s.anatomicalCatalog);
+  const customGlbUrl = useAnatomyStore((s) => s.customGlbUrl);
+  const customGlbName = useAnatomyStore((s) => s.customGlbName);
+  const setShowSurgicalLandmarks = useAnatomyStore(
+    (s) => s.setShowSurgicalLandmarks
+  );
 
   const setLanguage = useAnatomyStore((s) => s.setLanguage);
   const selectPart = useAnatomyStore((s) => s.selectPart);
@@ -59,6 +93,93 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   useEffect(() => {
     setThumbnailFailed(false);
   }, [medicalProfile?.thumbnailUrl, selectedPart?.meshUuid]);
+
+  useEffect(() => {
+    if (!selectedPart || activeTab === 'pdf-books') {
+      setHraEnrichment(null);
+      setIsLoadingHra(false);
+      return;
+    }
+    let cancelled = false;
+    setActiveFtuIndex(0);
+    setFtuModalOpen(false);
+    setIsLoadingHra(true);
+    const isLandmarkPart = selectedPart.ta98Code === 'HRA-LMK';
+    const parentLabelFromLandmark = isLandmarkPart
+      ? selectedPart.latinName.split('•').pop()?.trim() || selectedPart.cleanName
+      : selectedPart.cleanName;
+    const enrichmentTargetPart = isLandmarkPart
+      ? { ...selectedPart, cleanName: parentLabelFromLandmark }
+      : selectedPart;
+    void fetchHraClinicalEnrichment(enrichmentTargetPart)
+      .then((res) => {
+        if (!cancelled) {
+          setHraEnrichment(res);
+          setIsLoadingHra(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHraEnrichment(null);
+          setIsLoadingHra(false);
+        }
+      });
+    void getHraSurgicalLandmarks().then((items) => {
+      if (!cancelled && items.length > 0) {
+        setLandmarksCatalog(items);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selectedPart?.meshUuid,
+    selectedPart?.rawName,
+    selectedPart?.cleanName,
+    selectedPart?.system,
+    activeTab,
+  ]);
+
+  const isSelectedFiducialLandmark =
+    selectedPart?.ta98Code === 'HRA-LMK' ||
+    Boolean(selectedPart?.organGroupId?.startsWith('landmark::'));
+
+  const matchedOrganLandmarks = useMemo(() => {
+    if (!selectedPart) return [];
+    const landmarkParentKey =
+      selectedPart.organGroupId?.startsWith('landmark::')
+        ? selectedPart.organGroupId.split('::')[1]
+        : undefined;
+    const rawOrganLabel = isSelectedFiducialLandmark
+      ? selectedPart.latinName.split('•').pop()?.trim() || selectedPart.cleanName
+      : customGlbUrl && explorerOpenedModel?.kind === 'native'
+        ? customGlbName ?? explorerOpenedModel.title
+        : selectedPart.cleanName;
+
+    return matchLandmarksForOrgan(
+      {
+        organKey:
+          landmarkParentKey ??
+          (customGlbUrl && explorerOpenedModel?.kind === 'native'
+            ? explorerOpenedModel.key
+            : undefined),
+        organLabel: rawOrganLabel,
+        ontologyId: hraEnrichment?.uberonId,
+        glbUrl: customGlbUrl ?? explorerOpenedModel?.glbUrl,
+        sex: biologicalSex,
+      },
+      landmarksCatalog
+    );
+  }, [
+    selectedPart,
+    isSelectedFiducialLandmark,
+    customGlbUrl,
+    customGlbName,
+    explorerOpenedModel,
+    hraEnrichment?.uberonId,
+    biologicalSex,
+    landmarksCatalog,
+  ]);
 
   if (!selectedPart || !medicalProfile || activeTab === 'pdf-books') {
     return null;
@@ -129,19 +250,22 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   const enWikiReferenceUrl =
     medicalProfile.wikipediaUrlEn ||
     `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(
-      medicalProfile.cleanNameEn
+      `${medicalProfile.cleanNameEn} anatomy`
     )}`;
 
   const arWikiReferenceUrl =
     medicalProfile.wikipediaUrlAr ||
     `https://ar.wikipedia.org/w/index.php?search=${encodeURIComponent(
-      medicalProfile.cleanNameAr || medicalProfile.cleanNameEn
+      `${medicalProfile.cleanNameAr || medicalProfile.cleanNameEn} تشريح`
     )}`;
 
   const wikidataReferenceUrl =
     medicalProfile.wikidataUrl ??
     `https://www.wikidata.org/w/index.php?search=${encodeURIComponent(
-      medicalProfile.ta98Code || medicalProfile.latinName
+      medicalProfile.ta98Code &&
+        !/0000|HRA|LMK/i.test(medicalProfile.ta98Code)
+        ? `haswbstatement:P1323=${medicalProfile.ta98Code}`
+        : `${medicalProfile.latinName || medicalProfile.cleanNameEn} anatomy`
     )}`;
 
   return (
@@ -302,6 +426,51 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
             )}
           </div>
         )}
+
+        {selectedPart?.landmarkMeta && (() => {
+          const lmkMeta = selectedPart.landmarkMeta;
+          const parentPart =
+            (lmkMeta.parentMeshUuid
+              ? anatomicalCatalog.find(
+                  (p) => p.meshUuid === lmkMeta.parentMeshUuid
+                )
+              : undefined) ??
+            anatomicalCatalog.find((p) => {
+              const tokens = lmkMeta.parentOrganLabel
+                .toLowerCase()
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .split(/\s+/)
+                .filter((w) => w.length >= 4);
+              const hay = `${p.cleanName} ${p.organGroupId ?? ''}`.toLowerCase();
+              return tokens.some((tok) => hay.includes(tok));
+            });
+
+          return (
+            <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2.5 py-1.5">
+              <div className="min-w-0">
+                <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-300/90">
+                  {isArabic ? 'العضو المرتبط (Parent Organ)' : 'Parent Structure Anchor'}
+                </div>
+                <div className="truncate text-[11px] font-medium text-amber-100">
+                  {isArabic ? lmkMeta.parentOrganAr : lmkMeta.parentOrganLabel}
+                </div>
+              </div>
+              {parentPart && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    selectPart(parentPart);
+                    focusSelectedPart();
+                  }}
+                  className="flex shrink-0 items-center gap-1 rounded-md border border-amber-300/40 bg-amber-400/20 px-2 py-1 font-mono text-[9.5px] font-semibold text-amber-100 transition hover:bg-amber-400/35 active:scale-95"
+                >
+                  <Focus className="h-3 w-3" />
+                  <span>{isArabic ? 'عرض العضو' : 'Inspect Parent'}</span>
+                </button>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Quick Surgical Action Strip */}
         <div
@@ -562,7 +731,412 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
               : medicalProfile.clinicalNotesEn}
           </div>
         </section>
+
+        {/* HRA Panel A: Microscopic Histology — Functional Tissue Units (FTU) */}
+        {(isLoadingHra ||
+          (hraEnrichment &&
+            (hraEnrichment.ftus.length > 0 ||
+              hraEnrichment.dimensionsBySex.male ||
+              hraEnrichment.dimensionsBySex.female ||
+              hraEnrichment.asctb))) && (
+          <>
+            {hraEnrichment && hraEnrichment.ftus.length > 0 && (
+              <section aria-label="Microscopic Histology Functional Tissue Units">
+                <div className="mb-1.5 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                  <span className="flex items-center gap-1.5">
+                    <Microscope className="h-3.5 w-3.5 text-cyan-400" />
+                    <span>
+                      {isArabic
+                        ? 'الأنسجة المجهرية (FTU)'
+                        : 'Microscopic Histology (HRA FTU)'}
+                    </span>
+                  </span>
+                  <span className="rounded border border-cyan-400/25 bg-cyan-500/10 px-1.5 py-0.5 text-[9px] text-cyan-300">
+                    {hraEnrichment.ftus.length} Unit
+                    {hraEnrichment.ftus.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                {(() => {
+                  const ftu =
+                    hraEnrichment.ftus[activeFtuIndex] ??
+                    hraEnrichment.ftus[0];
+                  if (!ftu) return null;
+                  const previewUrl = ftu.svgUrl || ftu.pngUrl;
+                  return (
+                    <div className="rounded-xl border border-cyan-400/20 bg-cyan-500/[0.05] p-3">
+                      {hraEnrichment.ftus.length > 1 && (
+                        <div className="mb-2 flex flex-wrap gap-1">
+                          {hraEnrichment.ftus.map((item, idx) => (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => setActiveFtuIndex(idx)}
+                              className={cn(
+                                'rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors',
+                                idx === activeFtuIndex
+                                  ? 'border-cyan-400/60 bg-cyan-500/25 text-white'
+                                  : 'border-white/10 bg-white/5 text-zinc-400 hover:text-zinc-200'
+                              )}
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="group relative overflow-hidden rounded-lg border border-white/15 bg-white/95 p-2">
+                        <img
+                          src={previewUrl}
+                          alt={`${ftu.label} Functional Tissue Unit`}
+                          loading="lazy"
+                          className="mx-auto max-h-44 w-full object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFtuModalOpen(true)}
+                          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1.5 font-mono text-[10px] font-semibold text-white transition-colors hover:bg-slate-800"
+                        >
+                          <Maximize2 className="h-3 w-3 text-cyan-300" />
+                          <span>Expand Full Histology View</span>
+                        </button>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-1 text-[10.5px]">
+                        <span className="font-semibold capitalize text-white">
+                          {ftu.label}
+                        </span>
+                        {ftu.uberonId && (
+                          <span className="font-mono text-[9.5px] text-cyan-300">
+                            {ftu.uberonId}
+                          </span>
+                        )}
+                      </div>
+
+                      {ftu.cellTypes.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {ftu.cellTypes.slice(0, 8).map((ct) => (
+                            <span
+                              key={ct.id + ct.label}
+                              className="rounded border border-white/10 bg-black/35 px-1.5 py-0.5 text-[9.5px] text-zinc-200"
+                              title={ct.id}
+                            >
+                              {ct.label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </section>
+            )}
+
+            {/* HRA Panel B: Physical Dimensions (mm), UBERON & ASCT+B Cellular/Biomarker Profile */}
+            <section aria-label="HRA Morphometry and ASCT+B Biomarkers">
+              <div className="mb-1.5 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                <span className="flex items-center gap-1.5">
+                  <Dna className="h-3.5 w-3.5 text-violet-400" />
+                  <span>
+                    {isArabic
+                      ? 'الأبعاد المرجعية والخلايا (ASCT+B)'
+                      : 'Morphometry & ASCT+B Profile'}
+                  </span>
+                </span>
+                {hraEnrichment?.uberonId && (
+                  <a
+                    href={`http://purl.obolibrary.org/obo/${hraEnrichment.uberonId.replace(':', '_')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-violet-400/35 bg-violet-500/15 px-1.5 py-0.5 text-[9px] text-violet-200 hover:text-white"
+                  >
+                    <span>{hraEnrichment.uberonId}</span>
+                    <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                )}
+              </div>
+
+              <div className="space-y-2.5 rounded-xl border border-violet-400/20 bg-violet-500/[0.05] p-3">
+                {isLoadingHra && !hraEnrichment ? (
+                  <div className="flex items-center gap-2 font-mono text-[10.5px] text-zinc-400">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-violet-400" />
+                    <span>Querying NIH HRA ASCT+B &amp; Morphometry...</span>
+                  </div>
+                ) : null}
+
+                {(hraEnrichment?.dimensionsBySex.male ||
+                  hraEnrichment?.dimensionsBySex.female) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['male', 'female'] as const).map((sexKey) => {
+                      const rec = hraEnrichment.dimensionsBySex[sexKey];
+                      if (!rec) return null;
+                      const isCurrentSex = biologicalSex === sexKey;
+                      return (
+                        <div
+                          key={sexKey}
+                          className={cn(
+                            'rounded-lg border p-2',
+                            isCurrentSex
+                              ? 'border-sky-400/45 bg-sky-500/15'
+                              : 'border-white/10 bg-black/30 opacity-80'
+                          )}
+                        >
+                          <div className="flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-zinc-400">
+                            <span className="flex items-center gap-1">
+                              <Ruler className="h-2.5 w-2.5 text-sky-300" />
+                              <span>
+                                {sexKey === 'male' ? '♂ Male Ref' : '♀ Female Ref'}
+                              </span>
+                            </span>
+                            {rec.side !== 'Unpaired' && (
+                              <span>{rec.side}</span>
+                            )}
+                          </div>
+                          <div className="mt-1 font-mono text-[10.5px] font-semibold text-white">
+                            {rec.dimensionsMm
+                              .map((n) => n.toFixed(1))
+                              .join(' × ')}{' '}
+                            <span className="text-[9px] text-zinc-400">mm</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {hraEnrichment?.asctb && (
+                  <>
+                    {hraEnrichment.asctb.cellTypes.length > 0 && (
+                      <div>
+                        <div className="mb-1 flex items-center justify-between font-mono text-[9.5px] uppercase tracking-wider text-zinc-400">
+                          <span>Resident Cell Types (CL)</span>
+                          <span className="text-zinc-500">
+                            {hraEnrichment.asctb.cellTypes.length} types
+                          </span>
+                        </div>
+                        <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto pr-1">
+                          {hraEnrichment.asctb.cellTypes
+                            .slice(0, 18)
+                            .map((ct) => (
+                              <span
+                                key={ct.id + ct.label}
+                                title={ct.id}
+                                className="rounded border border-emerald-400/20 bg-emerald-500/10 px-1.5 py-0.5 text-[9.5px] text-emerald-100"
+                              >
+                                {ct.label}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {hraEnrichment.asctb.biomarkers.length > 0 && (
+                      <div>
+                        <div className="mb-1 flex items-center justify-between font-mono text-[9.5px] uppercase tracking-wider text-zinc-400">
+                          <span>Key Gene / Protein Biomarkers</span>
+                          <span className="text-zinc-500">
+                            {hraEnrichment.asctb.biomarkers.length} markers
+                          </span>
+                        </div>
+                        <div className="flex max-h-24 flex-wrap gap-1 overflow-y-auto pr-1">
+                          {hraEnrichment.asctb.biomarkers
+                            .slice(0, 20)
+                            .map((bm) => (
+                              <span
+                                key={bm.id + bm.label}
+                                title={`${bm.id} (${bm.biomarkerType})`}
+                                className="rounded border border-amber-400/25 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9.5px] text-amber-200"
+                              >
+                                {bm.label}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* HRA Surgical & Anatomical 3D Fiducial Landmarks */}
+        {(isSelectedFiducialLandmark || matchedOrganLandmarks.length > 0) && (
+          <section
+            aria-label="Surgical and Anatomical Landmarks"
+            data-testid="inspector-landmarks-section"
+            className="rounded-xl border border-amber-400/25 bg-gradient-to-b from-amber-500/[0.09] to-cyan-500/[0.04] p-3"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <span aria-hidden="true" className="text-xs leading-none">
+                  🎯
+                </span>
+                <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+                  {language === 'ar'
+                    ? 'المعالم الجراحية والتشريحية (HRA)'
+                    : 'Surgical & Anatomical Landmarks'}
+                </span>
+              </div>
+              {matchedOrganLandmarks.length > 0 && (
+                <span className="rounded-full border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-200">
+                  {matchedOrganLandmarks.reduce(
+                    (acc, item) => acc + item.subMeshes.length,
+                    0
+                  )}{' '}
+                  Fiducials
+                </span>
+              )}
+            </div>
+
+            {isSelectedFiducialLandmark && (
+              <div className="mb-2 rounded-lg border border-cyan-400/35 bg-cyan-500/10 px-2.5 py-1.5 text-[11px] text-cyan-100">
+                <span className="font-mono text-[9.5px] uppercase tracking-wider text-cyan-300">
+                  Selected Fiducial:{' '}
+                </span>
+                <span className="font-semibold text-white">
+                  {selectedPart.cleanName}
+                </span>
+                <span className="text-zinc-300">
+                  {' '}
+                  •{' '}
+                  {selectedPart.latinName.split('•').pop()?.trim() ??
+                    selectedPart.rawName}
+                </span>
+              </div>
+            )}
+
+            {matchedOrganLandmarks.length > 0 && (
+              <div className="mb-2.5 flex flex-wrap gap-1">
+                {matchedOrganLandmarks
+                  .flatMap((lm) =>
+                    lm.subMeshes.map((sm) => ({
+                      key: `${lm.id}::${sm.subNode || sm.label}`,
+                      label: sm.label.replace(/\b\w/g, (c) => c.toUpperCase()),
+                      subNode: sm.subNode,
+                    }))
+                  )
+                  .slice(0, 18)
+                  .map((fiducial) => {
+                    const isActiveFiducial =
+                      isSelectedFiducialLandmark &&
+                      selectedPart.cleanName.toLowerCase() ===
+                        fiducial.label.toLowerCase();
+                    return (
+                      <span
+                        key={fiducial.key}
+                        title={fiducial.subNode || fiducial.label}
+                        className={cn(
+                          'rounded-md border px-1.5 py-0.5 text-[10px] font-medium capitalize',
+                          isActiveFiducial
+                            ? 'border-amber-400/70 bg-amber-500/25 text-white shadow-[0_0_8px_rgba(245,158,11,0.3)]'
+                            : 'border-white/10 bg-black/35 text-zinc-200'
+                        )}
+                      >
+                        {fiducial.label}
+                      </span>
+                    );
+                  })}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setShowSurgicalLandmarks(!showSurgicalLandmarks)}
+              data-testid="inspector-show-landmarks-btn"
+              className={cn(
+                'flex w-full items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 font-mono text-[10.5px] font-semibold transition-all',
+                showSurgicalLandmarks
+                  ? 'border-cyan-400/55 bg-cyan-500/20 text-cyan-100 hover:bg-cyan-500/30'
+                  : 'border-amber-400/50 bg-amber-500/20 text-amber-100 hover:bg-amber-500/30'
+              )}
+            >
+              <span aria-hidden="true">🎯</span>
+              <span>
+                {showSurgicalLandmarks
+                  ? 'Hide 3D Landmarks on Organ [L]'
+                  : 'Show 3D Landmarks on Organ'}
+              </span>
+            </button>
+          </section>
+        )}
       </div>
+
+      {/* Expandable FTU Histology Lightbox Modal (portaled to document.body to escape backdrop-blur stacking) */}
+      {ftuModalOpen &&
+        typeof document !== 'undefined' &&
+        hraEnrichment &&
+        hraEnrichment.ftus.length > 0 &&
+        (() => {
+          const modalFtu =
+            hraEnrichment.ftus[activeFtuIndex] ?? hraEnrichment.ftus[0];
+          if (!modalFtu) return null;
+          return createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Interactive Histology: ${modalFtu.label}`}
+              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md"
+              onClick={() => setFtuModalOpen(false)}
+            >
+              <div
+                className="flex max-h-[90dvh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/15 bg-[#0a0b10] shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 px-5 py-3">
+                  <div>
+                    <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-widest text-cyan-300">
+                      <Microscope className="h-3.5 w-3.5" />
+                      <span>NIH HRA 2D Functional Tissue Unit</span>
+                      {modalFtu.uberonId && <span>• {modalFtu.uberonId}</span>}
+                    </div>
+                    <h3 className="mt-0.5 text-base font-bold capitalize text-white">
+                      {modalFtu.label} ({modalFtu.organLabel})
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFtuModalOpen(false)}
+                    aria-label="Close Histology View"
+                    className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-zinc-300 hover:bg-white/15 hover:text-white"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto p-5 md:grid-cols-5">
+                  <div className="flex items-center justify-center rounded-xl border border-white/15 bg-white p-4 md:col-span-3">
+                    <img
+                      src={modalFtu.svgUrl || modalFtu.pngUrl}
+                      alt={modalFtu.label}
+                      className="max-h-[62dvh] w-full object-contain"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-zinc-400">
+                      Mapped Cell Ontology Population (
+                      {modalFtu.cellTypes.length})
+                    </div>
+                    <div className="max-h-[58dvh] space-y-1.5 overflow-y-auto pr-1">
+                      {modalFtu.cellTypes.map((ct) => (
+                        <div
+                          key={ct.id + ct.label}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-2 text-xs text-zinc-100"
+                        >
+                          <span className="capitalize">{ct.label}</span>
+                          <span className="shrink-0 font-mono text-[10px] text-cyan-300">
+                            {ct.id.replace('_', ':')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>,
+            document.body
+          );
+        })()}
 
       {/* Verified Scientific References Footer */}
       <footer

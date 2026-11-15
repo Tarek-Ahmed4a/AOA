@@ -25,6 +25,12 @@ import {
   isFemaleOnlyMesh,
   isMaleOnlyMesh,
 } from '../../utils/sexDimorphismFilter';
+import { registerCustomGlbExtensions } from '../../utils/gltfSpecularGlossinessExtension';
+import {
+  HraLandmarkOverlayList,
+  useHraSurgicalLandmarksCatalog,
+} from './HraLandmarkOverlayGLB';
+import { matchLandmarksForOrgan } from '../../services/hraLandmarkService';
 import {
   resolveExplodeClusterId,
   applyRigidMacroExplodeOffset,
@@ -58,59 +64,154 @@ const NOISE_SUBMESH_REGEX =
   /\b(adipose|omentum|épiploon|epiploon|peritoneum|péritoine|peritoine|epiploic|mesentery|mésentère|mesentere|nodus)\b|ganglion[\s_-]*lymphatique|_fat_[lr]\b/i;
 
 /**
- * Clones each native GLB material into a lightweight MeshStandardMaterial while
- * strictly preserving all original authored albedo/normal/roughness/metalness/AO maps,
- * material colors, and vertex colors (zero artificial color overrides).
+ * Safely updates emissive tint and intensity without assuming the material is lit PBR
+ * (external Explorer scans using `KHR_materials_unlit` / `MeshBasicMaterial` lack `.emissive`).
+ */
+export function setMaterialEmissiveSafe(
+  mat: THREE.Material,
+  color: THREE.Color,
+  intensity: number
+): void {
+  const std = mat as THREE.MeshStandardMaterial;
+  if ('emissive' in std && std.emissive) {
+    std.emissive.copy(color);
+    std.emissiveIntensity = intensity;
+  }
+}
+
+/**
+ * Clones each native GLB material cleanly while strictly preserving authored albedo,
+ * normal, roughness, metalness, specular-glossiness, AO maps, material colors, and vertex colors.
+ */
+type PbrMaterialMaps = THREE.MeshStandardMaterial & {
+  specularColorMap?: THREE.Texture | null;
+};
+
+/**
+ * Returns true if the authored material carries any PBR or surface texture map
+ * so callers never strip, overwrite, or share/pool across textured meshes.
+ */
+export function hasAnyTextureMap(
+  sourceMat: THREE.Material | null | undefined
+): boolean {
+  if (!sourceMat) return false;
+  const std = sourceMat as PbrMaterialMaps;
+  return Boolean(
+    std.map ||
+      std.normalMap ||
+      std.roughnessMap ||
+      std.metalnessMap ||
+      std.aoMap ||
+      std.emissiveMap ||
+      std.bumpMap ||
+      std.specularColorMap ||
+      std.alphaMap
+  );
+}
+
+/**
+ * Preserves linear colorSpace on data maps (normal, roughness, metalness, ao, bump, alpha),
+ * applies SRGBColorSpace strictly on color maps (albedo/map, emissiveMap, specularColorMap),
+ * and sets calibrated anisotropic filtering across all texture slots.
+ */
+export function applyTextureQualityToMaterial(
+  mat: THREE.Material,
+  maxAnisotropy = 8
+): void {
+  const std = mat as PbrMaterialMaps;
+  const targetAniso = Math.max(1, Math.min(maxAnisotropy, 16));
+
+  const colorTextures = [std.map, std.emissiveMap, std.specularColorMap];
+  for (const tex of colorTextures) {
+    if (!tex) continue;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.anisotropy = Math.max(tex.anisotropy || 1, targetAniso);
+    tex.needsUpdate = true;
+  }
+
+  const linearDataTextures = [
+    std.normalMap,
+    std.roughnessMap,
+    std.metalnessMap,
+    std.aoMap,
+    std.bumpMap,
+    std.alphaMap,
+  ];
+  for (const tex of linearDataTextures) {
+    if (!tex) continue;
+    tex.anisotropy = Math.max(tex.anisotropy || 1, targetAniso);
+    tex.needsUpdate = true;
+  }
+}
+
+/**
+ * Clones an NIH / Custom GLB material safely, preserving authored double-sidedness,
+ * PBR texture maps (without overriding textured colors), vertex colors, and base emissive.
  */
 export function cloneAndEnhanceNihMaterial(
   sourceMat: THREE.Material,
   system: AnatomicalSystem,
   hasVertexColors: boolean,
   _tissueColor: THREE.Color,
-  _structureHint = ''
-): THREE.MeshStandardMaterial {
-  const mat = sourceMat.clone() as THREE.MeshStandardMaterial;
-  mat.userData.__origSide = THREE.FrontSide;
-  mat.side = THREE.FrontSide;
-  mat.shadowSide = THREE.FrontSide;
+  _structureHint = '',
+  preserveAuthoredMaterial = false,
+  maxAnisotropy = 8
+): THREE.Material {
+  const mat = sourceMat.clone();
+  const textured = hasAnyTextureMap(sourceMat);
+  const effectivePreserve = preserveAuthoredMaterial || textured;
+  const authoredSide = sourceMat.side ?? THREE.FrontSide;
+  const targetSide = effectivePreserve ? authoredSide : THREE.FrontSide;
+  mat.userData.__origSide = targetSide;
+  mat.userData.__origTransparent = Boolean(sourceMat.transparent);
+  mat.userData.__origOpacity =
+    typeof sourceMat.opacity === 'number' ? sourceMat.opacity : 1;
+  mat.userData.__preserveAuthoredMaterial = effectivePreserve;
+  mat.userData.__hasTextureMap = textured;
+  mat.side = targetSide;
+  mat.shadowSide = targetSide;
 
-  if (mat.color && !mat.map && system !== 'cardiovascular') {
-    if (mat.color.b > 0.5 && mat.color.r < 0.2 && mat.color.g < 0.25) {
-      mat.color.set(system === 'integumentary' ? '#e5b59a' : '#d8a997');
+  const std = mat as PbrMaterialMaps;
+
+  if (!effectivePreserve && std.color && !std.map && system !== 'cardiovascular') {
+    if (std.color.b > 0.5 && std.color.r < 0.2 && std.color.g < 0.25) {
+      std.color.set(system === 'integumentary' ? '#e5b59a' : '#d8a997');
     }
   }
 
-  if (system === 'integumentary') {
+  if (!effectivePreserve && system === 'integumentary') {
     mat.polygonOffset = true;
     mat.polygonOffsetFactor = 1;
     mat.polygonOffsetUnits = 1;
   }
 
-  if (mat.map) {
-    mat.map.colorSpace = THREE.SRGBColorSpace;
-    mat.map.needsUpdate = true;
-  }
+  applyTextureQualityToMaterial(mat, maxAnisotropy);
+
   if (hasVertexColors) {
     mat.vertexColors = true;
   }
 
   mat.userData.__anatomicalSystem = system;
-  mat.userData.__baseEmissive = mat.emissive
-    ? mat.emissive.clone()
-    : ZERO_EMISSIVE_COLOR.clone();
-  mat.userData.__baseEmissiveIntensity = mat.emissiveIntensity ?? 0;
+  mat.userData.__baseEmissive =
+    'emissive' in std && std.emissive
+      ? std.emissive.clone()
+      : ZERO_EMISSIVE_COLOR.clone();
+  mat.userData.__baseEmissiveIntensity =
+    'emissiveIntensity' in std && typeof std.emissiveIntensity === 'number'
+      ? std.emissiveIntensity
+      : 0;
 
   return mat;
 }
 
 export interface SharedSystemMaterialEntry {
-  mat: THREE.MeshStandardMaterial;
+  mat: THREE.Material;
   system: AnatomicalSystem;
 }
 
 /**
- * Returns a deduplicated shared MeshStandardMaterial keyed by source material UUID,
- * system, and vertex color usage so loaded GLB meshes batch efficiently without per-mesh clones.
+ * Returns a deduplicated shared material for untextured materials, while NEVER pooling
+ * or stripping textured PBR / external photogrammetry materials.
  */
 export function getOrCreateSharedStandardMaterial(
   cache: Map<string, SharedSystemMaterialEntry>,
@@ -118,9 +219,26 @@ export function getOrCreateSharedStandardMaterial(
   system: AnatomicalSystem,
   hasVertexColors: boolean,
   tissueColor: THREE.Color,
-  structureHint = ''
-): THREE.MeshStandardMaterial {
-  const std = sourceMat as THREE.MeshStandardMaterial;
+  structureHint = '',
+  preserveAuthoredMaterial = false,
+  maxAnisotropy = 8,
+  nonPooledMaterialsOut?: SharedSystemMaterialEntry[]
+): THREE.Material {
+  if (preserveAuthoredMaterial || hasAnyTextureMap(sourceMat)) {
+    const dedicated = cloneAndEnhanceNihMaterial(
+      sourceMat,
+      system,
+      hasVertexColors,
+      tissueColor,
+      structureHint,
+      true,
+      maxAnisotropy
+    );
+    nonPooledMaterialsOut?.push({ mat: dedicated, system });
+    return dedicated;
+  }
+
+  const std = sourceMat as PbrMaterialMaps;
   const isSkinPlaceholder = /^Skin_mat/i.test(sourceMat.name || '');
   const colorSig = std.color ? std.color.getHexString() : 'ffffff';
   const emissiveSig = std.emissive ? std.emissive.getHexString() : '000000';
@@ -137,14 +255,8 @@ export function getOrCreateSharedStandardMaterial(
   const alphaTestSig =
     typeof std.alphaTest === 'number' ? std.alphaTest.toFixed(2) : '0.00';
   const flatSig = std.flatShading ? 1 : 0;
-  const mapSig = std.map?.uuid ?? '';
-  const normalSig = std.normalMap?.uuid ?? '';
-  const roughMapSig = std.roughnessMap?.uuid ?? '';
-  const metalMapSig = std.metalnessMap?.uuid ?? '';
-  const aoMapSig = std.aoMap?.uuid ?? '';
-  const alphaMapSig = std.alphaMap?.uuid ?? '';
-  const bumpMapSig = std.bumpMap?.uuid ?? '';
-  const key = `${system}::${hasVertexColors ? 1 : 0}::${colorSig}::${emissiveSig}::${emissiveInt}::${roughSig}::${metalSig}::${opacitySig}::${alphaTestSig}::${std.transparent ? 1 : 0}::${flatSig}::${mapSig}::${normalSig}::${roughMapSig}::${metalMapSig}::${aoMapSig}::${alphaMapSig}::${bumpMapSig}${
+  const sideSig = THREE.FrontSide;
+  const key = `${sourceMat.type}::0::${sideSig}::${system}::${hasVertexColors ? 1 : 0}::${colorSig}::${emissiveSig}::${emissiveInt}::${roughSig}::${metalSig}::${opacitySig}::${alphaTestSig}::${std.transparent ? 1 : 0}::${flatSig}${
     isSkinPlaceholder && structureHint ? `::${structureHint}` : ''
   }`;
   const existing = cache.get(key);
@@ -155,7 +267,9 @@ export function getOrCreateSharedStandardMaterial(
     system,
     hasVertexColors,
     tissueColor,
-    structureHint
+    structureHint,
+    false,
+    maxAnisotropy
   );
   cache.set(key, { mat: created, system });
   return created;
@@ -179,7 +293,12 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   onOrganMounted,
   onOrganUnmounted,
 }) => {
-  const gltf = useGLTF(resolveAssetUrl(urlOverride ?? entry.activeUrl));
+  const gltf = useGLTF(
+    resolveAssetUrl(urlOverride ?? entry.activeUrl),
+    true,
+    true,
+    registerCustomGlbExtensions
+  );
   const system = entry.system;
 
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
@@ -192,6 +311,35 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
+  const showSurgicalLandmarks = useAnatomyStore(
+    (s) => s.showSurgicalLandmarks
+  );
+  const landmarksCatalog = useHraSurgicalLandmarksCatalog(
+    showSurgicalLandmarks
+  );
+  const organLandmarks = useMemo(() => {
+    if (!showSurgicalLandmarks) return [];
+    return matchLandmarksForOrgan(
+      {
+        organKey: entry.organKey,
+        organId: entry.id,
+        organLabel: entry.name,
+        ontologyId: entry.ontologyId,
+        glbUrl: entry.remoteUrl,
+        sex: entry.sex,
+      },
+      landmarksCatalog
+    );
+  }, [
+    showSurgicalLandmarks,
+    entry.organKey,
+    entry.id,
+    entry.name,
+    entry.ontologyId,
+    entry.remoteUrl,
+    entry.sex,
+    landmarksCatalog,
+  ]);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
 
@@ -263,10 +411,16 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
         ? mesh.geometry.boundingBox.getCenter(new THREE.Vector3())
         : new THREE.Vector3();
 
+      const preserveExplicitHraOrgan =
+        /\b(adipose|omentum|epiploic|lymph)\b/i.test(
+          `${entry.id} ${entry.organKey} ${entry.name}`
+        );
+
       collectedMeshes.push({
         mesh,
         organGroupId,
-        isNoiseMesh: NOISE_SUBMESH_REGEX.test(mesh.name),
+        isNoiseMesh:
+          !preserveExplicitHraOrgan && NOISE_SUBMESH_REGEX.test(mesh.name),
         geomLocalCenter,
       });
     });
@@ -427,6 +581,27 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     if (system === 'integumentary' && isInternalSelection) {
       effectiveOpacity = xrayGhostMode ? 0.08 : Math.min(systemOpacity, 0.12);
     }
+    const isNihOuterSkinEnvelope =
+      activeAtlasPreset === 'nih-visible-human' &&
+      !forceVisible &&
+      entry.organKey === 'skin';
+    const isNihAdiposeEnvelope =
+      activeAtlasPreset === 'nih-visible-human' &&
+      !forceVisible &&
+      (entry.organKey === 'adipose' ||
+        entry.organKey === 'placenta full term');
+    if (isNihOuterSkinEnvelope) {
+      effectiveOpacity = Math.min(effectiveOpacity, xrayGhostMode ? 0.08 : 0.16);
+    } else if (isNihAdiposeEnvelope) {
+      effectiveOpacity = Math.min(
+        effectiveOpacity,
+        xrayGhostMode
+          ? 0.08
+          : entry.organKey === 'placenta full term'
+            ? 0.25
+            : 0.15
+      );
+    }
     const isTranslucentLayer = xrayGhostMode || effectiveOpacity < 0.85;
     const effectiveTransparent = isTranslucentLayer || effectiveOpacity < 1;
     const effectiveDepthWrite =
@@ -441,7 +616,9 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     for (const { mat } of sharedMaterials) {
       mat.clippingPlanes = sharedSliced ? clippingPlanesList : null;
       mat.clipShadows = sharedSliced;
-      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      const origSide =
+        (mat.userData?.__origSide as THREE.Side | undefined) ?? THREE.FrontSide;
+      mat.side = sharedSliced ? THREE.DoubleSide : origSide;
       mat.shadowSide = mat.side;
       mat.transparent = effectiveTransparent;
       mat.opacity = effectiveOpacity;
@@ -452,11 +629,9 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       const baseIntensity =
         (mat.userData?.__baseEmissiveIntensity as number | undefined) ?? 0;
       if (xrayGhostMode) {
-        mat.emissive.copy(GHOST_EMISSIVE_COLOR);
-        mat.emissiveIntensity = 0.35;
+        setMaterialEmissiveSafe(mat, GHOST_EMISSIVE_COLOR, 0.35);
       } else {
-        mat.emissive.copy(baseEmissive);
-        mat.emissiveIntensity = baseIntensity;
+        setMaterialEmissiveSafe(mat, baseEmissive, baseIntensity);
       }
     }
 
@@ -476,11 +651,13 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       const isVisible =
         !isHiddenForSex && isSystemActive && !isHiddenByPeel && !isIsolatedOut;
       mesh.visible = isVisible;
+      // Allow clicking through semi-transparent outer NIH Skin envelope onto internal organs
+      const allowRaycast = isVisible && !isNihOuterSkinEnvelope;
       const origRaycast =
         (mesh.userData?.__origRaycast as THREE.Mesh['raycast'] | undefined) ??
         THREE.Mesh.prototype.raycast;
-      mesh.raycast = isVisible ? origRaycast : NOOP_RAYCAST;
-      if (isVisible) {
+      mesh.raycast = allowRaycast ? origRaycast : NOOP_RAYCAST;
+      if (allowRaycast) {
         mesh.layers.enable(0);
         enqueueGeometryBVH(mesh.geometry);
       } else {
@@ -493,6 +670,9 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     sharedMaterials,
     system,
     biologicalSex,
+    activeAtlasPreset,
+    forceVisible,
+    entry.organKey,
     isSystemActive,
     systemOpacity,
     selectedPart,
@@ -503,6 +683,38 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     slicing.scope,
   ]);
 
+  const isOrganHiddenByDissection = useMemo(() => {
+    if (!isSystemActive) return true;
+    if (registeredMeshes.length === 0) return false;
+    const allPeeled = registeredMeshes.every(
+      (m) => hiddenPartIds.includes(m.uuid) || hiddenPartIds.includes(m.name)
+    );
+    if (allPeeled) return true;
+    if (isolatedPartId !== null && !xrayGhostMode) {
+      const organHasIsolatedMesh = registeredMeshes.some(
+        (m) => m.uuid === isolatedPartId || m.name === isolatedPartId
+      );
+      const selectedIsOwnLandmark =
+        Boolean(
+          selectedPart?.organGroupId?.startsWith(
+            `landmark::${entry.organKey}::`
+          )
+        ) &&
+        (isolatedPartId === selectedPart?.meshUuid ||
+          isolatedPartId === selectedPart?.rawName);
+      if (!organHasIsolatedMesh && !selectedIsOwnLandmark) return true;
+    }
+    return false;
+  }, [
+    isSystemActive,
+    registeredMeshes,
+    hiddenPartIds,
+    isolatedPartId,
+    xrayGhostMode,
+    selectedPart,
+    entry.organKey,
+  ]);
+
   return (
     <group
       name={`NIH_${entry.id}`}
@@ -511,6 +723,12 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       scale={entry.placement.scale}
     >
       <primitive object={clonedScene} visible={isSystemActive} />
+      <HraLandmarkOverlayList
+        visible={showSurgicalLandmarks}
+        hidden={isOrganHiddenByDissection}
+        landmarks={organLandmarks}
+        parentSystem={entry.system}
+      />
     </group>
   );
 };

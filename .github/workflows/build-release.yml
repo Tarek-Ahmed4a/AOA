@@ -107,7 +107,7 @@ jobs:
       - name: Run TypeScript & Production Vite Build
         run: npm run build
 
-      - name: Strip Heavy PDFs & Desktop-Only Assets for Lean Android APK
+      - name: Swap Compressed Offline PDFs & Strip Desktop-Only Assets for Android APK
         run: node scripts/cleanMobileBuild.mjs --strip-pdfs
 
       - name: Sync Capacitor Android Project

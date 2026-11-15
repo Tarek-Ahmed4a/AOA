@@ -103,7 +103,8 @@ interface PdfSessionState {
 
 export const usePdfSessionStore = create<PdfSessionState>((set, get) => ({
   books: DEFAULT_PDF_BOOKS,
-  viewMode: 'split',
+  viewMode:
+    typeof window !== 'undefined' && window.innerWidth < 900 ? 'book1' : 'split',
   book1Page: 37,
   book2Page: 1,
   book1Nonce: 0,

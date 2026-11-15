@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { AnatomyViewport } from './components/canvas/AnatomyViewport';
 import { LiveScientificExplorer } from './components/canvas/LiveScientificExplorer';
 import { AnatomicalInspectorSidebar } from './components/ui/AnatomicalInspectorSidebar';
@@ -28,6 +28,14 @@ export const App: React.FC = () => {
   const explorerOpenedModel = useAppNavigationStore(
     (s) => s.explorerOpenedModel
   );
+  const [hasOpenedBooks, setHasOpenedBooks] = useState(
+    activeTab === 'pdf-books'
+  );
+  useEffect(() => {
+    if (activeTab === 'pdf-books') {
+      setHasOpenedBooks(true);
+    }
+  }, [activeTab]);
 
   const explorerRegistry = useMemo(() => createSceneMeshRegistry(), []);
   const explorerClippingPlane = useMemo(() => createClippingPlane(), []);
@@ -65,7 +73,9 @@ export const App: React.FC = () => {
         </SceneMeshRegistryProvider>
       </AnatomyStoreProvider>
 
-      {activeTab === 'pdf-books' && <PdfReferenceBooksView />}
+      {hasOpenedBooks && (
+        <PdfReferenceBooksView isActive={activeTab === 'pdf-books'} />
+      )}
 
       {/* Unified Cockpit HUD & Inspector bound cleanly to the active visible 3D stage */}
       <AnatomyStoreProvider store={activeNativeStore}>

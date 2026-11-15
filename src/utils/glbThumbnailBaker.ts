@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { resolveAssetUrl } from './assetUrl';
+import { registerCustomGlbExtensions } from './gltfSpecularGlossinessExtension';
 
 const THUMB_WIDTH = 280;
 const THUMB_HEIGHT = 180;
@@ -79,18 +80,18 @@ function ensureOffscreenContext(): OffscreenBakeContext | null {
     renderer.setSize(THUMB_WIDTH, THUMB_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
+    renderer.toneMappingExposure = 0.96;
     renderer.setClearColor(0x000000, 0);
 
     const scene = new THREE.Scene();
 
-    // 3-point clinical studio lighting for high-contrast anatomical snapshot thumbnails
-    const ambient = new THREE.AmbientLight('#f8fafc', 0.45);
-    const keyLight = new THREE.DirectionalLight('#fffaf0', 2.0);
+    // 3-point clinical studio lighting calibrated to prevent white blowout on bone/skulls
+    const ambient = new THREE.AmbientLight('#f8fafc', 0.24);
+    const keyLight = new THREE.DirectionalLight('#fffaf0', 1.45);
     keyLight.position.set(2.4, 2.2, 3.2);
-    const fillLight = new THREE.DirectionalLight('#e0f2fe', 0.95);
+    const fillLight = new THREE.DirectionalLight('#f8fafc', 0.45);
     fillLight.position.set(-2.6, 0.3, 2.0);
-    const rimLight = new THREE.DirectionalLight('#bae6fd', 1.15);
+    const rimLight = new THREE.DirectionalLight('#bae6fd', 0.55);
     rimLight.position.set(0.6, 2.4, -3.2);
     scene.add(ambient, keyLight, fillLight, rimLight);
 
@@ -104,6 +105,7 @@ function ensureOffscreenContext(): OffscreenBakeContext | null {
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath(DRACO_DECODER_PATH);
     const loader = new GLTFLoader();
+    registerCustomGlbExtensions(loader);
     loader.setDRACOLoader(dracoLoader);
     loader.setCrossOrigin('anonymous');
 
@@ -116,21 +118,10 @@ function ensureOffscreenContext(): OffscreenBakeContext | null {
 }
 
 function normalizeTemporaryMeshMaterials(
-  root: THREE.Object3D,
+  _root: THREE.Object3D,
   _system?: string
 ): void {
-  root.traverse((obj) => {
-    if (!(obj as THREE.Mesh).isMesh) return;
-    const mesh = obj as THREE.Mesh;
-    const mats = Array.isArray(mesh.material)
-      ? mesh.material
-      : [mesh.material];
-
-    for (const mat of mats) {
-      if (!mat) continue;
-      mat.side = THREE.FrontSide;
-    }
-  });
+  // Preserve authored GLB material side, PBR textures, and vertex colors intact.
 }
 
 function disposeTemporaryTextureMaps(mat: THREE.Material): void {

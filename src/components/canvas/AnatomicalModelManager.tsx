@@ -14,6 +14,7 @@ import {
   cameraInteractionState,
   useAnatomyStore,
   useAnatomyStoreApi,
+  useAppNavigationStore,
   type AnatomicalSystem,
   type BiologicalSex,
   type OfficialAtlasPresetId,
@@ -58,10 +59,18 @@ import {
 import {
   getOrCreateSharedStandardMaterial,
   NihManifestOrganGLB,
+  setMaterialEmissiveSafe,
   type SharedSystemMaterialEntry,
 } from './NihManifestOrgan';
+import { registerCustomGlbExtensions } from '../../utils/gltfSpecularGlossinessExtension';
 import { SlicingPlaneGizmo } from './SlicingPlaneGizmo';
 import { FemaleZAnatomyOrgansGroup } from './FemaleZAnatomyOrgansGroup';
+import {
+  HraLandmarkOverlayList,
+  useHraSurgicalLandmarksCatalog,
+} from './HraLandmarkOverlayGLB';
+import { UniversalLandmarksLayer } from './UniversalLandmarksLayer';
+import { matchLandmarksForOrgan } from '../../services/hraLandmarkService';
 import {
   isFemaleOnlyMesh,
   isMaleOnlyMesh,
@@ -253,10 +262,21 @@ const CRANIAL_MESH_KEEP_REGEX =
   /\b(?:skull|crani|frontal|parietal|temporal|occipital|sphenoid|ethmoid|zygomatic|maxilla|mandib|nasal|lacrimal|palatine|vomer|concha|malleus|incus|stapes|hyoid|suture|fontanelle|tooth|teeth|incisor|canine|premolar|molar|calvaria|orbit)\b/i;
 
 const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
+  const { gl } = useThree();
+  const maxAnisotropy = Math.min(gl.capabilities.getMaxAnisotropy(), 8);
   const resolvedUrl = resolveAssetUrl(url);
-  const gltf = useGLTF(resolvedUrl);
+  const gltf = useGLTF(resolvedUrl, true, true, registerCustomGlbExtensions);
   const registry = useSceneMeshRegistry();
   const clippingPlane = useClippingPlane();
+  const explorerOpenedModel = useAppNavigationStore(
+    (s) => s.explorerOpenedModel
+  );
+  const showSurgicalLandmarks = useAnatomyStore(
+    (s) => s.showSurgicalLandmarks
+  );
+  const landmarksCatalog = useHraSurgicalLandmarksCatalog(
+    showSurgicalLandmarks
+  );
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
 
   const customGlbName = useAnatomyStore((s) => s.customGlbName);
@@ -370,6 +390,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const parts: AnatomicalPartInfo[] = [];
       const seenRawNames = new Map<string, number>();
       const matCache = new Map<string, SharedSystemMaterialEntry>();
+      const nonPooledMaterials: SharedSystemMaterialEntry[] = [];
       const meshes: THREE.Mesh[] = [];
       const contextHint = customGlbName ?? undefined;
       const organBoxes = new Map<string, THREE.Box3>();
@@ -510,16 +531,20 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
         );
         const hasVertexColors = Boolean(mesh.geometry?.getAttribute('color'));
 
-        const configureMaterial = (
-          m: THREE.Material
-        ): THREE.MeshStandardMaterial =>
+        const isExternalExplorerModel =
+          !resolvedUrl.includes('/models/zanatomy/') &&
+          !resolvedUrl.includes('/models/nih/');
+        const configureMaterial = (m: THREE.Material): THREE.Material =>
           getOrCreateSharedStandardMaterial(
             matCache,
             m,
             parsed.system,
             hasVertexColors,
             tissueColor,
-            parsed.cleanName
+            parsed.cleanName,
+            isExternalExplorerModel,
+            maxAnisotropy,
+            nonPooledMaterials
           );
 
         if (Array.isArray(mesh.material)) {
@@ -554,10 +579,13 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       return {
         clonedScene: clone,
         catalogParts: parts,
-        sharedMaterials: Array.from(matCache.values()),
+        sharedMaterials: [
+          ...Array.from(matCache.values()),
+          ...nonPooledMaterials,
+        ],
         registeredMeshes: meshes,
       };
-    }, [gltf.scene, customGlbName]);
+    }, [gltf.scene, customGlbName, maxAnisotropy, resolvedUrl]);
 
   useEffect(() => {
     registeredMeshes.forEach((m) => registerSceneMesh(m, registry));
@@ -644,11 +672,19 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
 
       mat.clippingPlanes = sharedSliced ? clippingPlanesList : null;
       mat.clipShadows = sharedSliced;
-      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      const origSide =
+        (mat.userData?.__origSide as THREE.Side | undefined) ?? THREE.FrontSide;
+      const origTransparent = Boolean(mat.userData?.__origTransparent);
+      const origOpacity =
+        (mat.userData?.__origOpacity as number | undefined) ?? 1;
+      mat.side = sharedSliced ? THREE.DoubleSide : origSide;
       mat.shadowSide = mat.side;
-      mat.transparent = effectiveTransparent;
-      mat.opacity = effectiveOpacity;
-      mat.depthWrite = effectiveDepthWrite;
+      mat.transparent = effectiveTransparent || origTransparent;
+      mat.opacity =
+        origTransparent && effectiveOpacity >= 0.99
+          ? origOpacity
+          : effectiveOpacity;
+      mat.depthWrite = effectiveDepthWrite && !origTransparent;
 
       const baseEmissive =
         (mat.userData?.__baseEmissive as THREE.Color | undefined) ??
@@ -656,11 +692,9 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const baseIntensity =
         (mat.userData?.__baseEmissiveIntensity as number | undefined) ?? 0;
       if (xrayGhostMode) {
-        mat.emissive.copy(GHOST_EMISSIVE_COLOR);
-        mat.emissiveIntensity = 0.4;
+        setMaterialEmissiveSafe(mat, GHOST_EMISSIVE_COLOR, 0.4);
       } else {
-        mat.emissive.copy(baseEmissive);
-        mat.emissiveIntensity = baseIntensity;
+        setMaterialEmissiveSafe(mat, baseEmissive, baseIntensity);
       }
     }
 
@@ -739,7 +773,71 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
     slicing.scope,
   ]);
 
-  return <primitive object={clonedScene} />;
+  const isNihOrganModel =
+    /nih|human\s*reference\s*atlas|\bhra\b/i.test(
+      explorerOpenedModel?.sourceLabel ?? ''
+    ) || /humanatlas|nih_organs|\/models\/nih\//i.test(url);
+
+  const organLandmarks = useMemo(() => {
+    if (!showSurgicalLandmarks || !isNihOrganModel) return [];
+    return matchLandmarksForOrgan(
+      {
+        organKey: explorerOpenedModel?.key,
+        organLabel: customGlbName ?? explorerOpenedModel?.title,
+        glbUrl: explorerOpenedModel?.glbUrl ?? url,
+        sex: biologicalSex,
+      },
+      landmarksCatalog
+    );
+  }, [
+    showSurgicalLandmarks,
+    isNihOrganModel,
+    explorerOpenedModel?.key,
+    explorerOpenedModel?.title,
+    explorerOpenedModel?.glbUrl,
+    url,
+    customGlbName,
+    biologicalSex,
+    landmarksCatalog,
+  ]);
+
+  return (
+    <>
+      <primitive object={clonedScene} />
+      {showSurgicalLandmarks && isNihOrganModel && organLandmarks.length > 0 && (
+        <group
+          name="__custom_glb_landmarks__"
+          position={[
+            clonedScene.position.x,
+            clonedScene.position.y,
+            clonedScene.position.z,
+          ]}
+          rotation={[
+            clonedScene.rotation.x,
+            clonedScene.rotation.y,
+            clonedScene.rotation.z,
+          ]}
+          scale={[
+            clonedScene.scale.x,
+            clonedScene.scale.y,
+            clonedScene.scale.z,
+          ]}
+        >
+          <HraLandmarkOverlayList
+            visible={showSurgicalLandmarks}
+            landmarks={organLandmarks}
+            parentSystem={explorerOpenedModel?.system ?? 'visceral'}
+          />
+        </group>
+      )}
+      <UniversalLandmarksLayer
+        nihCatalog={null}
+        modelContext="explorer-custom"
+        customModelHint={customGlbName ?? explorerOpenedModel?.title ?? ''}
+        skipCrossHraGlb={isNihOrganModel}
+      />
+    </>
+  );
 };
 
 function computeSubtreeLocalBox(
@@ -1290,7 +1388,12 @@ const SketchfabSystemGlbContent: React.FC<{
   entry: SketchfabManifestModel;
   onSceneReady: () => void;
 }> = ({ entry, onSceneReady }) => {
-  const gltf = useGLTF(resolveAssetUrl(entry.localPath));
+  const gltf = useGLTF(
+    resolveAssetUrl(entry.localPath),
+    true,
+    true,
+    registerCustomGlbExtensions
+  );
   const registry = useSceneMeshRegistry();
   const clippingPlane = useClippingPlane();
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
@@ -1345,6 +1448,7 @@ const SketchfabSystemGlbContent: React.FC<{
       }
 
       const matCache = new Map<string, SharedSystemMaterialEntry>();
+      const nonPooledMaterials: SharedSystemMaterialEntry[] = [];
       const meshes: THREE.Mesh[] = [];
       const meshWorldBox = new THREE.Box3();
       const meshWorldSphere = new THREE.Sphere();
@@ -1607,7 +1711,10 @@ const SketchfabSystemGlbContent: React.FC<{
               meshSystem,
               hasVertexColors,
               tissueColor,
-              structureHint
+              structureHint,
+              false,
+              8,
+              nonPooledMaterials
             )
           );
         } else if (mesh.material) {
@@ -1617,7 +1724,10 @@ const SketchfabSystemGlbContent: React.FC<{
             meshSystem,
             hasVertexColors,
             tissueColor,
-            structureHint
+            structureHint,
+            false,
+            8,
+            nonPooledMaterials
           );
         }
 
@@ -1664,7 +1774,10 @@ const SketchfabSystemGlbContent: React.FC<{
       return {
         alignedRoot: clone,
         normTransform: { position, scale },
-        sharedMaterials: Array.from(matCache.values()),
+        sharedMaterials: [
+          ...Array.from(matCache.values()),
+          ...nonPooledMaterials,
+        ],
         registeredMeshes: meshes,
       };
     }, [gltf.scene, entry]);
@@ -1727,12 +1840,20 @@ const SketchfabSystemGlbContent: React.FC<{
           : rawTargetOpacity;
       const needsTransparency = targetOpacity < 0.99;
 
-      mat.side = sharedSliced ? THREE.DoubleSide : THREE.FrontSide;
+      const origSide =
+        (mat.userData?.__origSide as THREE.Side | undefined) ?? THREE.FrontSide;
+      const origTransparent = Boolean(mat.userData?.__origTransparent);
+      const origOpacity =
+        (mat.userData?.__origOpacity as number | undefined) ?? 1;
+      mat.side = sharedSliced ? THREE.DoubleSide : origSide;
       mat.shadowSide = mat.side;
       mat.clippingPlanes = sharedSliced ? clippingPlanesList : [];
       mat.clipShadows = sharedSliced;
-      mat.transparent = needsTransparency;
-      mat.opacity = targetOpacity;
+      mat.transparent = needsTransparency || origTransparent;
+      mat.opacity =
+        origTransparent && targetOpacity >= 0.99
+          ? origOpacity
+          : targetOpacity;
       mat.depthWrite = xrayGhostMode
         ? false
         : meshSystem === 'integumentary'
@@ -1745,11 +1866,9 @@ const SketchfabSystemGlbContent: React.FC<{
       const baseIntensity =
         (mat.userData?.__baseEmissiveIntensity as number | undefined) ?? 0;
       if (xrayGhostMode) {
-        mat.emissive.copy(GHOST_EMISSIVE_COLOR);
-        mat.emissiveIntensity = 0.22;
+        setMaterialEmissiveSafe(mat, GHOST_EMISSIVE_COLOR, 0.22);
       } else {
-        mat.emissive.copy(baseEmissive);
-        mat.emissiveIntensity = baseIntensity;
+        setMaterialEmissiveSafe(mat, baseEmissive, baseIntensity);
       }
     }
 
@@ -2036,7 +2155,9 @@ function syncPooledHighlightMaterial(
     target.depthWrite = srcMat.depthWrite;
   }
 
-  target.side = isMeshSliced ? THREE.DoubleSide : THREE.FrontSide;
+  const origSide =
+    (srcMat.userData?.__origSide as THREE.Side | undefined) ?? THREE.FrontSide;
+  target.side = isMeshSliced ? THREE.DoubleSide : origSide;
   target.shadowSide = target.side;
   target.clippingPlanes = isMeshSliced ? clippingPlanesList : null;
   target.clipShadows = isMeshSliced;
@@ -2056,6 +2177,9 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
+  const showSurgicalLandmarks = useAnatomyStore(
+    (s) => s.showSurgicalLandmarks
+  );
   const slicingEnabled = useAnatomyStore((s) => s.slicing.enabled);
   const slicingScope = useAnatomyStore((s) => s.slicing.scope);
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
@@ -2100,6 +2224,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     void hiddenPartIds;
     void biologicalSex;
     void anatomicalCatalog;
+    void showSurgicalLandmarks;
 
     restoreAllHighlightedMeshes();
 
@@ -2887,6 +3012,11 @@ export const AnatomicalModelManager: React.FC = () => {
             onCatalogUpdated={handleFemaleCatalogUpdated}
           />
         )}
+      <UniversalLandmarksLayer
+        nihCatalog={nihSceneCatalog}
+        catalogTick={nihCatalogTick}
+        modelContext="master-atlas"
+      />
     </group>
   );
 

@@ -277,7 +277,7 @@ const ClinicalEnvironment: React.FC = () => {
     const envTarget = pmremGenerator.fromScene(roomEnv, 0.04);
 
     scene.environment = envTarget.texture;
-    scene.environmentIntensity = 0.36;
+    scene.environmentIntensity = 0.26;
 
     return () => {
       scene.environment = null;
@@ -299,15 +299,15 @@ export const CameraRakingLightRig: React.FC = () => {
   const { camera } = useThree();
 
   useEffect(() => {
-    const keyLight = new THREE.DirectionalLight('#fffcf5', 1.85);
+    const keyLight = new THREE.DirectionalLight('#fffcf5', 1.38);
     keyLight.position.set(3.2, 2.8, 1.0);
     keyLight.target.position.set(0, 0, -3.2);
 
-    const fillLight = new THREE.DirectionalLight('#fff7ed', 0.65);
+    const fillLight = new THREE.DirectionalLight('#f8fafc', 0.38);
     fillLight.position.set(-4.0, -2.05, 0.8);
     fillLight.target.position.set(0, 0, -3.2);
 
-    const rimLight = new THREE.DirectionalLight('#bae6fd', 0.55);
+    const rimLight = new THREE.DirectionalLight('#bae6fd', 0.45);
     rimLight.position.set(1.7, 2.44, -8.4);
     rimLight.target.position.set(0, 0, -3.2);
 
@@ -326,7 +326,7 @@ export const CameraRakingLightRig: React.FC = () => {
     };
   }, [camera]);
 
-  return <ambientLight intensity={0.28} color="#f8fafc" />;
+  return <ambientLight intensity={0.16} color="#f8fafc" />;
 };
 
 const StudioLighting: React.FC = () => {
@@ -450,7 +450,7 @@ export const AnatomyViewport: React.FC<AnatomyViewportProps> = ({
           localClippingEnabled: true,
           outputColorSpace: THREE.SRGBColorSpace,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.05,
+          toneMappingExposure: 0.95,
         }}
       >
         <color attach="background" args={['#000000']} />

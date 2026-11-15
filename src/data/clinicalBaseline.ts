@@ -3766,6 +3766,573 @@ const BASELINE_DICTIONARY: Record<string, BaselineEntry> = {
     clinicalNotesEn: 'Saddle pulmonary embolism obstructing the bifurcation causes acute right heart strain, obstructive shock, and cardiovascular collapse.',
     clinicalNotesAr: 'الصمة الرئوية السرجية عند تفرعه تسبب قصور قلب أيمن حاد وصدمة مهددة للحياة.',
   },
+  'right ventricle': {
+    key: 'right ventricle',
+    cleanNameEn: 'Right Ventricle',
+    cleanNameAr: 'البطين الأيمن للقلب',
+    latinName: 'Ventriculus dexter cordis',
+    ta98Code: 'A12.1.02.001',
+    fmaId: 'FMA:7098',
+    system: 'cardiovascular',
+    region: 'Heart Chambers (Middle Mediastinum)',
+    wikiSearchTitleEn: 'Right_ventricle',
+    wikiSearchTitleAr: 'بطين_أيمن',
+    summaryEn:
+      'Anterior-most muscular chamber of the heart located behind the sternum, receiving deoxygenated venous blood from the right atrium through the tricuspid valve and ejecting it through the infundibulum and pulmonary valve into the pulmonary trunk.',
+    summaryAr:
+      'الحجرة العضلية الأمامية السفلى في الجانب الأيمن للقلب، يستقبل الدم غير المؤكسج من الأذين الأيمن عبر الصمام ثلاثي الشرفات ويضخه إلى الجذع الرئوي عبر الصمام الرئوي.',
+    primaryFunctionEn:
+      'Pumps low-pressure mixed venous blood through the pulmonary arterial circulation for oxygenation in the alveolar capillary beds.',
+    primaryFunctionAr:
+      'ضخ الدم غير المؤكسج بضغط منخفض نحو الرئتين لإتمام التبادل الغازي.',
+    arterialSupply: 'Right coronary artery (right marginal branch) & LAD anterior septal branches',
+    venousDrainage: 'Anterior cardiac veins & great/middle cardiac veins -> Coronary sinus',
+    innervation: 'Cardiac autonomic plexus (sympathetic T1–T4 & vagus CN X) + His–Purkinje right bundle branch',
+    clinicalNotesEn:
+      'Right ventricular hypertrophy causes a left parasternal heave; right ventricular infarction (often accompanying inferior MI from proximal RCA occlusion) presents with hypotension, elevated JVP, and clear lung fields.',
+    clinicalNotesAr:
+      'تضخم البطين الأيمن يظهر برفعة يسار القص؛ واحتشاء البطين الأيمن يسبب هبوط ضغط مع احتقان وداجي ورئتين صافيتين.',
+  },
+  'left ventricle': {
+    key: 'left ventricle',
+    cleanNameEn: 'Left Ventricle',
+    cleanNameAr: 'البطين الأيسر للقلب',
+    latinName: 'Ventriculus sinister cordis',
+    ta98Code: 'A12.1.04.001',
+    fmaId: 'FMA:7101',
+    system: 'cardiovascular',
+    region: 'Heart Chambers (Middle Mediastinum & Apex)',
+    wikiSearchTitleEn: 'Left_ventricle',
+    wikiSearchTitleAr: 'بطين_أيسر',
+    summaryEn:
+      'Thick-walled conical chamber forming the apex of the heart; its myocardium is roughly three times thicker than the right ventricle to sustain high systemic arterial pressure.',
+    summaryAr:
+      'الحجرة القلبية المخروطية سميكة الجدار التي تشكل قمة القلب، ويفوق سمك عضلتها البطين الأيمن بثلاثة أضعاف لتوليد الضغط الجهازي.',
+    primaryFunctionEn:
+      'Receives oxygenated pulmonary venous blood via the mitral valve and ejects systemic cardiac output through the aortic valve into the aorta.',
+    primaryFunctionAr:
+      'استقبال الدم المؤكسج من الأذين الأيسر عبر الصمام التاجي وضخه بقوة عالية إلى الأبهر وجميع أنحاء الجسم.',
+    arterialSupply: 'Left anterior descending (LAD) & left circumflex (LCx) coronary arteries',
+    venousDrainage: 'Great cardiac vein & posterior left ventricular vein -> Coronary sinus',
+    innervation: 'Cardiac autonomic plexus + left bundle branch Purkinje network',
+    clinicalNotesEn:
+      'Most common site of myocardial infarction (LAD territory), concentric hypertrophy in systemic hypertension/aortic stenosis, and systolic heart failure (reduced ejection fraction).',
+    clinicalNotesAr:
+      'أكثر حجرات القلب عرضة لاحتشاء عضلة القلب وتضخم البطين في فرط الضغط وتضيق الأبهر وقصور القلب الانقباضي.',
+  },
+  'right atrium': {
+    key: 'right atrium',
+    cleanNameEn: 'Right Atrium',
+    cleanNameAr: 'الأذين الأيمن للقلب',
+    latinName: 'Atrium dextrum cordis',
+    ta98Code: 'A12.1.01.001',
+    fmaId: 'FMA:7096',
+    system: 'cardiovascular',
+    region: 'Heart Chambers (Right Cardiac Border)',
+    wikiSearchTitleEn: 'Right_atrium',
+    wikiSearchTitleAr: 'أذين_أيمن',
+    summaryEn:
+      'Quadrangular upper-right chamber forming the right cardiac border on chest radiograph, subdivided by the crista terminalis into a smooth sinus venarum and a ridged pectinate right auricle.',
+    summaryAr:
+      'الحجرة العلوية اليمنى للقلب التي تشكل الحد الأيمن في صورة الصدر، وتستقبل الجيب الوريدي والوريدين الأجوفين والجيب التاجي.',
+    primaryFunctionEn:
+      'Collects systemic venous return from the superior vena cava, inferior vena cava, and coronary sinus, houses the sinoatrial (SA) and atrioventricular (AV) nodes, and fills the right ventricle.',
+    primaryFunctionAr:
+      'استقبال الدم الوريدي الجهازي من الأجوفين والجيب التاجي، واحتضان العقدتين الجيبية والأذينية البطينية لضبط نظم القلب.',
+    arterialSupply: 'SA nodal & atrial branches of the right coronary artery (60%)',
+    venousDrainage: 'Thebesian (smallest cardiac) veins & coronary sinus',
+    innervation: 'Rich vagal & sympathetic innervation converging on SA and AV nodes',
+    clinicalNotesEn:
+      'Contains Koch triangle (bordering AV node), fossa ovalis (site of secundum ASD / PFO), and the crista terminalis (common circuit substrate for atrial flutter).',
+    clinicalNotesAr:
+      'يضم مثلث كوخ المحتوي على العقدة الأذينية البطينية والحفرة البيضوية موضع عيوب الحاجز الأذيني والرفرفة الأذينية.',
+  },
+  'left atrium': {
+    key: 'left atrium',
+    cleanNameEn: 'Left Atrium',
+    cleanNameAr: 'الأذين الأيسر للقلب',
+    latinName: 'Atrium sinistrum cordis',
+    ta98Code: 'A12.1.03.001',
+    fmaId: 'FMA:7097',
+    system: 'cardiovascular',
+    region: 'Heart Chambers (Posterior Base)',
+    wikiSearchTitleEn: 'Left_atrium',
+    wikiSearchTitleAr: 'أذين_أيسر',
+    summaryEn:
+      'Posterior-most chamber forming most of the base of the heart directly anterior to the esophagus and tracheal carina, receiving four valveless pulmonary veins.',
+    summaryAr:
+      'الحجرة الخلفية العليا للقلب التي تقع أمام المريء مباشرة وتستقبل الأوردة الرئوية الأربعة الحاملة للدم المؤكسج.',
+    primaryFunctionEn:
+      'Receives oxygenated blood from both lungs and delivers ventricular preload across the mitral valve into the left ventricle during diastole.',
+    primaryFunctionAr:
+      'استقبال الدم المؤكسج من الرئتين عبر الأوردة الرئوية الأربعة ودفعه عبر الصمام التاجي إلى البطين الأيسر.',
+    arterialSupply: 'Left circumflex atrial branches & sinoatrial nodal branch (40%)',
+    venousDrainage: 'Oblique vein of left atrium (Marshall) -> Coronary sinus',
+    innervation: 'Pulmonary vein myocardial sleeves & posterior left atrial autonomic ganglia',
+    clinicalNotesEn:
+      'Left atrial enlargement in mitral stenosis compresses the esophagus (dysphagia) or left recurrent laryngeal nerve (Ortner hoarseness) and predisposes to atrial fibrillation with left atrial appendage thrombus.',
+    clinicalNotesAr:
+      'تضخم الأذين الأيسر في تضيق الصمام التاجي يضغط على المريء والعصب الحنجري الراجع الأيسر ويهيئ للرجفان الأذيني وتكوّن الخثرات في الزائدة الأذينية.',
+  },
+  'interventricular septum': {
+    key: 'interventricular septum',
+    cleanNameEn: 'Interventricular Septum',
+    cleanNameAr: 'الحاجز بين البطينين',
+    latinName: 'Septum interventriculare',
+    ta98Code: 'A12.1.00.013',
+    fmaId: 'FMA:7133',
+    system: 'cardiovascular',
+    region: 'Internal Heart Septa',
+    wikiSearchTitleEn: 'Interventricular_septum',
+    wikiSearchTitleAr: 'حاجز_بين_البطينين',
+    summaryEn:
+      'Oblique osteomuscular/membranous partition separating the high-pressure left ventricle from the lower-pressure right ventricle, comprising a thin superior membranous part and thick muscular part.',
+    summaryAr:
+      'الجدار العضلي والغشائي الفاصل بين البطينين الأيمن والأيسر، ويتألف من جزء غشائي علوي رقيق وجزء عضلي سفلي سميك.',
+    primaryFunctionEn:
+      'Maintains hemodynamic separation between pulmonary and systemic circuits while transmitting the AV bundle of His and right/left bundle branches.',
+    primaryFunctionAr:
+      'الفصل التام بين الدورتين الرئوية والجهازية وتمرير حزمة هيس وفروعها الكهربائية لتزامن انقباض البطينين.',
+    arterialSupply: 'LAD septal perforators (anterior two-thirds) & PDA septal branches (posterior third)',
+    venousDrainage: 'Anterior & posterior septal veins -> Great/middle cardiac veins',
+    innervation: 'Bundle of His, right bundle branch, and left bundle branch fascicles',
+    clinicalNotesEn:
+      'Membranous septum is the commonest site of congenital ventricular septal defect (VSD); post-infarction septal rupture produces acute holosystolic murmur and cardiogenic shock.',
+    clinicalNotesAr:
+      'الجزء الغشائي هو الموقع الأشيع لفتحة بين البطينين الخلقية (VSD)، وتمزقه بعد الاحتشاء يسبب نفخة شاملة للانقباض وصدمة قلبية.',
+  },
+  'interatrial septum': {
+    key: 'interatrial septum',
+    cleanNameEn: 'Interatrial Septum',
+    cleanNameAr: 'الحاجز بين الأذينين',
+    latinName: 'Septum interatriale',
+    ta98Code: 'A12.1.00.015',
+    fmaId: 'FMA:7108',
+    system: 'cardiovascular',
+    region: 'Internal Heart Septa',
+    wikiSearchTitleEn: 'Interatrial_septum',
+    wikiSearchTitleAr: 'حاجز_بين_الأذينين',
+    summaryEn:
+      'Thin fibromuscular septum dividing the right and left atria, featuring the depressed fossa ovalis marking closure of the fetal foramen ovale.',
+    summaryAr:
+      'الحاجز الفاصل بين الأذينين الأيمن والأيسر، ويحوي الحفرة البيضوية الناتجة عن انغلاق الثقبة البيضوية الجنينية.',
+    primaryFunctionEn:
+      'Separates deoxygenated right atrial return from oxygenated left atrial return after postnatal pulmonary transition.',
+    primaryFunctionAr:
+      'فصل الدم الوريدي غير المؤكسج في الأذين الأيمن عن الدم المؤكسج في الأذين الأيسر بعد الولادة.',
+    arterialSupply: 'Atrial branches of right coronary and left circumflex arteries',
+    venousDrainage: 'Thebesian & coronary sinus tributaries',
+    innervation: 'Bachmann interatrial conduction bundle & septal autonomic fibers',
+    clinicalNotesEn:
+      'Failure of primum/secundum septum fusion results in atrial septal defect (ASD) with fixed split S2, or patent foramen ovale (PFO) permitting paradoxical embolism.',
+    clinicalNotesAr:
+      'فشل التحامه يسبب عيب الحاجز الأذيني (ASD) مع انقسام ثابت للصوت الثاني، أو بقاء الثقبة البيضوية السالكة للصمات المتناقضة.',
+  },
+  'tricuspid valve': {
+    key: 'tricuspid valve',
+    cleanNameEn: 'Tricuspid Valve (Right AV Valve)',
+    cleanNameAr: 'الصمام ثلاثي الشرفات',
+    latinName: 'Valva tricuspidalis',
+    ta98Code: 'A12.1.02.003',
+    fmaId: 'FMA:7234',
+    system: 'cardiovascular',
+    region: 'Right Atrioventricular Orifice',
+    wikiSearchTitleEn: 'Tricuspid_valve',
+    wikiSearchTitleAr: 'صمام_ثلاثي_الشرفات',
+    summaryEn:
+      'Three-cusp (anterior, posterior, septal leaflets) atrioventricular valve guarding the right atrioventricular orifice, tethered to right ventricular papillary muscles via chordae tendineae.',
+    summaryAr:
+      'الصمام القلبي المكون من ثلاث شرفات (أمامية وخلفية وحاجزية) بين الأذين الأيمن والبطين الأيمن، المثبت بالحبال الوترية والعضلات الحليمية.',
+    primaryFunctionEn:
+      'Permits diastolic right ventricular filling and seals tightly during systole to prevent backward regurgitation into the right atrium.',
+    primaryFunctionAr:
+      'السماح بمرور الدم من الأذين الأيمن إلى البطين الأيمن أثناء الانبساط ومنع ارتداده أثناء الانقباض.',
+    arterialSupply: 'Right coronary artery annular plexus (leaflets largely avascular)',
+    venousDrainage: 'Adjacent right atrial/ventricular subendocardial veins',
+    innervation: 'Autonomic fibers along valve annulus',
+    clinicalNotesEn:
+      'Tricuspid regurgitation classically creates holosystolic murmur increasing on inspiration (Carvallo sign) and large CV waves in JVP; infective endocarditis affects it in IV drug use.',
+    clinicalNotesAr:
+      'قلس الصمام ثلاثي الشرفات يحدث نفخة انقباضية تزداد بالشهيق (علامة كارفالو) وموجة V بارزة في النبض الوداجي.',
+  },
+  'mitral valve': {
+    key: 'mitral valve',
+    cleanNameEn: 'Mitral Valve (Bicuspid / Left AV Valve)',
+    cleanNameAr: 'الصمام التاجي (المترالي / ثنائي الشرفات)',
+    latinName: 'Valva mitralis',
+    ta98Code: 'A12.1.04.003',
+    fmaId: 'FMA:7235',
+    system: 'cardiovascular',
+    region: 'Left Atrioventricular Orifice',
+    wikiSearchTitleEn: 'Mitral_valve',
+    wikiSearchTitleAr: 'صمام_تاجي',
+    summaryEn:
+      'Bicuspid valve (anterior and posterior leaflets) positioned between the left atrium and left ventricle, supported against high systolic pressure by papillary muscles and chordae tendineae.',
+    summaryAr:
+      'صمام ثنائي الشرفات يفصل الأذين الأيسر عن البطين الأيسر ويقاوم الضغط الانقباضي العالي بمساعدة الحبال الوترية والعضلات الحليمية.',
+    primaryFunctionEn:
+      'Maintains unidirectional left atrial-to-ventricular diastolic inflow without systolic regurgitant leak.',
+    primaryFunctionAr:
+      'تأمين تدفق الدم المؤكسج أحادي الاتجاه من الأذين الأيسر إلى البطين الأيسر ومنع ارتجاعه.',
+    arterialSupply: 'Left circumflex coronary artery annular twigs',
+    venousDrainage: 'Coronary sinus tributaries',
+    innervation: 'Cardiac plexus parasympathetic & sympathetic annular afferents',
+    clinicalNotesEn:
+      'Best auscultated at the 5th left intercostal midclavicular apex; rheumatic heart disease causes mitral stenosis, whereas papillary muscle/chordal rupture triggers acute severe mitral regurgitation.',
+    clinicalNotesAr:
+      'يُسمع بوضوح عند قمة القلب؛ الحصبة الرثوية تسبب تضيقه، وتمزق العضلة الحليمية أو الحبال الوترية يسبب قلساً حاداً مهدداً للحياة.',
+  },
+  'aortic valve': {
+    key: 'aortic valve',
+    cleanNameEn: 'Aortic Valve',
+    cleanNameAr: 'الصمام الأبهري',
+    latinName: 'Valva aortae',
+    ta98Code: 'A12.1.04.012',
+    fmaId: 'FMA:7236',
+    system: 'cardiovascular',
+    region: 'Left Ventricular Outflow Tract',
+    wikiSearchTitleEn: 'Aortic_valve',
+    wikiSearchTitleAr: 'صمام_أبهري',
+    summaryEn:
+      'Semilunar tricuspid valve (left, right, and non-coronary cusps forming the aortic sinuses of Valsalva) separating the left ventricle from the ascending aorta.',
+    summaryAr:
+      'صمام هلالي ثلاثي الجيوب (يميني ويساري ولا-تاجي) يقع في مخرج البطين الأيسر عند منشأ الشريان الأبهر الصاعد.',
+    primaryFunctionEn:
+      'Opens smoothly during left ventricular systole and snaps shut in early diastole (S2 A2 component) to sustain diastolic aortic pressure and coronary artery perfusion.',
+    primaryFunctionAr:
+      'ينفتح في الانقباض لضخ الدم الجهازي وينغلق بإحكام في الانبساط لإغلاق الصوت الثاني وتروية الشرايين التاجية عبر جيوب فالسالفا.',
+    arterialSupply: 'Left and right coronary ostia originate just superior to its cusps',
+    venousDrainage: 'Aortic root vasa venosa',
+    innervation: 'Aortic root baroreceptor & cardiac plexus afferents',
+    clinicalNotesEn:
+      'Calcific aortic stenosis or congenital bicuspid aortic valve produces a harsh crescendo-decrescendo systolic murmur radiating to the carotids (SAD triad: syncope, angina, dyspnea).',
+    clinicalNotesAr:
+      'تضيق الصمام الأبهري الكلسي أو ثنائي الشرف يسبب نفخة انقباضية تنتشر للسباتي وتؤدي للغشي والذبحة وضيق النفس.',
+  },
+  'pulmonary valve': {
+    key: 'pulmonary valve',
+    cleanNameEn: 'Pulmonary Valve',
+    cleanNameAr: 'الصمام الرئوي',
+    latinName: 'Valva trunci pulmonalis',
+    ta98Code: 'A12.1.02.011',
+    fmaId: 'FMA:7246',
+    system: 'cardiovascular',
+    region: 'Right Ventricular Outflow Tract',
+    wikiSearchTitleEn: 'Pulmonary_valve',
+    wikiSearchTitleAr: 'صمام_رئوي',
+    summaryEn:
+      'Anterior superior semilunar valve (anterior, left, right cusps) guarding the junction between the right ventricular infundibulum and the pulmonary trunk.',
+    summaryAr:
+      'صمام هلالي ثلاثي الجيوب يقع بين القمع الشرياني للبطين الأيمن والجذع الرئوي.',
+    primaryFunctionEn:
+      'Prevents diastolic backflow of blood from the pulmonary trunk into the right ventricle (P2 component of S2).',
+    primaryFunctionAr:
+      'توجيه الدم نحو الدورة الرئوية ومنع ارتداده إلى البطين الأيمن خلال الانبساط (المركبة P2 من الصوت الثاني).',
+    arterialSupply: 'Conal branches of right and left anterior descending coronary arteries',
+    venousDrainage: 'Anterior cardiac veins',
+    innervation: 'Autonomic cardiopulmonary plexus',
+    clinicalNotesEn:
+      'Congenital pulmonary valve stenosis contributes to Tetralogy of Fallot right ventricular outflow obstruction; auscultated at the 2nd left sternal border.',
+    clinicalNotesAr:
+      'تضيقه الخلقي عنصر أساسي في رباعية فالو، وتُسمع نفخته في الورب الثاني أيسر القص.',
+  },
+  'papillary muscles': {
+    key: 'papillary muscles',
+    cleanNameEn: 'Papillary Muscles of Heart',
+    cleanNameAr: 'العضلات الحليمية القلبية',
+    latinName: 'Musculi papillares',
+    ta98Code: 'A12.1.00.020',
+    fmaId: 'FMA:7135',
+    system: 'cardiovascular',
+    region: 'Ventricular Subendocardial Apparatus',
+    wikiSearchTitleEn: 'Papillary_muscle',
+    wikiSearchTitleAr: 'عضلة_حليمية',
+    summaryEn:
+      'Conical myocardial projections inside both ventricles (2 large in left ventricle: anterolateral & posteromedial; 3 in right ventricle) anchoring chordae tendineae to AV valve cusps.',
+    summaryAr:
+      'نتوءات عضلية مخروطية داخل البطينين ترتبط بها الحبال الوترية لمنع انقلاب الصمامين التاجي وثلاثي الشرفات.',
+    primaryFunctionEn:
+      'Contract just ahead of ventricular pressure peak to tension chordae tendineae and prevent systolic prolapse of mitral/tricuspid leaflets into atria.',
+    primaryFunctionAr:
+      'الانقباض المبكر لشد الحبال الوترية ومنع تدلي شرفات الصمامات نحو الأذينين أثناء الانقباض.',
+    arterialSupply: 'Posteromedial LV papillary muscle: single supply (PDA) — vulnerable to ischemia; Anterolateral: dual (LAD + LCx)',
+    venousDrainage: 'Thebesian & coronary sinus veins',
+    innervation: 'Purkinje subendocardial terminal branches',
+    clinicalNotesEn:
+      'Rupture of the posteromedial papillary muscle 2–7 days after an inferior myocardial infarction precipitates catastrophic acute mitral regurgitation and pulmonary edema.',
+    clinicalNotesAr:
+      'تمزق العضلة الحليمية الخلفية الإنسية بعد احتشاء الجدار السفلي يسبب قلساً تاجياً حاداً ووذمة رئوية مفاجئة.',
+  },
+  'chordae tendineae': {
+    key: 'chordae tendineae',
+    cleanNameEn: 'Chordae Tendineae',
+    cleanNameAr: 'الحبال الوترية القلبية',
+    latinName: 'Chordae tendineae',
+    ta98Code: 'A12.1.00.021',
+    fmaId: 'FMA:7212',
+    system: 'cardiovascular',
+    region: 'Ventricular Subvalvular Apparatus',
+    wikiSearchTitleEn: 'Chordae_tendineae',
+    wikiSearchTitleAr: 'حبال_وترية',
+    summaryEn:
+      'Tough fibrous collagen cords ("heart strings") linking the apices of the papillary muscles to the ventricular surfaces and free margins of the mitral and tricuspid leaflets.',
+    summaryAr:
+      'أوتار ليفية متينة تصل رؤوس العضلات الحليمية بحواف شرفات الصمامين التاجي وثلاثي الشرفات.',
+    primaryFunctionEn:
+      'Transmit papillary muscle tension evenly across AV valve leaflets so cusps coapt tightly under systolic load without everting.',
+    primaryFunctionAr:
+      'نقل الشد الميكانيكي من العضلات الحليمية لضمان انطباق الشرفات ومنع انقلابها للأذين أثناء الانقباض.',
+    arterialSupply: 'Avascular dense fibrous collagen nourished by intracavitary blood & papillary bases',
+    venousDrainage: 'Via papillary base subendocardial venules',
+    innervation: 'Passive collagenous tensile cords',
+    clinicalNotesEn:
+      'Chordal elongation in myxomatous mitral valve prolapse or rupture in infective endocarditis produces a flail leaflet and eccentric regurgitant jet.',
+    clinicalNotesAr:
+      'ارتخاؤها في انسدال الصمام التاجي أو تمزقها بالتهاب الشغاف يسبب تسيب الشرفة وقلساً حاداً.',
+  },
+  'coronary sinus': {
+    key: 'coronary sinus',
+    cleanNameEn: 'Coronary Sinus',
+    cleanNameAr: 'الجيب التاجي (الإكليلي)',
+    latinName: 'Sinus coronarius',
+    ta98Code: 'A12.3.01.002',
+    fmaId: 'FMA:4706',
+    system: 'cardiovascular',
+    region: 'Posterior Atrioventricular Groove',
+    wikiSearchTitleEn: 'Coronary_sinus',
+    wikiSearchTitleAr: 'جيب_تاجي',
+    summaryEn:
+      'Wide venous channel running left-to-right in the posterior coronary sulcus between the left atrium and left ventricle, draining directly into the right atrium beside the IVC ostium.',
+    summaryAr:
+      'قناة وريدية واسعة في الثلم التاجي الخلفي تجمع معظم الدم الوريدي لعضلة القلب وتصبه في الأذين الأيمن.',
+    primaryFunctionEn:
+      'Drains ~75–85% of myocardial venous blood (via great, middle, small, and posterior LV cardiac veins) into the right atrium.',
+    primaryFunctionAr:
+      'تصريف الغالبية العظمى من الدم الوريدي القادم من عضلة القلب إلى الأذين الأيمن.',
+    arterialSupply: 'Vasa vasorum from left circumflex and right coronary arteries',
+    venousDrainage: 'Opens into posterior-inferior right atrium guarded by the Thebesian valve',
+    innervation: 'Subepicardial coronary autonomic plexus',
+    clinicalNotesEn:
+      'Critical anatomical conduit for left ventricular pacing lead placement in cardiac resynchronization therapy (CRT) and retrograde cardioplegia during cardiac surgery.',
+    clinicalNotesAr:
+      'مسار أساسي لوضع مسرى البطين الأيسر في أجهزة مزامنة القلب ولإعطاء محلول شلل القلب الرجوعي جراحياً.',
+  },
+  'cerebral cortex': {
+    key: 'cerebral cortex',
+    cleanNameEn: 'Cerebral Cortex',
+    cleanNameAr: 'القشرة المخية',
+    latinName: 'Cortex cerebri',
+    ta98Code: 'A14.1.09.002',
+    fmaId: 'FMA:61830',
+    system: 'nervous',
+    region: 'Telencephalon (Cerebral Hemispheres)',
+    wikiSearchTitleEn: 'Cerebral_cortex',
+    wikiSearchTitleAr: 'قشرة_مخية',
+    summaryEn:
+      'Highly folded outer grey-matter mantle of gyri and sulci (2–4 mm thick, six-layered neocortex) covering both cerebral hemispheres.',
+    summaryAr:
+      'الطبقة الرمادية الخارجية المطوية المكونة من التلافيف والأثلام التي تغطي نصفي الكرة المخية.',
+    primaryFunctionEn:
+      'Executes higher-order cognition, voluntary motor planning, conscious somatosensory/visual/auditory perception, language, and executive reasoning.',
+    primaryFunctionAr:
+      'تنفيذ العمليات المعرفية العليا، والتخطيط الحركي الإرادي، والإدراك الحسي والسمعي والبصري، واللغة، واتخاذ القرار.',
+    arterialSupply: 'Anterior, middle, and posterior cerebral arteries (ACA, MCA, PCA)',
+    venousDrainage: 'Superficial & deep cerebral veins -> Dural venous sinuses',
+    innervation: 'Thalamocortical projections, cholinergic nucleus basalis, monoaminergic brainstem nuclei',
+    clinicalNotesEn:
+      'Cortical MCA stroke produces focal contralateral weakness/aphasia/neglect matching homunculus and Brodmann functional maps.',
+    clinicalNotesAr:
+      'سكتات القشرة المخية في نطاق الشريان المخي الأوسط تسبب خزلاً نصفياً معاكساً أو حبسة كلامية حسب الباحة الوظيفية المصابة.',
+  },
+  'frontal lobe': {
+    key: 'frontal lobe',
+    cleanNameEn: 'Frontal Lobe',
+    cleanNameAr: 'الفص الجبهي',
+    latinName: 'Lobus frontalis',
+    ta98Code: 'A14.1.09.110',
+    fmaId: 'FMA:61824',
+    system: 'nervous',
+    region: 'Anterior Cranial Fossa (Rostral to Central Sulcus)',
+    wikiSearchTitleEn: 'Frontal_lobe',
+    wikiSearchTitleAr: 'فص_جبهي',
+    summaryEn:
+      'Largest cerebral lobe situated anterior to the central sulcus of Rolando and superior to the Sylvian fissure, encompassing primary motor cortex, premotor, and prefrontal areas plus Broca area.',
+    summaryAr:
+      'أكبر فصوص المخ يقع أمام الثلم المركزي وفوق الشق الوحشي، ويضم الباحة الحركية الأولية والقشرة الجبهية الأمامية ومنطقة بروكا.',
+    primaryFunctionEn:
+      'Governs voluntary skeletal motor output (precentral gyrus), expressive speech production (Broca), working memory, impulse inhibition, and executive judgment.',
+    primaryFunctionAr:
+      'توليد الأوامر الحركية الإرادية، وإنتاج الكلام، والذاكرة العاملة، والتخطيط التنفيذي، والتحكم السلوكي.',
+    arterialSupply: 'Anterior cerebral artery (medial) & superior division of MCA (lateral)',
+    venousDrainage: 'Superior sagittal & superficial middle cerebral veins',
+    innervation: 'Corticospinal, corticobulbar, frontopontine, and frontostriatal circuits',
+    clinicalNotesEn:
+      'Precentral gyrus injury causes contralateral spastic hemiparesis; inferior frontal gyrus (dominant hemisphere) lesions cause Broca expressive aphasia.',
+    clinicalNotesAr:
+      'أذية التلفيف أمام المركزي تسبب شللاً نصفياً تشنجياً، وإصابة باحة بروكا تسبب حبسة تعبيرية حركية.',
+  },
+  'parietal lobe': {
+    key: 'parietal lobe',
+    cleanNameEn: 'Parietal Lobe',
+    cleanNameAr: 'الفص الجداري',
+    latinName: 'Lobus parietalis',
+    ta98Code: 'A14.1.09.130',
+    fmaId: 'FMA:61826',
+    system: 'nervous',
+    region: 'Posterior to Central Sulcus (Cerebral Convexity)',
+    wikiSearchTitleEn: 'Parietal_lobe',
+    wikiSearchTitleAr: 'فص_جداري',
+    summaryEn:
+      'Cerebral lobe bounded anteriorly by the central sulcus and posteriorly by the parieto-occipital sulcus, housing the primary somatosensory cortex (postcentral gyrus).',
+    summaryAr:
+      'فص دماغي يقع خلف الثلم المركزي وأمام الفص القذالي، ويحتوي القشرة الحسية الجسدية الأولية ومناطق التكامل المكاني.',
+    primaryFunctionEn:
+      'Integrates fine touch, proprioception, pain/temperature perception, visuospatial attention, and multisensory object manipulation.',
+    primaryFunctionAr:
+      'معالجة الحس الجسدي الدقيق واستقبال الحس العميق والوعي المكاني والتناسق البصري الحركي.',
+    arterialSupply: 'Middle cerebral artery (lateral convexity) & anterior/posterior cerebral branches',
+    venousDrainage: 'Superior anastomotic vein of Trolard -> Superior sagittal sinus',
+    innervation: 'Ventral posterolateral/posteromedial (VPL/VPM) thalamocortical sensory radiations',
+    clinicalNotesEn:
+      'Non-dominant (usually right) parietal lesion causes contralateral hemineglect; dominant angular gyrus injury produces Gerstmann syndrome (acalculia, agraphia, finger agnosia).',
+    clinicalNotesAr:
+      'إصابة الفص الجداري غير المسيطر تسبب متلازمة الإهمال المكاني المعاكس، والمسيطر تسبب متلازمة غيرستمان.',
+  },
+  'temporal lobe': {
+    key: 'temporal lobe',
+    cleanNameEn: 'Temporal Lobe',
+    cleanNameAr: 'الفص الصدغي',
+    latinName: 'Lobus temporalis',
+    ta98Code: 'A14.1.09.135',
+    fmaId: 'FMA:61829',
+    system: 'nervous',
+    region: 'Middle Cranial Fossa (Inferior to Sylvian Fissure)',
+    wikiSearchTitleEn: 'Temporal_lobe',
+    wikiSearchTitleAr: 'فص_صدغي',
+    summaryEn:
+      'Lateral and inferior lobe nestled inside the middle cranial fossa below the Sylvian fissure, integrating primary auditory cortex (Heschl gyri), Wernicke language comprehension area, and medial limbic memory structures.',
+    summaryAr:
+      'الفص الجانبي السفلي الواقع في الحفرة القحفية الوسطى أسفل الشق الوحشي، ويضم القشرة السمعية وباحة فيرنيكه والحصين.',
+    primaryFunctionEn:
+      'Processes hearing, spoken language comprehension (Wernicke area), visual object recognition, and declarative memory consolidation via medial temporal lobe.',
+    primaryFunctionAr:
+      'السمع وفهم اللغة المنطوقة (باحة فيرنيكه) وتخزين الذاكرة التصريحية والتعرف البصري على الوجوه والأشياء.',
+    arterialSupply: 'Inferior division of middle cerebral artery & posterior cerebral artery (inferior surface)',
+    venousDrainage: 'Superficial middle cerebral vein & vein of Labbe -> Transverse sinus',
+    innervation: 'Meyer loop (optic radiation) & medial geniculate auditory radiations',
+    clinicalNotesEn:
+      'Wernicke lesion causes fluent receptive aphasia; Meyer loop injury produces contralateral superior homonymous quadrantanopia ("pie in the sky").',
+    clinicalNotesAr:
+      'إصابة فيرنيكه تسبب حبسة استقبالية، وتضرر عروة ماير يحدث عمى ربعياً علوياً معاكساً في الساحة البصرية.',
+  },
+  'occipital lobe': {
+    key: 'occipital lobe',
+    cleanNameEn: 'Occipital Lobe',
+    cleanNameAr: 'الفص القذالي (الخلفي)',
+    latinName: 'Lobus occipitalis',
+    ta98Code: 'A14.1.09.138',
+    fmaId: 'FMA:67325',
+    system: 'nervous',
+    region: 'Posterior Cerebral Pole (Above Tentorium Cerebelli)',
+    wikiSearchTitleEn: 'Occipital_lobe',
+    wikiSearchTitleAr: 'فص_قذالي',
+    summaryEn:
+      'Posterior-most cerebral lobe resting upon the tentorium cerebelli, organized around the calcarine sulcus containing the primary visual cortex (V1 / striate cortex).',
+    summaryAr:
+      'الفص الخلفي للمخ المستقر فوق خيمة المخيخ، وتتركز فيه القشرة البصرية الأولية على ضفتي الثلم المهمازي.',
+    primaryFunctionEn:
+      'Decodes retinal visuospatial fields, color, orientation, motion, and visual depth cues.',
+    primaryFunctionAr:
+      'استقبال ومعالجة الإشارات البصرية من الشبكية وتحليل الألوان والحركة والعمق والأشكال.',
+    arterialSupply: 'Posterior cerebral artery (calcarine branch) + MCA macular collateral anastomoses',
+    venousDrainage: 'Occipital & straight/transverse dural venous sinuses',
+    innervation: 'Lateral geniculate nucleus (LGN) geniculocalcarine optic radiations',
+    clinicalNotesEn:
+      'Posterior cerebral artery infarction causes contralateral homonymous hemianopia with macular sparing due to dual MCA collateralization of the occipital pole.',
+    clinicalNotesAr:
+      'احتشاء الشريان المخي الخلفي يسبب عمى شقياً متجانساً معاكساً مع بقاء الرؤية البقعية سليمة غالباً.',
+  },
+  hypothalamus: {
+    key: 'hypothalamus',
+    cleanNameEn: 'Hypothalamus',
+    cleanNameAr: 'الوطاء (تحت المهاد)',
+    latinName: 'Hypothalamus',
+    ta98Code: 'A14.1.08.401',
+    fmaId: 'FMA:62008',
+    system: 'nervous',
+    region: 'Ventral Diencephalon (Floor/Walls of 3rd Ventricle)',
+    wikiSearchTitleEn: 'Hypothalamus',
+    wikiSearchTitleAr: 'وطاء',
+    summaryEn:
+      'Master neuroendocrine and autonomic integrator forming the ventral walls and floor of the third ventricle immediately superior to the optic chiasm and pituitary stalk.',
+    summaryAr:
+      'المركز الأعلى للتكامل العصبي الصماوي والذاتي، يشكل قاع وجدران البطين الثالث السفلى فوق التصالب البصري والسويقة النخامية.',
+    primaryFunctionEn:
+      'Regulates body temperature, hunger, thirst/osmolality (ADH & oxytocin synthesis), circadian rhythm (SCN), autonomic balance, and anterior pituitary releasing hormones.',
+    primaryFunctionAr:
+      'تنظيم حرارة الجسم والجوع والعطش والأسمولية وإيقاع الساعة البيولوجية وإفراز هرمونات النخامية والتحكم الذاتي.',
+    arterialSupply: 'Circle of Willis hypothalamic perforating branches (ACA, AComm, PComm)',
+    venousDrainage: 'Hypophysial portal & basal cerebral veins',
+    innervation: 'Limbic-hypothalamic (fornix, stria terminalis) & brainstem autonomic tracts',
+    clinicalNotesEn:
+      'Craniopharyngioma or hypothalamic injury triggers diabetes insipidus, poikilothermia, hyperphagic obesity, or panhypopituitarism.',
+    clinicalNotesAr:
+      'إصابة الوطاء (مثل الورم القحفي البلعومي) تسبب البوال التفه واضطراب تنظيم الحرارة والشهية وقصور النخامية.',
+  },
+  'insular cortex': {
+    key: 'insular cortex',
+    cleanNameEn: 'Insular Cortex (Insula)',
+    cleanNameAr: 'الفص الجزيري (القشرة الجزيرية)',
+    latinName: 'Cortex insularis (Insula)',
+    ta98Code: 'A14.1.09.149',
+    fmaId: 'FMA:67330',
+    system: 'nervous',
+    region: 'Deep Floor of Lateral (Sylvian) Sulcus',
+    wikiSearchTitleEn: 'Insular_cortex',
+    wikiSearchTitleAr: 'فص_جزيري',
+    summaryEn:
+      'Fifth cerebral lobe folded deep within the lateral sulcus beneath the frontal, parietal, and temporal opercula.',
+    summaryAr:
+      'الفص الدماغي الخامس المخبأ في عمق الشق الوحشي تحت الغطاء الجبهي والجداري والصدغي.',
+    primaryFunctionEn:
+      'Integrates gustatory taste sensation, visceral interoception, pain empathy, speech articulation rhythm, and cardiovascular autonomic control.',
+    primaryFunctionAr:
+      'معالجة التذوق والإحساس الحشوي الداخلي والألم وتنظيم التوازن القلبي الوعائي الذاتي.',
+    arterialSupply: 'M2 insular branches of middle cerebral artery',
+    venousDrainage: 'Deep middle cerebral vein -> Basal vein of Rosenthal',
+    innervation: 'Thalamocortical gustatory & visceral interoceptive afferents',
+    clinicalNotesEn:
+      'Insular ribbon loss on non-contrast head CT is an early sign of acute MCA ischemia; insular infarction increases risk of neurogenic cardiac arrhythmias.',
+    clinicalNotesAr:
+      'فقدان حدود الشريط الجزيري علامة باكرة لنقص تروية الشريان المخي الأوسط، وإصابته ترتبط باضطرابات نظم القلب العصبية.',
+  },
+  fornix: {
+    key: 'fornix',
+    cleanNameEn: 'Fornix of Brain',
+    cleanNameAr: 'قبو الدماغ (القبو الحصيني)',
+    latinName: 'Fornix cerebri',
+    ta98Code: 'A14.1.09.424',
+    fmaId: 'FMA:61964',
+    system: 'nervous',
+    region: 'Limbic White Matter Arch (Ventricular Roof/Septum)',
+    wikiSearchTitleEn: 'Fornix_(neuroanatomy)',
+    wikiSearchTitleAr: 'قبو_الدماغ',
+    summaryEn:
+      'C-shaped efferent white-matter commissural arch sweeping from the hippocampal fimbria beneath the corpus callosum to terminate in the mammillary bodies of the hypothalamus.',
+    summaryAr:
+      'حزمة ألياف عصبية بيضاء مقوسة تنقل مخرجات الحصين تحت الجسم الثفني لتنتهي في الأجسام الحلمية بالوطاء.',
+    primaryFunctionEn:
+      'Core Papez memory circuit output pathway mediating episodic memory encoding and spatial recall.',
+    primaryFunctionAr:
+      'المسار الناقل الرئيسي في دارة بابيز لترميز الذاكرة العرضية واستدعائها.',
+    arterialSupply: 'Medial lenticulostriate & choroidal arterial branches',
+    venousDrainage: 'Internal cerebral veins',
+    innervation: 'Hippocampo-mammillary projection fibers',
+    clinicalNotesEn:
+      'Surgical transection during third-ventricle colloid cyst resection causes acute anterograde amnesia.',
+    clinicalNotesAr:
+      'أذية قبو الدماغ خلال جراحة كيسة البطين الثالث تسبب فقدان الذاكرة التقدمي الحاد.',
+  },
 };
 
 const ENTRY_ALIASES: Record<string, string> = {
@@ -3856,6 +4423,30 @@ const ENTRY_ALIASES: Record<string, string> = {
   'medial cuneiform': 'tarsals metatarsals phalanges',
   'intermediate cuneiform': 'tarsals metatarsals phalanges',
   'lateral cuneiform': 'tarsals metatarsals phalanges',
+  'bicuspid valve': 'mitral valve',
+  'left atrioventricular valve': 'mitral valve',
+  'right atrioventricular valve': 'tricuspid valve',
+  'pulmonary semilunar valve': 'pulmonary valve',
+  'aortic semilunar valve': 'aortic valve',
+  'papillary muscle': 'papillary muscles',
+  'anterior papillary muscle': 'papillary muscles',
+  'posterior papillary muscle': 'papillary muscles',
+  'septal papillary muscle': 'papillary muscles',
+  'trabeculae carneae': 'right ventricle',
+  'moderator band': 'right ventricle',
+  'conus arteriosus': 'right ventricle',
+  'right auricle': 'right atrium',
+  'left auricle': 'left atrium',
+  'cardiac ventricle': 'right ventricle',
+  'ventricular septum': 'interventricular septum',
+  'atrial septum': 'interatrial septum',
+  'cerebral hemisphere': 'cerebral cortex',
+  'precentral gyrus': 'frontal lobe',
+  'postcentral gyrus': 'parietal lobe',
+  'broca area': 'frontal lobe',
+  'wernicke area': 'temporal lobe',
+  'insular lobe': 'insular cortex',
+  insula: 'insular cortex',
 };
 
 const SYSTEM_ARABIC_NAMES: Record<AnatomicalSystem, string> = {
@@ -4310,6 +4901,7 @@ function formatArabicNameWithLaterality(
   baseAr: string,
   laterality: AnatomicalLaterality
 ): string {
+  if (/أيمن|أيسر|اليمنى|اليسرى/.test(baseAr)) return baseAr;
   if (laterality === 'Left') return `${baseAr} (أيسر)`;
   if (laterality === 'Right') return `${baseAr} (أيمن)`;
   return baseAr;
@@ -4749,7 +5341,12 @@ const ARABIC_NOUN_MAP: Record<string, string> = {
 };
 
 const PREPOSITIONAL_HEADWORD_REGEX =
-  /\b(?:part|portion|region|segment|lobe|lobule|nucleus|cortex|gyrus|sulcus|ventricle|valve|branch|trunk|apex|base|body|head|neck|root|arch|wall|horn|pole|surface|layer|floor|roof|tendon|sheath|fascia|bursa|capsule|ligament)\s+of(?:\s+the)?\s+(.+)$/i;
+  /\b(?:part|portion|region|segment|lobe|lobule|nucleus|cortex|gyrus|sulcus|ventricle|valve|branch|trunk|apex|base|body|head|neck|root|arch|wall|horn|pole|surface|layer|floor|roof|tendon|sheath|fascia|bursa|capsule|ligament|muscle)\s+of(?:\s+the)?\s+(.+)$/i;
+
+// Compound anatomical names where Left/Right is an intrinsic anatomical identity (chambers,
+// lobes, valves, asymmetric vessels/ducts) rather than simple paired laterality.
+const PRESERVE_COMPOUND_QUALIFIER_REGEX =
+  /\b(?:left|right)\s+(?:ventricle|atrium|auricle|coronary|subclavian|brachiocephalic|recurrent\s+laryngeal|gastric|gastroepiploic|colic|lymphatic\s+duct|cerebral|hemisphere|bundle\s+branch|(?:upper|middle|lower|superior|inferior)\s+lobe)\b|(?:ventricle|atrium|auricle)\s+of\s+(?:the\s+)?heart\b/i;
 
 export interface CanonicalMedicalTermInfo {
   canonicalName: string;
@@ -4759,12 +5356,12 @@ export interface CanonicalMedicalTermInfo {
 
 /**
  * Extracts a clean canonical Wikipedia/medical query term plus its structural parent headword
- * from noisy or hyper-specific dataset sub-mesh names (e.g., "Allen Basilar Part of Pons Left").
+ * while strictly preserving intrinsic qualifiers on cardiac chambers, lobes, valves, and ducts.
  */
 export function extractCanonicalMedicalTerm(
   rawOrCleanName: string
 ): CanonicalMedicalTermInfo {
-  let cleaned = rawOrCleanName
+  const compoundCleaned = rawOrCleanName
     .replace(
       /^(?:allen[_\s]+brain|allen|vh[_\s]+[mf]|vh|sbu[_\s]+[mf]|sbu|yao|nih)[_\s-]+/i,
       ''
@@ -4772,13 +5369,24 @@ export function extractCanonicalMedicalTerm(
     .replace(/[_\-.]+/g, ' ')
     .replace(/\((?:[^)]*)\)/g, ' ')
     .replace(/\b\d+\s*(?:[-–]\s*\d+|\d+)?\b/g, ' ')
-    .replace(/\b(?:left|right|bilateral)\b/gi, ' ')
     .replace(/\s+[a-km-qs-z]$/i, '')
     .replace(/\s+/g, ' ')
     .trim();
 
+  const shouldPreserveCompound =
+    PRESERVE_COMPOUND_QUALIFIER_REGEX.test(compoundCleaned) ||
+    Boolean(BASELINE_DICTIONARY[compoundCleaned.toLowerCase()]) ||
+    Boolean(ENTRY_ALIASES[compoundCleaned.toLowerCase()]);
+
+  let cleaned = shouldPreserveCompound
+    ? compoundCleaned
+    : compoundCleaned
+        .replace(/\b(?:left|right|bilateral)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
   if (!cleaned) {
-    cleaned = rawOrCleanName.trim();
+    cleaned = compoundCleaned || rawOrCleanName.trim();
   }
 
   let headword: string | null = null;
@@ -4967,10 +5575,20 @@ export function resolveClinicalBaseline(
   const { canonicalName, headword, searchCandidates } =
     extractCanonicalMedicalTerm(part.cleanName);
 
+  const compoundExactKey = part.cleanName
+    .replace(/[_\-.]+/g, ' ')
+    .replace(/\((?:[^)]*)\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
   const rawBaseKey = (
     stripLateralityWords(part.cleanName) || canonicalName
   ).toLowerCase();
-  const baseKey = ENTRY_ALIASES[rawBaseKey] ?? rawBaseKey;
+  const baseKey =
+    ENTRY_ALIASES[compoundExactKey] ??
+    (BASELINE_DICTIONARY[compoundExactKey] ? compoundExactKey : undefined) ??
+    ENTRY_ALIASES[rawBaseKey] ??
+    rawBaseKey;
   const singularKey = baseKey.replace(/s$/, '');
   const resolvedSingularKey = ENTRY_ALIASES[singularKey] ?? singularKey;
 
@@ -5121,9 +5739,9 @@ export function resolveClinicalBaseline(
     const cleanAction = pickCleanTextbookField(tb?.action, headEntry.action);
 
     return {
-      wikiSearchTerm: searchCandidates[0] || headEntry.wikiSearchTitleEn,
+      wikiSearchTerm: headEntry.wikiSearchTitleEn || searchCandidates[0],
       searchCandidates: Array.from(
-        new Set([...searchCandidates, headEntry.wikiSearchTitleEn])
+        new Set([headEntry.wikiSearchTitleEn, ...searchCandidates])
       ),
       fallbackArTitle: headEntry.wikiSearchTitleAr,
       profile: {
@@ -5173,7 +5791,7 @@ export function resolveClinicalBaseline(
         textbookRefCitation: textbookHit?.citationLabel,
         netterPlates: tb?.netterPlates,
         wikipediaUrlEn: `https://en.wikipedia.org/wiki/${encodeURIComponent(
-          (searchCandidates[0] || headEntry.wikiSearchTitleEn).replace(/\s+/g, '_')
+          (headEntry.wikiSearchTitleEn || searchCandidates[0]).replace(/\s+/g, '_')
         )}`,
         wikipediaUrlAr: arWikiUrl,
         source: textbookHit ? 'textbook-primary' : 'clinical-baseline',

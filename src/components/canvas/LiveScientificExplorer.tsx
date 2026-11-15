@@ -5,10 +5,12 @@ import React, {
   useState,
 } from 'react';
 import {
+  AlertTriangle,
   CheckCircle2,
   Cpu,
   FlaskConical,
   Loader2,
+  RefreshCw,
   Search,
   Sparkles,
   X,
@@ -20,11 +22,16 @@ import {
   type NihOrganSceneItem,
 } from '../../services/nihSceneService';
 import {
+  searchPhotorealisticAnatomy,
+  type ExplorerModelCard,
+  type SketchfabApiSearchResult,
+  type SourceFilter,
+} from '../../services/photorealisticAnatomySearchService';
+import {
   useAnatomyStore,
   useAppNavigationStore,
   type AnatomicalSystem,
   type BiologicalSex,
-  type OfficialAtlasPresetId,
 } from '../../store/useAnatomyStore';
 import { resolveAssetUrl } from '../../utils/assetUrl';
 import {
@@ -44,41 +51,56 @@ import {
   resolveOrganThumbnail,
 } from '../../utils/organThumbnailResolver';
 
-type SourceFilter = 'all' | 'z-anatomy' | 'universities' | 'nih-3d' | 'nih-hra';
-
-interface ExplorerModelCard {
-  id: string;
+interface GlbDownloadProgress {
   title: string;
-  subtitle: string;
-  canonicalOrgan?: string;
-  sourceLabel: string;
-  sourceKind: 'z-anatomy' | 'universities' | 'nih-3d' | 'nih-hra';
-  verifiedBadge?: string;
-  author: string;
-  system: AnatomicalSystem;
-  thumbnailUrl: string | null;
-  uid?: string;
-  isDownloadable: boolean;
-  localBundlePreset?: OfficialAtlasPresetId;
-  glbUrl?: string;
-  faceCount?: number;
-  license?: string;
-  ta98Code?: string;
-  sex?: BiologicalSex;
+  loadedBytes: number;
+  totalBytes: number | null;
+  percent: number | null;
 }
 
-interface SketchfabApiSearchResult {
-  uid: string;
-  name?: string;
-  isDownloadable?: boolean;
-  faceCount?: number;
-  likeCount?: number;
-  license?: { label?: string; slug?: string };
-  user?: { username?: string; displayName?: string };
-  thumbnails?: {
-    images?: Array<{ url: string; width: number; height: number }>;
-  };
-  tags?: Array<{ name?: string; slug?: string }>;
+const REMOTE_GLB_TIMEOUT_MS = 45000;
+
+async function fetchGlbBlobWithProgress(
+  url: string,
+  signal: AbortSignal,
+  onProgress: (loadedBytes: number, totalBytes: number | null) => void
+): Promise<Blob> {
+  const res = await fetch(url, { signal });
+  if (!res.ok) {
+    throw new Error(`GLB stream HTTP ${res.status}`);
+  }
+
+  const contentLengthHeader = res.headers.get('content-length');
+  const parsedTotal = contentLengthHeader
+    ? Number.parseInt(contentLengthHeader, 10)
+    : Number.NaN;
+  const totalBytes =
+    Number.isFinite(parsedTotal) && parsedTotal > 0 ? parsedTotal : null;
+
+  if (!res.body || typeof res.body.getReader !== 'function') {
+    const blob = await res.blob();
+    onProgress(blob.size, totalBytes ?? blob.size);
+    return blob;
+  }
+
+  const reader = res.body.getReader();
+  const chunks: BlobPart[] = [];
+  let loadedBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      const copy = new Uint8Array(value.byteLength);
+      copy.set(value);
+      chunks.push(copy.buffer);
+      loadedBytes += value.byteLength;
+      onProgress(loadedBytes, totalBytes);
+    }
+  }
+
+  onProgress(loadedBytes, totalBytes ?? loadedBytes);
+  return new Blob(chunks, { type: 'model/gltf-binary' });
 }
 
 const ARABIC_CHAR_REGEX = /[\u0600-\u06FF]/;
@@ -239,10 +261,14 @@ const SOURCE_FILTERS: Array<{
   labelEn: string;
 }> = [
   { id: 'all', labelEn: 'All Sources' },
+  {
+    id: 'photorealistic',
+    labelEn: '✨ Photorealistic & Dissection Scans (PBR)',
+  },
   { id: 'z-anatomy', labelEn: '🏛️ Z-Anatomy Official (TA2)' },
   { id: 'universities', labelEn: '🎓 University Medical Schools' },
   { id: 'nih-3d', labelEn: '🔬 NIH 3D Biomedical Portal' },
-  { id: 'nih-hra', labelEn: '🧬 NIH HRA & BodyParts3D' },
+  { id: 'nih-hra', labelEn: '🧬 NIH HRA (81 Organs) & BodyParts3D' },
 ];
 
 function normalizeArabicQuery(value: string): string {
@@ -453,11 +479,28 @@ function mapSketchfabItem(
   };
 }
 
+function formatUberonBadge(ontologyId?: string): string | undefined {
+  if (!ontologyId) return undefined;
+  const tail = ontologyId.split('/').pop() ?? ontologyId;
+  return tail.replace(/^UBERON_/i, 'UBERON:');
+}
+
 function mapNihOrganToCard(organ: NihOrganSceneItem): ExplorerModelCard {
+  const uberonBadge = formatUberonBadge(organ.ontologyId);
+  const dimLabel = organ.dimensionsMm
+    ? `${organ.dimensionsMm.map((d) => Math.round(d)).join('×')} mm`
+    : undefined;
+
   return {
     id: `nih-${organ.sex}-${organ.id}`,
-    title: `${organ.name} (${organ.sex === 'male' ? 'Male' : 'Female'} NIH HRA)`,
-    subtitle: `Official Visible Human Reference Organ • ${organ.ta98Code}`,
+    title: `${organ.name} (${organ.sex === 'male' ? '♂ Male' : '♀ Female'} NIH HRA)`,
+    subtitle: [
+      'Official Visible Human Reference Organ',
+      uberonBadge ?? organ.ta98Code,
+      dimLabel,
+    ]
+      .filter(Boolean)
+      .join(' • '),
     canonicalOrgan: organ.organKey,
     sourceLabel: 'NIH Reference Organ',
     sourceKind: 'nih-hra',
@@ -469,6 +512,8 @@ function mapNihOrganToCard(organ: NihOrganSceneItem): ExplorerModelCard {
     glbUrl: organ.activeUrl,
     license: 'CC-BY 4.0 (NIH)',
     ta98Code: organ.ta98Code,
+    ontologyId: uberonBadge,
+    dimensionsMm: organ.dimensionsMm,
     sex: organ.sex,
   };
 }
@@ -1065,6 +1110,14 @@ export const LiveScientificExplorer: React.FC = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [loadingCardId, setLoadingCardId] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] =
+    useState<GlbDownloadProgress | null>(null);
+  const [lastTriedCard, setLastTriedCard] = useState<ExplorerModelCard | null>(
+    null
+  );
+  const [dismissedFallbackToastKey, setDismissedFallbackToastKey] = useState<
+    string | null
+  >(null);
 
   const searchAbortRef = useRef<AbortController | null>(null);
   const nihCacheRef = useRef<ExplorerModelCard[] | null>(null);
@@ -1076,8 +1129,9 @@ export const LiveScientificExplorer: React.FC = () => {
     const seen = new Set<string>();
     for (const sex of ['male', 'female'] as BiologicalSex[]) {
       for (const organ of catalog[sex] ?? []) {
-        if (seen.has(organ.id)) continue;
-        seen.add(organ.id);
+        const key = `${sex}::${organ.id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
         list.push(mapNihOrganToCard(organ));
       }
     }
@@ -1116,7 +1170,18 @@ export const LiveScientificExplorer: React.FC = () => {
         const headers = buildAuthHeaders();
         const fetchTasks: Promise<ExplorerModelCard[]>[] = [];
 
-        // 1. Z-Anatomy Official Sketchfab Search (strict downloadable=true)
+        // 1. Photorealistic 4K PBR, Photogrammetry, Smithsonian & OpenAnatomy Aggregator
+        if (filter === 'all' || filter === 'photorealistic') {
+          fetchTasks.push(
+            searchPhotorealisticAnatomy({
+              query: q,
+              signal: controller.signal,
+              authHeaders: headers,
+            }).catch(() => [])
+          );
+        }
+
+        // 2. Z-Anatomy Official Sketchfab Search (strict downloadable=true)
         if (filter === 'all' || filter === 'z-anatomy') {
           const zUrl = q
             ? `https://api.sketchfab.com/v3/search?type=models&user=Z-Anatomy&downloadable=true&q=${encodeURIComponent(q)}&count=18`
@@ -1133,8 +1198,19 @@ export const LiveScientificExplorer: React.FC = () => {
           );
         }
 
-        // 2. University Medical Schools (Dundee, Clermont, Michigan BlueLink) & Academic Scans (strict downloadable=true)
+        // 3. University Medical Schools (Dundee, Leiden, Edinburgh, WitmerLab, Clermont, Michigan BlueLink)
         if (filter === 'all' || filter === 'universities') {
+          if (filter === 'universities') {
+            fetchTasks.push(
+              searchPhotorealisticAnatomy({
+                query: q,
+                signal: controller.signal,
+                authHeaders: headers,
+                includeUniversitiesOnly: true,
+              }).catch(() => [])
+            );
+          }
+
           const uniAccounts = ['uod_anatomy', 'uca_anatomy', 'bluelink'];
           for (const acct of uniAccounts) {
             const acctUrl = q
@@ -1168,12 +1244,12 @@ export const LiveScientificExplorer: React.FC = () => {
           );
         }
 
-        // 3. NIH 3D Biomedical Portal (3d.nih.gov API + Curated Clinical CT/MRI Library)
+        // 4. NIH 3D Biomedical Portal (3d.nih.gov API + Curated Clinical CT/MRI Library)
         if (filter === 'all' || filter === 'nih-3d') {
           fetchTasks.push(fetchNih3dPortalModels(q, controller.signal));
         }
 
-        // 4. Official NIH HRA Visible Human & BodyParts3D (DBCLS)
+        // 5. Official NIH HRA Visible Human (all 81 Reference Organs) & BodyParts3D
         if (filter === 'all' || filter === 'nih-hra') {
           const matchingBodyParts =
             tokens.length === 0
@@ -1189,15 +1265,15 @@ export const LiveScientificExplorer: React.FC = () => {
               .then((allNih) => {
                 const matchedNih =
                   tokens.length === 0
-                    ? allNih.slice(0, 12)
-                    : allNih
-                        .filter((card) => {
-                          const hay =
-                            `${card.title} ${card.subtitle} ${card.system}`.toLowerCase();
-                          return tokens.some((tok) => hay.includes(tok));
-                        })
-                        .slice(0, 14);
-                return [...matchingBodyParts, ...matchedNih];
+                    ? allNih
+                    : allNih.filter((card) => {
+                        const hay =
+                          `${card.title} ${card.subtitle} ${card.canonicalOrgan ?? ''} ${card.system} ${card.sex ?? ''} ${card.ontologyId ?? ''} ${card.ta98Code ?? ''}`.toLowerCase();
+                        return translation.wasTranslated
+                          ? tokens.some((tok) => hay.includes(tok))
+                          : tokens.every((tok) => hay.includes(tok));
+                      });
+                return [...matchedNih, ...matchingBodyParts];
               })
               .catch(() => matchingBodyParts)
           );
@@ -1217,28 +1293,34 @@ export const LiveScientificExplorer: React.FC = () => {
           }
         }
 
-        // Rank Z-Anatomy Official, NIH 3D CT/MRI, NIH HRA & downloadable local-capable GLBs first
+        // Rank Photorealistic PBR, Z-Anatomy Official, NIH 3D CT/MRI, NIH HRA & downloadable GLBs cleanly
         merged.sort((a, b) => {
           const score = (c: ExplorerModelCard) => {
             const kindScore =
               c.sourceKind === 'z-anatomy'
                 ? 40
-                : c.sourceKind === 'nih-3d'
-                  ? 35
-                  : c.sourceKind === 'nih-hra'
-                    ? 30
-                    : c.verifiedBadge?.includes('Univ.') &&
-                        !c.verifiedBadge.includes('Scan')
-                      ? 25
-                      : 15;
-            return kindScore + (c.isDownloadable ? 20 : 0);
+                : c.sourceKind === 'photorealistic'
+                  ? 38
+                  : c.sourceKind === 'nih-3d'
+                    ? 35
+                    : c.sourceKind === 'nih-hra'
+                      ? 30
+                      : c.verifiedBadge?.includes('Univ.') &&
+                          !c.verifiedBadge.includes('Scan')
+                        ? 25
+                        : 18;
+            return (
+              kindScore +
+              (c.hasPbrTextures ? 8 : 0) +
+              (c.isDownloadable ? 20 : 0)
+            );
           };
           return score(b) - score(a);
         });
 
         setCards(merged);
         void prefetchOrganThumbnails(
-          merged.map((card) => ({
+          merged.slice(0, 24).map((card) => ({
             title: card.title,
             canonicalOrgan: card.canonicalOrgan,
             glbUrl: card.glbUrl,
@@ -1301,22 +1383,50 @@ export const LiveScientificExplorer: React.FC = () => {
   const launchInLocalEngine = useCallback(
     async (card: ExplorerModelCard) => {
       setLoadingCardId(card.id);
+      setLastTriedCard(card);
+      setDismissedFallbackToastKey(null);
       setStatusMessage(null);
+      setDownloadProgress(null);
+
+      const handleProgress = (loadedBytes: number, totalBytes: number | null) => {
+        const effectiveTotal =
+          totalBytes ??
+          (card.estimatedMb ? Math.round(card.estimatedMb * 1024 * 1024) : null);
+        const percent =
+          effectiveTotal && effectiveTotal > 0
+            ? Math.min(99, Math.round((loadedBytes / effectiveTotal) * 100))
+            : null;
+        setDownloadProgress({
+          title: card.title,
+          loadedBytes,
+          totalBytes: effectiveTotal,
+          percent,
+        });
+      };
 
       try {
         if (card.glbUrl) {
           let resolvedTargetUrl = resolveAssetUrl(card.glbUrl);
           if (/^https?:\/\//i.test(card.glbUrl)) {
             const remoteAbort = new AbortController();
-            const remoteTimer = window.setTimeout(() => remoteAbort.abort(), 15000);
+            const remoteTimer = window.setTimeout(
+              () => remoteAbort.abort(),
+              REMOTE_GLB_TIMEOUT_MS
+            );
             try {
-              const remoteRes = await fetch(card.glbUrl, {
-                signal: remoteAbort.signal,
+              setDownloadProgress({
+                title: card.title,
+                loadedBytes: 0,
+                totalBytes: card.estimatedMb
+                  ? Math.round(card.estimatedMb * 1024 * 1024)
+                  : null,
+                percent: 0,
               });
-              if (!remoteRes.ok) {
-                throw new Error(`Remote GLB HTTP ${remoteRes.status}`);
-              }
-              const remoteBlob = await remoteRes.blob();
+              const remoteBlob = await fetchGlbBlobWithProgress(
+                card.glbUrl,
+                remoteAbort.signal,
+                handleProgress
+              );
               resolvedTargetUrl = URL.createObjectURL(remoteBlob);
             } finally {
               window.clearTimeout(remoteTimer);
@@ -1368,8 +1478,19 @@ export const LiveScientificExplorer: React.FC = () => {
         if (card.uid) {
           const headers = buildAuthHeaders();
           const dlAbort = new AbortController();
-          const timeoutId = window.setTimeout(() => dlAbort.abort(), 15000);
+          const timeoutId = window.setTimeout(
+            () => dlAbort.abort(),
+            REMOTE_GLB_TIMEOUT_MS
+          );
           try {
+            setDownloadProgress({
+              title: card.title,
+              loadedBytes: 0,
+              totalBytes: card.estimatedMb
+                ? Math.round(card.estimatedMb * 1024 * 1024)
+                : null,
+              percent: 0,
+            });
             const dlRes = await fetch(
               `https://api.sketchfab.com/v3/models/${card.uid}/download`,
               { headers, signal: dlAbort.signal }
@@ -1378,7 +1499,7 @@ export const LiveScientificExplorer: React.FC = () => {
               throw new Error(`Sketchfab download API HTTP ${dlRes.status}`);
             }
             const dlJson = (await dlRes.json()) as {
-              glb?: { url?: string };
+              glb?: { url?: string; size?: number };
               gltf?: { url?: string };
             };
             const assetUrl = dlJson.glb?.url;
@@ -1387,13 +1508,11 @@ export const LiveScientificExplorer: React.FC = () => {
                 'Sketchfab model does not provide a direct GLB binary.'
               );
             }
-            const binaryRes = await fetch(assetUrl, {
-              signal: dlAbort.signal,
-            });
-            if (!binaryRes.ok) {
-              throw new Error(`GLB stream HTTP ${binaryRes.status}`);
-            }
-            const blob = await binaryRes.blob();
+            const blob = await fetchGlbBlobWithProgress(
+              assetUrl,
+              dlAbort.signal,
+              handleProgress
+            );
             const objectUrl = URL.createObjectURL(blob);
 
             loadExplorerCloudModel(null);
@@ -1413,12 +1532,19 @@ export const LiveScientificExplorer: React.FC = () => {
         }
 
         throw new Error('No direct GLB URL available; falling back to local atlas.');
-      } catch {
+      } catch (err) {
         const fallback = resolveLocalFallbackGlb(
           card.title,
           card.system,
           card.sex ?? biologicalSex
         );
+        const reason =
+          err instanceof Error && err.name === 'AbortError'
+            ? 'Remote 4K PBR download timed out after 45s; loaded built-in anatomical atlas fallback.'
+            : err instanceof Error
+              ? `Remote 3D stream could not complete (${err.message}); loaded built-in anatomical atlas fallback.`
+              : 'Remote 3D model unavailable; loaded built-in anatomical atlas fallback.';
+        setStatusMessage(reason);
         loadExplorerCloudModel(null);
         loadCustomGlb(resolveAssetUrl(fallback.glbUrl), card.title);
         setExplorerOpenedModel({
@@ -1428,8 +1554,11 @@ export const LiveScientificExplorer: React.FC = () => {
           kind: 'native',
           glbUrl: fallback.glbUrl,
           system: fallback.system,
+          isFallbackSubstitution: true,
+          fallbackReason: reason,
         });
       } finally {
+        setDownloadProgress(null);
         setLoadingCardId(null);
       }
     },
@@ -1447,6 +1576,13 @@ export const LiveScientificExplorer: React.FC = () => {
     isCloudTabActive && explorerOpenedModel?.kind === 'native';
   const isCatalogVisible = isCloudTabActive && explorerOpenedModel === null;
 
+  const loadedMbText = downloadProgress
+    ? (downloadProgress.loadedBytes / (1024 * 1024)).toFixed(1)
+    : null;
+  const totalMbText = downloadProgress?.totalBytes
+    ? (downloadProgress.totalBytes / (1024 * 1024)).toFixed(1)
+    : null;
+
   return (
     <>
       {hasMountedNativeStage && (
@@ -1456,6 +1592,83 @@ export const LiveScientificExplorer: React.FC = () => {
           showStreamingHud={false}
         />
       )}
+
+      {/* Live 4K PBR Model Streaming Progress HUD */}
+      {isCloudTabActive && downloadProgress && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="pointer-events-none fixed bottom-24 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-2xl border border-sky-400/40 bg-zinc-950/95 px-4 py-3 shadow-2xl backdrop-blur-xl"
+        >
+          <div className="flex items-center justify-between gap-2 text-xs font-semibold text-white">
+            <span className="flex items-center gap-2 truncate">
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-400" />
+              <span className="truncate">
+                Downloading 4K PBR Model...{' '}
+                {downloadProgress.percent !== null
+                  ? `${downloadProgress.percent}%`
+                  : ''}
+              </span>
+            </span>
+            <span className="shrink-0 font-mono text-[10px] text-sky-300">
+              {totalMbText
+                ? `${loadedMbText} / ${totalMbText} MB`
+                : `${loadedMbText} MB`}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-[10px] text-zinc-400">
+            {downloadProgress.title}
+          </p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400 transition-all duration-150"
+              style={{
+                width: `${downloadProgress.percent ?? 35}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Clear Fallback & Retry Notification Banner in 3D View */}
+      {isNativeStageVisible &&
+        explorerOpenedModel?.isFallbackSubstitution &&
+        explorerOpenedModel.fallbackReason &&
+        dismissedFallbackToastKey !== explorerOpenedModel.key && (
+          <div
+            role="alert"
+            className="fixed left-1/2 top-20 z-40 flex w-[min(94vw,540px)] -translate-x-1/2 items-center justify-between gap-3 rounded-xl border border-amber-400/40 bg-amber-950/92 px-3.5 py-2.5 text-[11px] text-amber-100 shadow-2xl backdrop-blur-xl"
+          >
+            <div className="flex min-w-0 items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-300" />
+              <span className="line-clamp-2">
+                {explorerOpenedModel.fallbackReason}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {lastTriedCard && (
+                <button
+                  type="button"
+                  onClick={() => void launchInLocalEngine(lastTriedCard)}
+                  className="inline-flex items-center gap-1 rounded-lg border border-amber-300/40 bg-amber-400/20 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-amber-400/30"
+                >
+                  <RefreshCw className="h-3 w-3" />
+                  <span>Retry</span>
+                </button>
+              )}
+              <button
+                type="button"
+                aria-label="Dismiss fallback notice"
+                onClick={() =>
+                  setDismissedFallbackToastKey(explorerOpenedModel.key)
+                }
+                className="rounded p-1 text-amber-200/80 hover:bg-white/10 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
 
       {/* Search & Browse Dashboard View (persists state across tab switches) */}
       <section
@@ -1481,7 +1694,7 @@ export const LiveScientificExplorer: React.FC = () => {
                   Live 3D Scientific Explorer
                 </h2>
                 <p className="text-[11px] text-zinc-400">
-                  Search Z-Anatomy Official, Medical Universities, and NIH Reference Organs in English, Arabic, or Latin
+                  Search Photorealistic 4K PBR Scans, Z-Anatomy Official, Medical Universities (Dundee, Leiden, Edinburgh), Smithsonian 3D & NIH Reference Organs
                 </p>
               </div>
             </div>
@@ -1620,22 +1833,31 @@ export const LiveScientificExplorer: React.FC = () => {
                       accentColor={sysMeta.accentColor}
                     />
 
-                    {/* Verified Source + Downloadable Badges */}
+                    {/* Verified Source + Downloadable + 4K PBR Badges */}
                     <div className="absolute left-2.5 top-2.5 flex flex-wrap gap-1.5">
                       <span
                         className={cn(
                           'rounded-md px-2 py-0.5 font-mono text-[9.5px] font-semibold backdrop-blur-md',
                           card.sourceKind === 'z-anatomy'
                             ? 'border border-emerald-400/40 bg-emerald-950/85 text-emerald-200'
-                            : card.sourceKind === 'universities'
-                              ? 'border border-violet-400/40 bg-violet-950/85 text-violet-200'
-                              : card.sourceKind === 'nih-3d'
-                                ? 'border border-amber-400/40 bg-amber-950/85 text-amber-200'
-                                : 'border border-sky-400/40 bg-sky-950/85 text-sky-200'
+                            : card.sourceKind === 'photorealistic'
+                              ? 'border border-teal-400/45 bg-teal-950/85 text-teal-100'
+                              : card.sourceKind === 'universities'
+                                ? 'border border-violet-400/40 bg-violet-950/85 text-violet-200'
+                                : card.sourceKind === 'nih-3d'
+                                  ? 'border border-amber-400/40 bg-amber-950/85 text-amber-200'
+                                  : 'border border-sky-400/40 bg-sky-950/85 text-sky-200'
                         )}
                       >
                         {card.verifiedBadge ?? card.sourceLabel}
                       </span>
+
+                      {card.hasPbrTextures && (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-emerald-400/40 bg-emerald-950/85 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-emerald-200 backdrop-blur-md">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          <span>4K PBR</span>
+                        </span>
+                      )}
 
                       {card.isDownloadable && (
                         <span className="inline-flex items-center gap-1 rounded-md border border-cyan-400/40 bg-cyan-950/80 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-cyan-200 backdrop-blur-md">
@@ -1649,12 +1871,29 @@ export const LiveScientificExplorer: React.FC = () => {
                   {/* Body */}
                   <div className="flex flex-1 flex-col justify-between p-3.5">
                     <div>
-                      <div className="flex items-center gap-1.5 font-mono text-[10px] text-zinc-400">
+                      <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] text-zinc-400">
                         <span
                           className="h-2 w-2 rounded-full"
                           style={{ backgroundColor: sysMeta.accentColor }}
                         />
                         <span>{sysMeta.label}</span>
+                        {card.sex && (
+                          <span
+                            className={cn(
+                              'rounded px-1.5 py-0.5 text-[9px] font-semibold',
+                              card.sex === 'female'
+                                ? 'bg-pink-500/15 text-pink-300 border border-pink-400/25'
+                                : 'bg-sky-500/15 text-sky-300 border border-sky-400/25'
+                            )}
+                          >
+                            {card.sex === 'female' ? '♀ Female' : '♂ Male'}
+                          </span>
+                        )}
+                        {card.ontologyId && (
+                          <span className="rounded border border-emerald-400/25 bg-emerald-500/10 px-1.5 py-0.5 text-[9px] text-emerald-300">
+                            {card.ontologyId}
+                          </span>
+                        )}
                         {card.faceCount ? (
                           <span className="text-zinc-400">
                             •{' '}
@@ -1664,6 +1903,11 @@ export const LiveScientificExplorer: React.FC = () => {
                             polys
                           </span>
                         ) : null}
+                        {card.estimatedMb ? (
+                          <span className="text-zinc-500">
+                            • {card.estimatedMb.toFixed(1)} MB
+                          </span>
+                        ) : null}
                       </div>
                       <h3 className="mt-1 line-clamp-1 text-sm font-bold text-white">
                         {card.title}
@@ -1671,6 +1915,14 @@ export const LiveScientificExplorer: React.FC = () => {
                       <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-400">
                         {card.subtitle}
                       </p>
+                      {card.dimensionsMm && (
+                        <p className="mt-1 font-mono text-[10px] text-zinc-400">
+                          {card.dimensionsMm
+                            .map((d) => d.toFixed(0))
+                            .join(' × ')}{' '}
+                          mm
+                        </p>
+                      )}
                     </div>
 
                     {/* Action Footer */}

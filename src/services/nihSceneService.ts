@@ -4,6 +4,7 @@ import { resolveAssetUrl } from '../utils/assetUrl';
 
 export const NIH_HRA_REFERENCE_ORGANS_API =
   'https://apps.humanatlas.io/api/v1/reference-organs';
+export const NIH_HRA_SCENE_API = 'https://apps.humanatlas.io/api/v1/scene';
 export const NIH_HRA_CDN_BASE =
   'https://cdn.humanatlas.io/digital-objects/ref-organ/';
 export const NIH_LOCAL_MANIFEST_URL = '/models/nih/manifest.json';
@@ -28,6 +29,10 @@ export interface NihOrganSceneItem {
   activeUrl: string;
   downloadedLocally: boolean;
   placement: NihPlacementTransform;
+  subNode?: string;
+  dimensionsMm?: [number, number, number];
+  transformMatrix?: number[];
+  defaultOpacity?: number;
 }
 
 export interface NihBodyNormalizationTransform {
@@ -64,6 +69,9 @@ interface RawHraReferenceOrgan {
   representation_of?: string;
   reference_organ?: string;
   dimension_units?: string;
+  x_dimension?: number;
+  y_dimension?: number;
+  z_dimension?: number;
   glbObject?: {
     file?: string;
     file_subpath?: string;
@@ -75,6 +83,20 @@ interface RawHraReferenceOrgan {
     placement?: RawHraPlacement;
   };
   placement?: RawHraPlacement;
+}
+
+interface RawHraSceneNode {
+  '@id'?: string;
+  reference_organ?: string;
+  representation_of?: string;
+  tooltip?: string;
+  label?: string;
+  sex?: string;
+  scenegraph?: string;
+  scenegraphNode?: string;
+  transformMatrix?: number[];
+  color?: [number, number, number, number];
+  opacity?: number;
 }
 
 interface LocalManifestOrganRecord {
@@ -118,16 +140,19 @@ const WHOLE_BODY_MACRO_MATCHERS: Array<{
   localOnly?: boolean;
 }> = [
   { key: 'skin', system: 'integumentary', ta98Code: 'A16.0.00.001', regex: /^skin$/i },
+  { key: 'adipose', system: 'integumentary', ta98Code: 'A04.0.00.004', regex: /^adipose$/i },
   { key: 'pelvis', system: 'skeletal', ta98Code: 'A02.5.02.001', regex: /^pelvis$/i },
   { key: 'knee', system: 'skeletal', ta98Code: 'A03.6.08.001', regex: /^(?:left |right )?knee$/i },
   { key: 'sternum', system: 'skeletal', ta98Code: 'A02.3.03.001', regex: /^sternum$/i },
   { key: 'manubrium', system: 'skeletal', ta98Code: 'A02.3.03.002', regex: /^manubrium$/i },
-  { key: 'intervertebral disk', system: 'skeletal', ta98Code: 'A03.2.02.003', regex: /^intervertebral[\s_-]?disk$/i, sexOnly: 'male' },
+  { key: 'intervertebral disk', system: 'skeletal', ta98Code: 'A03.2.02.003', regex: /^intervertebral[\s_-]?disk$/i },
   { key: 'brain', system: 'nervous', ta98Code: 'A14.1.03.001', regex: /^brain$/i },
   { key: 'spinal cord', system: 'nervous', ta98Code: 'A14.1.02.001', regex: /^spinal[\s_-]?cord$/i },
+  { key: 'eye', system: 'nervous', ta98Code: 'A15.2.00.001', regex: /^(?:left |right )?eye$/i },
   { key: 'heart', system: 'cardiovascular', ta98Code: 'A12.1.00.001', regex: /^heart$/i },
   { key: 'blood vasculature', system: 'cardiovascular', ta98Code: 'A12.0.00.001', regex: /^blood[\s_-]?vasculature$/i },
   { key: 'lymph node', system: 'cardiovascular', ta98Code: 'A13.0.00.001', regex: /^lymph[\s_-]?node$/i },
+  { key: 'mouth', system: 'visceral', ta98Code: 'A05.1.00.001', regex: /^mouth$/i },
   { key: 'larynx', system: 'visceral', ta98Code: 'A06.2.01.001', regex: /^larynx$/i },
   { key: 'trachea', system: 'visceral', ta98Code: 'A06.3.01.001', regex: /^trachea$/i },
   { key: 'main bronchus', system: 'visceral', ta98Code: 'A06.4.01.001', regex: /^main[\s_-]?bronchus$/i },
@@ -138,6 +163,14 @@ const WHOLE_BODY_MACRO_MATCHERS: Array<{
   { key: 'spleen', system: 'visceral', ta98Code: 'A13.2.01.001', regex: /^spleen$/i },
   { key: 'pancreas', system: 'visceral', ta98Code: 'A05.9.01.001', regex: /^pancreas$/i },
   { key: 'small intestine', system: 'visceral', ta98Code: 'A05.6.01.001', regex: /^small[\s_-]?intestine$/i },
+  { key: 'large intestine', system: 'visceral', ta98Code: 'A05.7.01.001', regex: /^large[\s_-]?intestine$/i },
+  { key: 'omentum', system: 'visceral', ta98Code: 'A10.1.02.202', regex: /^omentum$/i },
+  {
+    key: 'epiploic appendage',
+    system: 'visceral',
+    ta98Code: 'A05.7.03.009',
+    regex: /^epiploic[\s_-]?appendage/i,
+  },
   { key: 'kidney', system: 'visceral', ta98Code: 'A08.1.01.001', regex: /^(?:left |right )?kidneys?$/i },
   { key: 'renal pelvis', system: 'visceral', ta98Code: 'A08.1.05.001', regex: /^(?:left |right )?renal[\s_-]?pelvis$/i },
   { key: 'ureter', system: 'visceral', ta98Code: 'A08.2.01.001', regex: /^(?:left |right )?ureter$/i },
@@ -147,13 +180,14 @@ const WHOLE_BODY_MACRO_MATCHERS: Array<{
   { key: 'ovary', system: 'visceral', ta98Code: 'A09.1.01.001', regex: /^(?:left |right )?ovary$/i, sexOnly: 'female' },
   { key: 'fallopian tube', system: 'visceral', ta98Code: 'A09.1.02.001', regex: /^(?:left |right )?fallopian[\s_-]?tube$/i, sexOnly: 'female' },
   { key: 'mammary gland', system: 'visceral', ta98Code: 'A16.0.02.001', regex: /^(?:left |right )?mammary[\s_-]?gland$/i, sexOnly: 'female' },
-  { key: 'eye', system: 'nervous', ta98Code: 'A15.2.00.001', regex: /^(?:left |right )?eye$/i, localOnly: true },
+  { key: 'placenta full term', system: 'visceral', ta98Code: 'A09.1.03.001', regex: /^placenta(?:\s+full[\s_-]?term)?$/i, sexOnly: 'female' },
 ];
 
-function isNoisyNonOrganEntry(idOrLabel: string): boolean {
-  return /\b(adipose|omentum|epiploic|mesentery|fat_block|lymph[-_\s]?node)\b|^large[-_\s]intestine(?:[-_\s](?:male|female))?$/i.test(
-    idOrLabel.trim()
-  );
+function isDonorTissueBlockOrNoise(node: RawHraSceneNode | { id?: string; label?: string }): boolean {
+  const rec = node as RawHraSceneNode;
+  if ('@type' in rec && !rec.scenegraph) return true;
+  const text = `${rec['@id'] ?? ''} ${rec.label ?? ''} ${(node as { id?: string }).id ?? ''}`.trim();
+  return /\b(tissue[-_\s]?block|extraction[-_\s]?site)\b/i.test(text);
 }
 
 // Emergency direct CDN list matching official NIH HRA digital-objects URLs if API + manifest both fail
@@ -203,7 +237,7 @@ export function resolveNihOrganSystem(label: string): AnatomicalSystem {
     return 'skeletal';
   }
   if (/brain|spinal\s*cord|eye/.test(clean)) return 'nervous';
-  if (/heart|blood\s*vasculature|lymph\s*node/.test(clean)) {
+  if (/heart|blood\s*vasculature|lymph[-_\s]?node/.test(clean)) {
     return 'cardiovascular';
   }
   return 'visceral';
@@ -313,9 +347,24 @@ function inferSideFromLabel(label: string): 'Left' | 'Right' | 'Unpaired' {
   return 'Unpaired';
 }
 
+function decomposeTransformMatrix(matrix16?: number[]): NihPlacementTransform | null {
+  if (!Array.isArray(matrix16) || matrix16.length !== 16) return null;
+  const mat = new THREE.Matrix4().fromArray(matrix16);
+  const pos = new THREE.Vector3();
+  const quat = new THREE.Quaternion();
+  const scl = new THREE.Vector3();
+  mat.decompose(pos, quat, scl);
+  const euler = new THREE.Euler().setFromQuaternion(quat);
+  return {
+    translation: [pos.x, pos.y, pos.z],
+    rotation: [euler.x, euler.y, euler.z],
+    scale: [scl.x, scl.y, scl.z],
+  };
+}
+
 /**
  * Computes master root group transform from the Skin bounding box so the
- * complete assembled NIH body stands centered on X/Z from [0, 0, 0] to [0, 1.8, 0].
+ * complete assembled NIH body stands centered on X/Z inside the [0.02m - 1.75m] frustum.
  */
 export function computeBodyNormalizationTransform(
   skinBox: THREE.Box3 | null,
@@ -324,14 +373,16 @@ export function computeBodyNormalizationTransform(
   const refBox =
     skinBox && !skinBox.isEmpty() ? skinBox : DEFAULT_SKIN_BOUNDS_BY_SEX[sex];
   const height = Math.max(refBox.max.y - refBox.min.y, 0.25);
-  const scaleFactor = 1.8 / height;
+  const targetHeight = 1.73; // 0.02m floor to 1.75m apex
+  const floorY = 0.02;
+  const scaleFactor = targetHeight / height;
   const centerX = (refBox.min.x + refBox.max.x) * 0.5;
   const centerZ = (refBox.min.z + refBox.max.z) * 0.5;
 
   return {
     position: [
       -centerX * scaleFactor,
-      -refBox.min.y * scaleFactor,
+      floorY - refBox.min.y * scaleFactor,
       -centerZ * scaleFactor,
     ],
     scale: [scaleFactor, scaleFactor, scaleFactor],
@@ -357,21 +408,64 @@ function buildManifestLookup(
 export async function fetchNihSceneOrgans(): Promise<
   Record<BiologicalSex, NihOrganSceneItem[]>
 > {
-  const [manifestResult, apiResult] = await Promise.allSettled([
-    fetch(resolveAssetUrl(NIH_LOCAL_MANIFEST_URL)).then((r) =>
-      r.ok ? (r.json() as Promise<LocalManifestPayload>) : null
-    ),
-    fetch(NIH_HRA_REFERENCE_ORGANS_API).then((r) =>
-      r.ok ? (r.json() as Promise<RawHraReferenceOrgan[]>) : null
-    ),
-  ]);
+  const [manifestResult, refOrgansResult, maleSceneResult, femaleSceneResult] =
+    await Promise.allSettled([
+      fetch(resolveAssetUrl(NIH_LOCAL_MANIFEST_URL)).then((r) =>
+        r.ok ? (r.json() as Promise<LocalManifestPayload>) : null
+      ),
+      fetch(NIH_HRA_REFERENCE_ORGANS_API, {
+        headers: { Accept: 'application/json' },
+      }).then((r) =>
+        r.ok ? (r.json() as Promise<RawHraReferenceOrgan[]>) : null
+      ),
+      fetch(`${NIH_HRA_SCENE_API}?sex=male`, {
+        headers: { Accept: 'application/json' },
+      }).then((r) => (r.ok ? (r.json() as Promise<RawHraSceneNode[]>) : null)),
+      fetch(`${NIH_HRA_SCENE_API}?sex=female`, {
+        headers: { Accept: 'application/json' },
+      }).then((r) => (r.ok ? (r.json() as Promise<RawHraSceneNode[]>) : null)),
+    ]);
 
   const localManifest =
     manifestResult.status === 'fulfilled' ? manifestResult.value : null;
   const apiList =
-    apiResult.status === 'fulfilled' && Array.isArray(apiResult.value)
-      ? apiResult.value
+    refOrgansResult.status === 'fulfilled' &&
+    Array.isArray(refOrgansResult.value)
+      ? refOrgansResult.value
       : null;
+
+  // Strictly extract ONLY reference organ nodes (never donor tissue blocks or landmarks)
+  const sceneNodeByKey = new Map<string, RawHraSceneNode>();
+  const ingestSceneList = (
+    sex: BiologicalSex,
+    list: RawHraSceneNode[] | null
+  ) => {
+    if (!Array.isArray(list)) return;
+    for (const node of list) {
+      if (isDonorTissueBlockOrNoise(node)) continue;
+      if (
+        !node.scenegraph ||
+        !Array.isArray(node.transformMatrix) ||
+        node.transformMatrix.length !== 16
+      ) {
+        continue;
+      }
+      if (node.sex && node.sex.toLowerCase() !== sex) continue;
+      const keyId = node.reference_organ || node['@id'] || node.scenegraph;
+      if (keyId) {
+        sceneNodeByKey.set(`${sex}::${keyId}`, node);
+      }
+    }
+  };
+
+  ingestSceneList(
+    'male',
+    maleSceneResult.status === 'fulfilled' ? maleSceneResult.value : null
+  );
+  ingestSceneList(
+    'female',
+    femaleSceneResult.status === 'fulfilled' ? femaleSceneResult.value : null
+  );
 
   const localLookup = buildManifestLookup(localManifest);
   const itemsBySex: Record<BiologicalSex, NihOrganSceneItem[]> = {
@@ -383,11 +477,12 @@ export async function fetchNihSceneOrgans(): Promise<
   if (apiList && apiList.length > 0) {
     for (const raw of apiList) {
       const label = String(raw.label ?? raw.name ?? raw.organ ?? '').trim();
-      if (isNoisyNonOrganEntry(label)) continue;
+      if (!label || isDonorTissueBlockOrNoise({ id: raw['@id'], label })) {
+        continue;
+      }
       const matcher = WHOLE_BODY_MACRO_MATCHERS.find((m) =>
         m.regex.test(label)
       );
-      if (!matcher) continue;
 
       const glbUrlRaw = raw.glbObject?.file ?? raw.object?.file ?? '';
       if (!glbUrlRaw || !glbUrlRaw.includes('.glb')) continue;
@@ -398,38 +493,66 @@ export async function fetchNihSceneOrgans(): Promise<
 
       const sex = resolveOrganSex(raw, remoteUrl);
       if (!sex) continue;
-      if (matcher.sexOnly && matcher.sexOnly !== sex) continue;
+      if (matcher?.sexOnly && matcher.sexOnly !== sex) continue;
 
       const id = extractOrganSlug(raw, label, sex);
-      if (seenIds.has(id) || isNoisyNonOrganEntry(id)) continue;
+      if (seenIds.has(id)) continue;
 
       const localRec = localLookup.get(id);
-      const downloadedLocally = Boolean(localRec?.downloaded && localRec?.localPath);
-      if (matcher.localOnly && !downloadedLocally) continue;
+      const downloadedLocally = Boolean(
+        localRec?.downloaded && localRec?.localPath
+      );
+      if (matcher?.localOnly && !downloadedLocally) continue;
 
       seenIds.add(id);
+
+      const iri = raw.reference_organ || raw['@id'] || remoteUrl;
+      const sceneNode =
+        sceneNodeByKey.get(`${sex}::${iri}`) ??
+        sceneNodeByKey.get(`${sex}::${raw['@id'] ?? ''}`);
+
+      const dimensionsMm: [number, number, number] | undefined =
+        typeof raw.x_dimension === 'number' &&
+        typeof raw.y_dimension === 'number' &&
+        typeof raw.z_dimension === 'number'
+          ? [raw.x_dimension, raw.y_dimension, raw.z_dimension]
+          : undefined;
 
       const localPath = resolveAssetUrl(
         localRec?.localPath ?? `/models/nih/${sex}/${id}.glb`
       );
-      const placement = parseHraPlacement(raw);
+      const placement =
+        decomposeTransformMatrix(sceneNode?.transformMatrix) ??
+        parseHraPlacement(raw);
+      const resolvedSystem = matcher?.system ?? resolveNihOrganSystem(label);
+      const resolvedKey = matcher?.key ?? label.toLowerCase();
 
       itemsBySex[sex].push({
         id,
-        organKey: matcher.key,
+        organKey: resolvedKey,
         name: label,
         sex,
         side:
           (raw.side as 'Left' | 'Right' | 'Unpaired' | undefined) ??
           inferSideFromLabel(label),
-        system: matcher.system,
+        system: resolvedSystem,
         ontologyId: String(raw.representation_of ?? ''),
-        ta98Code: matcher.ta98Code,
+        ta98Code: matcher?.ta98Code ?? 'A01.0.00.000',
         remoteUrl,
         localPath,
         activeUrl: downloadedLocally ? localPath : remoteUrl,
         downloadedLocally,
         placement,
+        subNode:
+          raw.object?.file_subpath ??
+          raw.glbObject?.file_subpath ??
+          sceneNode?.scenegraphNode,
+        dimensionsMm,
+        transformMatrix: sceneNode?.transformMatrix,
+        defaultOpacity:
+          typeof sceneNode?.opacity === 'number'
+            ? sceneNode.opacity
+            : undefined,
       });
     }
   }
@@ -438,13 +561,12 @@ export async function fetchNihSceneOrgans(): Promise<
   for (const sex of ['male', 'female'] as const) {
     for (const rec of localManifest?.[sex] ?? []) {
       if (!rec?.id || seenIds.has(rec.id)) continue;
-      if (isNoisyNonOrganEntry(rec.id) || isNoisyNonOrganEntry(rec.name ?? '')) {
+      if (isDonorTissueBlockOrNoise({ id: rec.id, label: rec.name })) {
         continue;
       }
       const matcher = WHOLE_BODY_MACRO_MATCHERS.find(
         (m) => m.key === rec.organKey || m.regex.test(rec.name ?? '')
       );
-      if (!matcher) continue;
       if (!rec.downloaded && !rec.remoteUrl) continue;
 
       seenIds.add(rec.id);
@@ -456,13 +578,16 @@ export async function fetchNihSceneOrgans(): Promise<
       );
       itemsBySex[sex].push({
         id: rec.id,
-        organKey: rec.organKey ?? matcher.key,
+        organKey: rec.organKey ?? matcher?.key ?? rec.id,
         name: rec.name ?? rec.id,
         sex,
         side: rec.side ?? inferSideFromLabel(rec.name ?? ''),
-        system: rec.system ?? matcher.system,
+        system:
+          rec.system ??
+          matcher?.system ??
+          resolveNihOrganSystem(rec.name ?? rec.id),
         ontologyId: rec.ontologyId ?? '',
-        ta98Code: rec.ta98Code ?? matcher.ta98Code,
+        ta98Code: rec.ta98Code ?? matcher?.ta98Code ?? 'A01.0.00.000',
         remoteUrl,
         localPath,
         activeUrl: rec.downloaded ? localPath : remoteUrl,
@@ -507,3 +632,13 @@ export async function fetchNihSceneOrgans(): Promise<
 
   return itemsBySex;
 }
+
+export {
+  HRA_RUI_REFERENCE_DATA_URL,
+  getCachedHraSurgicalLandmarksSync,
+  getHraSurgicalLandmarks,
+  matchLandmarksForOrgan,
+  type HraLandmarkMatchQuery,
+  type HraLandmarkSubmesh,
+  type HraSurgicalLandmarkGlb,
+} from './hraLandmarkService';

@@ -21,6 +21,7 @@ import {
   unregisterSceneMesh,
   useSceneMeshRegistry,
 } from '../../utils/bvhSetup';
+import { registerCustomGlbExtensions } from '../../utils/gltfSpecularGlossinessExtension';
 import { useClippingPlane } from '../../utils/slicingPlane';
 import {
   applyRigidMacroExplodeOffset,
@@ -37,6 +38,11 @@ import {
   FEMALE_PELVIC_ORGAN_IDS,
 } from '../../utils/femaleZAnatomyRegistration';
 import type { NihOrganSceneItem } from '../../services/nihSceneService';
+import { matchLandmarksForOrgan, type HraSurgicalLandmarkGlb } from '../../services/hraLandmarkService';
+import {
+  HraLandmarkOverlayList,
+  useHraSurgicalLandmarksCatalog,
+} from './HraLandmarkOverlayGLB';
 const NOOP_RAYCAST: THREE.Mesh['raycast'] = () => {};
 
 interface FemaleOrganSpec {
@@ -140,11 +146,26 @@ function findLandmarkBox(
 const FemaleOrganPieceLoader: React.FC<{
   spec: FemaleOrganSpec;
   url: string;
+  landmarksCatalog: HraSurgicalLandmarkGlb[];
   onLoaded: (piece: LoadedFemalePieceState) => void;
   onDisposed: (id: string) => void;
-}> = ({ spec, url, onLoaded, onDisposed }) => {
+}> = ({ spec, url, landmarksCatalog, onLoaded, onDisposed }) => {
   const registry = useSceneMeshRegistry();
-  const gltf = useGLTF(resolveAssetUrl(url));
+  const showSurgicalLandmarks = useAnatomyStore((s) => s.showSurgicalLandmarks);
+  const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
+  const activeSystems = useAnatomyStore((s) => s.activeSystems);
+  const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
+  const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
+  const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
+  const landmarkOffsetRef = useRef<THREE.Group>(null);
+  const [hasVisibleParentMesh, setHasVisibleParentMesh] = useState(true);
+  const gltf = useGLTF(
+    resolveAssetUrl(url),
+    true,
+    true,
+    registerCustomGlbExtensions
+  );
 
   const prepared = useMemo(() => {
     const clone = gltf.scene.clone(true);
@@ -230,7 +251,83 @@ const FemaleOrganPieceLoader: React.FC<{
     };
   }, [prepared, registry, onLoaded, onDisposed, spec.id]);
 
-  return <primitive object={prepared.scene} />;
+  const organLandmarks = useMemo(() => {
+    if (!showSurgicalLandmarks) return [];
+    return matchLandmarksForOrgan(
+      {
+        organKey: spec.id,
+        organLabel: spec.label,
+        glbUrl: url,
+        sex: 'female',
+      },
+      landmarksCatalog
+    );
+  }, [showSurgicalLandmarks, spec.id, spec.label, url, landmarksCatalog]);
+
+  useEffect(() => {
+    if (!showSurgicalLandmarks) return;
+    let rafId = 0;
+    rafId = window.requestAnimationFrame(() => {
+      const anyVisible = prepared.meshes.some((m) => m.visible);
+      setHasVisibleParentMesh(anyVisible);
+
+      const offsetGroup = landmarkOffsetRef.current;
+      const refMesh = prepared.meshes[0];
+      const restPos = refMesh?.userData?.__restPosition as
+        | THREE.Vector3
+        | undefined;
+      if (!offsetGroup || !refMesh || !restPos) return;
+
+      offsetGroup.updateWorldMatrix(true, false);
+      refMesh.parent?.updateWorldMatrix(true, false);
+      const refParent = refMesh.parent;
+      const outParent = offsetGroup.parent;
+      if (!refParent || !outParent) {
+        offsetGroup.position.copy(refMesh.position).sub(restPos);
+        return;
+      }
+
+      const worldNow = refMesh.position.clone().applyMatrix4(refParent.matrixWorld);
+      const worldRest = restPos.clone().applyMatrix4(refParent.matrixWorld);
+      const worldDelta = worldNow.sub(worldRest);
+      const invMat3 = new THREE.Matrix3().setFromMatrix4(
+        outParent.matrixWorld.clone().invert()
+      );
+      offsetGroup.position.copy(worldDelta.applyMatrix3(invMat3));
+    });
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+    };
+  }, [
+    showSurgicalLandmarks,
+    prepared.meshes,
+    explodeFactor,
+    activeSystems,
+    activeAtlasPreset,
+    hiddenPartIds,
+    isolatedPartId,
+    xrayGhostMode,
+  ]);
+
+  return (
+    <>
+      <primitive object={prepared.scene} />
+      {showSurgicalLandmarks && organLandmarks.length > 0 && (
+        <group
+          ref={landmarkOffsetRef}
+          name={`FemaleOrganLandmarks_${spec.id}`}
+          visible={hasVisibleParentMesh}
+        >
+          <HraLandmarkOverlayList
+            visible={showSurgicalLandmarks}
+            landmarks={organLandmarks}
+            parentSystem="visceral"
+            hidden={!hasVisibleParentMesh}
+          />
+        </group>
+      )}
+    </>
+  );
 };
 
 export interface FemaleZAnatomyOrgansGroupProps {
@@ -247,6 +344,11 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const pelvicGroupRef = useRef<THREE.Group>(null);
   const mammaryLeftGroupRef = useRef<THREE.Group>(null);
   const mammaryRightGroupRef = useRef<THREE.Group>(null);
+
+  const showSurgicalLandmarks = useAnatomyStore((s) => s.showSurgicalLandmarks);
+  const landmarksCatalog = useHraSurgicalLandmarksCatalog(
+    showSurgicalLandmarks && visible
+  );
   const loadedPiecesRef = useRef<Map<string, LoadedFemalePieceState>>(
     new Map()
   );
@@ -603,6 +705,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
             <FemaleOrganPieceLoader
               spec={spec}
               url={nihUrlMap.get(spec.id) || spec.defaultLocalPath}
+              landmarksCatalog={landmarksCatalog}
               onLoaded={handlePieceLoaded}
               onDisposed={handlePieceDisposed}
             />
@@ -621,6 +724,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
               nihUrlMap.get(mammaryLeftSpec.id) ||
               mammaryLeftSpec.defaultLocalPath
             }
+            landmarksCatalog={landmarksCatalog}
             onLoaded={handlePieceLoaded}
             onDisposed={handlePieceDisposed}
           />
@@ -638,6 +742,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
               nihUrlMap.get(mammaryRightSpec.id) ||
               mammaryRightSpec.defaultLocalPath
             }
+            landmarksCatalog={landmarksCatalog}
             onLoaded={handlePieceLoaded}
             onDisposed={handlePieceDisposed}
           />

@@ -2,6 +2,7 @@ import React, { createContext, useContext } from 'react';
 import { create, useStore, type StoreApi } from 'zustand';
 import { createStore } from 'zustand/vanilla';
 import { resolveClinicalBaseline } from '../data/clinicalBaseline';
+import { buildLandmarkClinicalProfile } from '../data/anatomicalLandmarksCatalog';
 import { fetchMedicalProfile } from '../services/medicalKnowledgeService';
 import type { AnatomicalClinicalProfile } from '../types/medicalData';
 import type { AnatomicalPartInfo } from '../utils/anatomyParser';
@@ -94,6 +95,7 @@ export interface AnatomyState {
   hiddenPartIds: string[];
   isolatedPartId: string | null;
   xrayGhostMode: boolean;
+  showSurgicalLandmarks: boolean;
   explodeFactor: number;
   slicing: SlicingState;
 
@@ -147,6 +149,8 @@ export interface AnatomyState {
   restoreAllParts: () => void;
   toggleIsolateSelected: () => void;
   toggleXrayGhost: () => void;
+  toggleSurgicalLandmarks: () => void;
+  setShowSurgicalLandmarks: (show: boolean) => void;
   setExplodeFactor: (val: number) => void;
   updateSlicing: (partial: Partial<SlicingState>) => void;
   resetSlicing: () => void;
@@ -233,6 +237,8 @@ export interface ExplorerOpenedModel {
   presetId?: OfficialAtlasPresetId;
   glbUrl?: string;
   system?: AnatomicalSystem;
+  isFallbackSubstitution?: boolean;
+  fallbackReason?: string;
 }
 
 export interface AppNavigationState {
@@ -314,6 +320,7 @@ export function createAnatomyViewportStore(
   hiddenPartIds: [],
   isolatedPartId: null,
   xrayGhostMode: false,
+  showSurgicalLandmarks: false,
   explodeFactor: 0,
   slicing: { ...DEFAULT_SLICING_STATE },
 
@@ -351,6 +358,22 @@ export function createAnatomyViewportStore(
         medicalProfile: null,
         isLoadingMedicalData: false,
         mobileSheetSnap: 'half',
+      });
+      return;
+    }
+
+    if (
+      part.landmarkMeta ||
+      part.ta98Code === 'LMK-FID' ||
+      part.ta98Code === 'HRA-LMK'
+    ) {
+      const landmarkProfile = buildLandmarkClinicalProfile(part);
+      set({
+        selectedPart: part,
+        selectedMeshId: part.rawName || part.meshUuid,
+        selectedAnatomicalName: part.cleanName,
+        medicalProfile: landmarkProfile,
+        isLoadingMedicalData: false,
       });
       return;
     }
@@ -517,6 +540,7 @@ export function createAnatomyViewportStore(
       hiddenPartIds: [],
       isolatedPartId: null,
       xrayGhostMode: false,
+      showSurgicalLandmarks: false,
       explodeFactor: 0,
     }),
 
@@ -542,6 +566,16 @@ export function createAnatomyViewportStore(
     set((state) => ({
       xrayGhostMode: !state.xrayGhostMode,
     })),
+
+  toggleSurgicalLandmarks: () =>
+    set((state) => ({
+      showSurgicalLandmarks: !state.showSurgicalLandmarks,
+    })),
+
+  setShowSurgicalLandmarks: (show) =>
+    set({
+      showSurgicalLandmarks: show,
+    }),
 
   setExplodeFactor: (val) =>
     set({
@@ -764,6 +798,7 @@ export function createAnatomyViewportStore(
         hiddenPartIds: [],
         isolatedPartId: null,
         xrayGhostMode: false,
+        showSurgicalLandmarks: false,
         explodeFactor: 0,
         activeSystems: {
           integumentary: true,
@@ -874,7 +909,14 @@ export function createAnatomyViewportStore(
                 [soloTargetSystem]: true,
               }
             : preset === 'nih-visible-human'
-              ? { ...DEFAULT_ACTIVE_SYSTEMS, integumentary: true }
+              ? {
+                  integumentary: true,
+                  skeletal: true,
+                  muscular: true,
+                  visceral: true,
+                  cardiovascular: true,
+                  nervous: true,
+                }
               : state.activeSystems;
 
       const nextSystemOpacity =
@@ -910,6 +952,7 @@ export function createAnatomyViewportStore(
         hiddenPartIds: [],
         isolatedPartId: null,
         xrayGhostMode: false,
+        showSurgicalLandmarks: false,
         explodeFactor: 0,
         mobileSheetSnap: 'half',
         cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
@@ -935,6 +978,7 @@ export function createAnatomyViewportStore(
         hiddenPartIds: [],
         isolatedPartId: null,
         xrayGhostMode: false,
+        showSurgicalLandmarks: false,
         explodeFactor: 0,
       };
     });

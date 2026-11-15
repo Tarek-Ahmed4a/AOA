@@ -106,12 +106,40 @@ walkRemove(
     /\.(zip|tar|gz|bak|tmp)$/i.test(name)
 );
 
-const shouldStripPdfs = process.argv.includes('--strip-pdfs');
+const useCompactMobileBooks =
+  process.argv.includes('--strip-pdfs') || process.argv.includes('--mobile-books');
 
-// 2. Strip raw textbook PDF binaries from dist/books/ only when --strip-pdfs is passed (mobile APK builds)
-if (shouldStripPdfs) {
-  walkRemove(path.join(DIST_DIR, 'books'), (_full, name) =>
-    name.toLowerCase().endsWith('.pdf')
+// 2. Replace bulky desktop textbook PDFs with compressed offline mobile editions in dist/books/
+if (useCompactMobileBooks) {
+  const distBooksDir = path.join(DIST_DIR, 'books');
+  const mobileBooksDir = path.resolve('mobile-assets', 'books');
+  const requiredMobileBooks = [
+    'book1-netters-atlas-7ed.pdf',
+    'book2-grays-anatomy-4ed.pdf',
+  ];
+
+  walkRemove(distBooksDir, (_full, name) => name.toLowerCase().endsWith('.pdf'));
+
+  fs.mkdirSync(distBooksDir, { recursive: true });
+  let bundledMobileBookBytes = 0;
+  for (const bookName of requiredMobileBooks) {
+    const srcPath = path.join(mobileBooksDir, bookName);
+    if (!fs.existsSync(srcPath)) {
+      console.error(
+        `[MOBILE CLEAN] Missing compressed offline book at ${srcPath}. Run "py scripts/compressMobilePdfBooks.py" (or "npm run reassemble:assets") first.`
+      );
+      process.exit(1);
+    }
+    const dstPath = path.join(distBooksDir, bookName);
+    fs.copyFileSync(srcPath, dstPath);
+    bundledMobileBookBytes += fs.statSync(dstPath).size;
+  }
+
+  console.log(
+    `[MOBILE CLEAN] Packaged ${requiredMobileBooks.length} compact offline PDF textbooks into dist/books/ (${(
+      bundledMobileBookBytes /
+      (1024 * 1024)
+    ).toFixed(2)} MiB).`
   );
 }
 

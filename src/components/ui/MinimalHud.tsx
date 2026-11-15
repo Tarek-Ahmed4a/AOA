@@ -26,7 +26,7 @@ const ATLAS_PRESET_OPTIONS: AtlasPresetOption[] = [
   },
   {
     id: 'nih-visible-human',
-    label: 'NIH Visible Human (CT/Cryosection)',
+    label: 'NIH Visible Human (HRA 3D Body)',
     shortLabel: 'NIH Visible Human',
   },
 ];
@@ -99,6 +99,7 @@ export const MinimalHud: React.FC = () => {
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
+  const showSurgicalLandmarks = useAnatomyStore((s) => s.showSurgicalLandmarks);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
   const activeTab = useAppNavigationStore((s) => s.activeTab);
@@ -125,6 +126,9 @@ export const MinimalHud: React.FC = () => {
   const restoreAllParts = useAnatomyStore((s) => s.restoreAllParts);
   const toggleIsolateSelected = useAnatomyStore((s) => s.toggleIsolateSelected);
   const toggleXrayGhost = useAnatomyStore((s) => s.toggleXrayGhost);
+  const toggleSurgicalLandmarks = useAnatomyStore(
+    (s) => s.toggleSurgicalLandmarks
+  );
   const setExplodeFactor = useAnatomyStore((s) => s.setExplodeFactor);
   const updateSlicing = useAnatomyStore((s) => s.updateSlicing);
   const resetSlicing = useAnatomyStore((s) => s.resetSlicing);
@@ -186,13 +190,13 @@ export const MinimalHud: React.FC = () => {
         state.restoreAllParts();
       } else if (key === 'l') {
         e.preventDefault();
-        state.toggleLayerManager();
+        state.toggleSurgicalLandmarks();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [storeApi]);
 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
@@ -275,6 +279,7 @@ export const MinimalHud: React.FC = () => {
     hiddenPartIds.length > 0 ||
     isolatedPartId !== null ||
     xrayGhostMode ||
+    showSurgicalLandmarks ||
     explodeFactor > 0;
 
   return (
@@ -306,11 +311,29 @@ export const MinimalHud: React.FC = () => {
                     <ArrowLeft className="h-3.5 w-3.5 shrink-0 text-sky-400" />
                     <span>Back to Results</span>
                   </button>
-                  <div className="hidden sm:flex h-8 md:h-9 min-w-0 max-w-[200px] items-center gap-1.5 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-2.5 shadow-2xl backdrop-blur-md">
-                    <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-sky-400" />
+                  <div
+                    className={`${
+                      explorerOpenedModel.isFallbackSubstitution
+                        ? 'flex border-amber-400/35 bg-amber-950/60'
+                        : 'hidden sm:flex border-white/10 bg-[#0a0a0c]/90'
+                    } h-8 md:h-9 min-w-0 max-w-[290px] items-center gap-1.5 rounded-full border px-2.5 shadow-2xl backdrop-blur-md`}
+                    title={explorerOpenedModel.fallbackReason ?? explorerOpenedModel.title}
+                  >
+                    <span
+                      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
+                        explorerOpenedModel.isFallbackSubstitution
+                          ? 'bg-amber-400'
+                          : 'bg-sky-400'
+                      }`}
+                    />
                     <span className="truncate font-mono text-[10px] font-medium text-zinc-200">
                       {explorerOpenedModel.title}
                     </span>
+                    {explorerOpenedModel.isFallbackSubstitution && (
+                      <span className="shrink-0 rounded-full border border-amber-400/40 bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-200">
+                        Fallback Atlas Model
+                      </span>
+                    )}
                   </div>
                 </>
               ) : (
@@ -674,14 +697,44 @@ export const MinimalHud: React.FC = () => {
                   <kbd className="font-mono text-[9px] text-zinc-400">S</kbd>
                 </button>
 
+                {/* Surgical & Anatomical Landmarks [L] */}
+                <button
+                  type="button"
+                  onClick={toggleSurgicalLandmarks}
+                  aria-pressed={showSurgicalLandmarks}
+                  data-testid="landmarks-toggle-btn"
+                  title="Toggle NIH HRA 3D Anatomical & Surgical Landmarks [L]"
+                  className={cn(
+                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    showSurgicalLandmarks
+                      ? 'border-amber-400/65 bg-gradient-to-r from-amber-500/25 via-amber-400/15 to-cyan-500/25 text-amber-100 shadow-[0_0_14px_rgba(245,158,11,0.28)]'
+                      : 'border-white/10 bg-white/5 text-zinc-200 hover:border-amber-400/40 hover:bg-amber-500/10 hover:text-amber-100'
+                  )}
+                >
+                  <span className="flex items-center gap-1 truncate">
+                    <span aria-hidden="true" className="text-[11px] leading-none">
+                      🎯
+                    </span>
+                    <span className="truncate">Landmarks</span>
+                  </span>
+                  <kbd
+                    className={cn(
+                      'font-mono text-[9px]',
+                      showSurgicalLandmarks ? 'text-cyan-200' : 'text-zinc-400'
+                    )}
+                  >
+                    L
+                  </kbd>
+                </button>
+
                 {/* Restore All [R] */}
                 <button
                   type="button"
                   onClick={restoreAllParts}
                   disabled={!hasAnyDissectionActive}
-                  title="Restore all hidden, isolated & exploded structures [R]"
+                  title="Restore all hidden, isolated, landmark & exploded structures [R]"
                   className={cn(
-                    'flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
+                    'col-span-2 flex items-center justify-between gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition-all',
                     hasAnyDissectionActive
                       ? 'border-white/10 bg-white/5 text-zinc-200 hover:border-emerald-400/40 hover:bg-emerald-500/15 hover:text-emerald-100'
                       : 'cursor-not-allowed border-white/5 bg-white/[0.02] text-zinc-600'
@@ -972,7 +1025,7 @@ export const MinimalHud: React.FC = () => {
             type="button"
             onClick={toggleLayerManager}
             aria-pressed={showLayerManager}
-            title="Layers, Opacity Presets & Anatomical Views [L]"
+            title="Layers, Opacity Presets & Anatomical Views"
             className={cn(
               'flex shrink-0 whitespace-nowrap items-center gap-1 md:gap-1.5 rounded-full border px-2 py-1 md:px-3 md:py-1.5 text-[11px] md:text-xs font-medium transition-all duration-150 active:scale-95',
               showLayerManager

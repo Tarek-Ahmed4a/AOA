@@ -8,6 +8,21 @@ import {
 
 export type AnatomicalLaterality = 'Left' | 'Right' | 'Median / Unpaired';
 
+export interface AnatomicalLandmarkMeta {
+  id: string;
+  nameEn: string;
+  nameAr: string;
+  latinName: string;
+  parentOrganLabel: string;
+  parentOrganAr?: string;
+  parentMeshUuid?: string;
+  localizationEn: string;
+  localizationAr: string;
+  significanceEn: string;
+  significanceAr: string;
+  region?: string;
+}
+
 export interface AnatomicalPartInfo {
   meshUuid: string;
   rawName: string;
@@ -20,6 +35,7 @@ export interface AnatomicalPartInfo {
   organGroupId?: string;
   worldCenter: [number, number, number];
   boundingRadius: number;
+  landmarkMeta?: AnatomicalLandmarkMeta;
 }
 
 interface TerminologyEntry {
@@ -102,6 +118,30 @@ const TERMINOLOGY_MAP: Record<string, TerminologyEntry> = {
 
   heart: { latinName: 'Cor', ta98Code: 'A12.1.00.001', system: 'cardiovascular' },
   cor: { latinName: 'Cor', ta98Code: 'A12.1.00.001', system: 'cardiovascular' },
+  'right ventricle': { latinName: 'Ventriculus dexter', ta98Code: 'A12.1.02.001', system: 'cardiovascular' },
+  'left ventricle': { latinName: 'Ventriculus sinister', ta98Code: 'A12.1.04.001', system: 'cardiovascular' },
+  'right atrium': { latinName: 'Atrium dextrum', ta98Code: 'A12.1.01.001', system: 'cardiovascular' },
+  'left atrium': { latinName: 'Atrium sinistrum', ta98Code: 'A12.1.03.001', system: 'cardiovascular' },
+  'interventricular septum': { latinName: 'Septum interventriculare', ta98Code: 'A12.1.00.013', system: 'cardiovascular' },
+  'interatrial septum': { latinName: 'Septum interatriale', ta98Code: 'A12.1.00.015', system: 'cardiovascular' },
+  'tricuspid valve': { latinName: 'Valva atrioventricularis dextra (Valva tricuspidalis)', ta98Code: 'A12.1.02.003', system: 'cardiovascular' },
+  'mitral valve': { latinName: 'Valva atrioventricularis sinistra (Valva mitralis)', ta98Code: 'A12.1.04.003', system: 'cardiovascular' },
+  'bicuspid valve': { latinName: 'Valva atrioventricularis sinistra (Valva mitralis)', ta98Code: 'A12.1.04.003', system: 'cardiovascular' },
+  'aortic valve': { latinName: 'Valva aortae', ta98Code: 'A12.1.04.012', system: 'cardiovascular' },
+  'pulmonary valve': { latinName: 'Valva trunci pulmonalis', ta98Code: 'A12.1.02.011', system: 'cardiovascular' },
+  'papillary muscles': { latinName: 'Musculi papillares', ta98Code: 'A12.1.00.020', system: 'cardiovascular' },
+  'papillary muscle': { latinName: 'Musculus papillaris', ta98Code: 'A12.1.00.020', system: 'cardiovascular' },
+  'chordae tendineae': { latinName: 'Chordae tendineae', ta98Code: 'A12.1.00.021', system: 'cardiovascular' },
+  'coronary sinus': { latinName: 'Sinus coronarius', ta98Code: 'A12.3.01.002', system: 'cardiovascular' },
+  'cerebral cortex': { latinName: 'Cortex cerebri', ta98Code: 'A14.1.09.002', system: 'nervous' },
+  'frontal lobe': { latinName: 'Lobus frontalis', ta98Code: 'A14.1.09.110', system: 'nervous' },
+  'parietal lobe': { latinName: 'Lobus parietalis', ta98Code: 'A14.1.09.130', system: 'nervous' },
+  'temporal lobe': { latinName: 'Lobus temporalis', ta98Code: 'A14.1.09.135', system: 'nervous' },
+  'occipital lobe': { latinName: 'Lobus occipitalis', ta98Code: 'A14.1.09.138', system: 'nervous' },
+  hypothalamus: { latinName: 'Hypothalamus', ta98Code: 'A14.1.08.401', system: 'nervous' },
+  insula: { latinName: 'Cortex insularis', ta98Code: 'A14.1.09.149', system: 'nervous' },
+  fornix: { latinName: 'Fornix cerebri', ta98Code: 'A14.1.09.424', system: 'nervous' },
+  claustrum: { latinName: 'Claustrum', ta98Code: 'A14.1.09.419', system: 'nervous' },
   'aorta arch': {
     latinName: 'Arcus aortae',
     ta98Code: 'A12.2.04.001',
@@ -1050,8 +1090,8 @@ function buildAnatomicalBaseMetadata(
   const rigMeta =
     CALIBRATION_RIG_STRUCTURES[rawName] ?? CALIBRATION_RIG_STRUCTURES[stripped];
   const termEntry =
-    TERMINOLOGY_MAP[baseLookupKey] ??
-    TERMINOLOGY_MAP[cleanName.toLowerCase()];
+    TERMINOLOGY_MAP[cleanName.toLowerCase()] ??
+    TERMINOLOGY_MAP[baseLookupKey];
 
   const system: AnatomicalSystem =
     systemOverride ??
@@ -1226,9 +1266,16 @@ export function parseAnatomicalMesh(
 
   // Enforce Standard Anatomical Position laterality (+X = Subject's Left, -X = Subject's Right)
   // across standing full-body meshes so mislabeled bilateral craniofacial/limb parts (e.g. Eyelashes, TMJ ligament) never invert L/R.
+  const isIsolatedLateralSpecimen =
+    Boolean(resolvedContext) &&
+    ((/\bleft\b/i.test(resolvedContext ?? '') &&
+      !/\bright\b/i.test(resolvedContext ?? '')) ||
+      (/\bright\b/i.test(resolvedContext ?? '') &&
+        !/\bleft\b/i.test(resolvedContext ?? '')));
   const inStandingAtlas =
-    isInStandingWorldScene(mesh) ||
-    /(?:zanatomy|nih_visible_human)/i.test(resolvedContext ?? '');
+    !isIsolatedLateralSpecimen &&
+    (isInStandingWorldScene(mesh) ||
+      /(?:zanatomy|nih_visible_human)/i.test(resolvedContext ?? ''));
   const isAsymmetricOrCrossingStructure =
     isIntrinsicCardiacStructure(rawCandidate) ||
     /\b(?:brachiocephalic|gastric|gastro|hepatic|cystic|splenic|celiac|mesenteric|colic|azygos|hemiazygos|thoracic[\s_-]*duct|vagus|phrenic)\b/i.test(

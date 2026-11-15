@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const ROOT = process.cwd();
-const SCAN_DIRS = ['public/books', 'public/models'];
+const SCAN_DIRS = ['public/books', 'public/models', 'mobile-assets/books'];
 const CHUNKS_ROOT = path.join(ROOT, 'large-asset-chunks');
 const MAX_GIT_FILE_BYTES = 95 * 1000 * 1000; // 95 MB strict cap under GitHub's 100 MB rejection limit
 const CHUNK_SIZE_BYTES = 85 * 1000 * 1000;   // 85 MB (~81.06 MiB), safely under 90 MB

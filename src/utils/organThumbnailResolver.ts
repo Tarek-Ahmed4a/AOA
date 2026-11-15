@@ -215,9 +215,23 @@ async function fetchWikiSummaryThumb(wikiTitle: string): Promise<string | null> 
       });
       if (!res.ok) return null;
       const data = (await res.json()) as {
+        type?: string;
+        title?: string;
+        description?: string;
+        extract?: string;
         thumbnail?: { source?: string };
         originalimage?: { source?: string };
       };
+      // Disambiguation & geography/pop-culture gatekeeper (never cache Al-Butayn/Riyadh highway images)
+      if (data?.type === 'disambiguation') return null;
+      const metaText = `${data?.title ?? ''} ${data?.description ?? ''} ${data?.extract ?? ''}`;
+      if (
+        /disambiguation|may refer to:|الرياض|وادي|السعودية|محافظة|highway|valley in|city in|village in/i.test(
+          metaText
+        )
+      ) {
+        return null;
+      }
       const imgUrl =
         data?.thumbnail?.source || data?.originalimage?.source || null;
       if (imgUrl && imgUrl.startsWith('http')) {
