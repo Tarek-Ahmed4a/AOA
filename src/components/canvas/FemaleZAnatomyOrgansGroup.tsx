@@ -6,9 +6,15 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAnatomyStore } from '../../store/useAnatomyStore';
+import {
+  applyMeshPartOpacityOverride,
+  disposeMeshOpacityClone,
+  resolveMeshOpacityOverride,
+} from '../../utils/partOpacityUtils';
 import {
   parseAnatomicalMesh,
   type AnatomicalPartInfo,
@@ -152,6 +158,8 @@ const FemaleOrganPieceLoader: React.FC<{
 }> = ({ spec, url, landmarksCatalog, onLoaded, onDisposed }) => {
   const registry = useSceneMeshRegistry();
   const showSurgicalLandmarks = useAnatomyStore((s) => s.showSurgicalLandmarks);
+  const landmarkFilterMode = useAnatomyStore((s) => s.landmarkFilterMode);
+  const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const activeSystems = useAnatomyStore((s) => s.activeSystems);
   const activeAtlasPreset = useAnatomyStore((s) => s.activeAtlasPreset);
@@ -237,6 +245,7 @@ const FemaleOrganPieceLoader: React.FC<{
           (Array.isArray(hi) ? hi : [hi]).forEach((mat) => mat?.dispose());
           m.userData.__highlightMaterial = undefined;
         }
+        disposeMeshOpacityClone(m);
         const mats = Array.isArray(m.userData?.__sharedMaterial)
           ? (m.userData.__sharedMaterial as THREE.Material[])
           : [m.userData?.__sharedMaterial as THREE.Material | undefined];
@@ -312,14 +321,26 @@ const FemaleOrganPieceLoader: React.FC<{
   return (
     <>
       <primitive object={prepared.scene} />
-      {showSurgicalLandmarks && organLandmarks.length > 0 && (
+      {showSurgicalLandmarks &&
+        activeSystems.visceral &&
+        hasVisibleParentMesh &&
+        (landmarkFilterMode !== 'selected' ||
+          (selectedPart !== null &&
+            prepared.meshes.some(
+              (m) =>
+                m.uuid === selectedPart.meshUuid ||
+                m.name === selectedPart.rawName ||
+                (selectedPart.organGroupId &&
+                  m.userData?.organGroupId === selectedPart.organGroupId)
+            ))) &&
+        organLandmarks.length > 0 && (
         <group
           ref={landmarkOffsetRef}
           name={`FemaleOrganLandmarks_${spec.id}`}
           visible={hasVisibleParentMesh}
         >
           <HraLandmarkOverlayList
-            visible={showSurgicalLandmarks}
+            visible={showSurgicalLandmarks && activeSystems.visceral}
             landmarks={organLandmarks}
             parentSystem="visceral"
             hidden={!hasVisibleParentMesh}
@@ -356,6 +377,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const hasRealLandmarksRef = useRef<boolean>(false);
   const [mountVersion, setMountVersion] = useState(0);
 
+  const { invalidate } = useThree();
   const registry = useSceneMeshRegistry();
   const clippingPlane = useClippingPlane();
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
@@ -365,6 +387,7 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
   const systemOpacity = useAnatomyStore((s) => s.systemOpacity);
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
@@ -653,8 +676,19 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
             mat.shadowSide = mat.side;
           }
         }
+
+        const overrideOpacity = resolveMeshOpacityOverride(
+          mesh,
+          partOpacityOverrides
+        );
+        applyMeshPartOpacityOverride(
+          mesh,
+          overrideOpacity,
+          isTranslucent || effectiveOpacity < 1 ? 10 : 2
+        );
       }
     }
+    invalidate();
   }, [
     mountVersion,
     visible,
@@ -662,10 +696,12 @@ export const FemaleZAnatomyOrgansGroup: React.FC<
     systemOpacity.visceral,
     hiddenPartIds,
     isolatedPartId,
+    partOpacityOverrides,
     xrayGhostMode,
     slicing.enabled,
     slicing.scope,
     selectedPart,
+    invalidate,
   ]);
 
   const pelvicSpecs = useMemo(

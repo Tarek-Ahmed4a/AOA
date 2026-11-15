@@ -130,6 +130,11 @@ export const MinimalHud: React.FC = () => {
     (s) => s.toggleSurgicalLandmarks
   );
   const setExplodeFactor = useAnatomyStore((s) => s.setExplodeFactor);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
+  const setPartOpacity = useAnatomyStore((s) => s.setPartOpacity);
+  const resetPartOpacity = useAnatomyStore((s) => s.resetPartOpacity);
+  const landmarkFilterMode = useAnatomyStore((s) => s.landmarkFilterMode);
+  const setLandmarkFilterMode = useAnatomyStore((s) => s.setLandmarkFilterMode);
   const updateSlicing = useAnatomyStore((s) => s.updateSlicing);
   const resetSlicing = useAnatomyStore((s) => s.resetSlicing);
 
@@ -280,7 +285,8 @@ export const MinimalHud: React.FC = () => {
     isolatedPartId !== null ||
     xrayGhostMode ||
     showSurgicalLandmarks ||
-    explodeFactor > 0;
+    explodeFactor > 0 ||
+    Object.keys(partOpacityOverrides).length > 0;
 
   return (
     <>
@@ -747,6 +753,98 @@ export const MinimalHud: React.FC = () => {
                   <kbd className="font-mono text-[9px] text-zinc-400">R</kbd>
                 </button>
               </div>
+
+              {/* Layer 3 Landmark Filter Pill (when Landmarks [L] is ON) */}
+              {showSurgicalLandmarks && (
+                <div className="mt-2 flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-500/10 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setLandmarkFilterMode('all')}
+                    className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition ${
+                      landmarkFilterMode === 'all'
+                        ? 'bg-amber-500/30 text-amber-100 shadow-sm'
+                        : 'text-amber-200/70 hover:bg-amber-500/15 hover:text-amber-100'
+                    }`}
+                  >
+                    🌐 All Active Landmarks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLandmarkFilterMode('selected')}
+                    disabled={!selectedPart}
+                    title={
+                      selectedPart
+                        ? 'Show only landmarks anchored to the selected structure'
+                        : 'Select a structure first to filter landmarks'
+                    }
+                    className={`flex-1 rounded-md px-2 py-1 text-[10px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                      landmarkFilterMode === 'selected'
+                        ? 'bg-emerald-500/30 text-emerald-100 shadow-sm'
+                        : 'text-amber-200/70 hover:bg-emerald-500/15 hover:text-emerald-100'
+                    }`}
+                  >
+                    🎯 Selected Part Only
+                  </button>
+                </div>
+              )}
+
+              {/* Selected Part Independent Opacity Slider (5% - 100%) */}
+              {selectedPart &&
+                (() => {
+                  const currentPartOpacity =
+                    partOpacityOverrides[selectedPart.meshUuid] ??
+                    partOpacityOverrides[selectedPart.rawName] ??
+                    (selectedPart.organGroupId
+                      ? partOpacityOverrides[selectedPart.organGroupId]
+                      : undefined) ??
+                    1.0;
+                  const opacityPct = Math.round(currentPartOpacity * 100);
+                  const isOverridden = opacityPct < 100;
+                  return (
+                    <div className="mt-2.5 border-t border-white/10 pt-2">
+                      <div className="mb-1 flex items-center justify-between gap-1.5 text-[10px] font-medium text-slate-300">
+                        <span className="truncate">
+                          💧 PART OPACITY: {selectedPart.cleanName}
+                        </span>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <span
+                            className={`font-mono ${
+                              isOverridden ? 'text-cyan-300' : 'text-slate-400'
+                            }`}
+                          >
+                            {opacityPct}%
+                          </span>
+                          {isOverridden && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                resetPartOpacity(selectedPart.meshUuid)
+                              }
+                              className="rounded border border-cyan-500/40 bg-cyan-500/15 px-1 py-0.2 text-[9px] text-cyan-200 hover:bg-cyan-500/25"
+                            >
+                              Reset
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={1}
+                        value={opacityPct}
+                        onChange={(e) =>
+                          setPartOpacity(
+                            selectedPart.meshUuid,
+                            Number(e.target.value) / 100
+                          )
+                        }
+                        aria-label="Selected Part Opacity"
+                        className="h-1.5 w-full cursor-pointer accent-cyan-400"
+                      />
+                    </div>
+                  );
+                })()}
 
               {/* Explode Slider */}
               <div className="mt-2.5 border-t border-white/10 pt-2">

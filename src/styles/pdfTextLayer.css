@@ -2,9 +2,11 @@
 [data-main-rotation="90"] {
   transform: rotate(90deg) translateY(-100%);
 }
+
 [data-main-rotation="180"] {
   transform: rotate(180deg) translate(-100%, -100%);
 }
+
 [data-main-rotation="270"] {
   transform: rotate(270deg) translateX(-100%);
 }
@@ -51,15 +53,14 @@
   user-select: text;
 }
 
-.aoa-pdf-page .textLayer > :not(.markedContent),
+.aoa-pdf-page .textLayer> :not(.markedContent),
 .aoa-pdf-page .textLayer .markedContent span:not(.markedContent) {
   z-index: 1;
   --font-height: 0;
   font-size: calc(var(--text-scale-factor) * var(--font-height));
   --scale-x: 1;
   --rotate: 0deg;
-  transform: rotate(var(--rotate)) scaleX(var(--scale-x))
-    scale(var(--min-font-size-inv));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
 }
 
 .aoa-pdf-page .textLayer .markedContent {
@@ -102,4 +103,3 @@
 .aoa-pdf-page .textLayer.selecting .endOfContent {
   top: 0;
 }
-

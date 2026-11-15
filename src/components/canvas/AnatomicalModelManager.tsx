@@ -72,6 +72,12 @@ import {
 import { UniversalLandmarksLayer } from './UniversalLandmarksLayer';
 import { matchLandmarksForOrgan } from '../../services/hraLandmarkService';
 import {
+  applyMeshPartOpacityOverride,
+  disposeMeshOpacityClone,
+  getMeshNonHighlightMaterial,
+  resolveMeshOpacityOverride,
+} from '../../utils/partOpacityUtils';
+import {
   isFemaleOnlyMesh,
   isMaleOnlyMesh,
   isMeshVisibleForSex,
@@ -83,29 +89,18 @@ useGLTF.setDecoderPath(resolveAssetUrl('/draco/'));
 
 const NOOP_RAYCAST: THREE.Mesh['raycast'] = () => {};
 
-const CalloutCardContent: React.FC<{ part: AnatomicalPartInfo }> = ({ part }) => (
+const OriginAnchorDot: React.FC = () => (
   <div className="pointer-events-none relative select-none">
-    <span className="absolute -left-1.5 -top-1.5 flex h-3 w-3 items-center justify-center">
+    <span className="flex h-3 w-3 -translate-x-1/2 -translate-y-1/2 items-center justify-center">
       <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-60" />
       <span className="relative inline-flex h-2 w-2 rounded-full border border-white/80 bg-sky-400 shadow-[0_0_10px_rgba(56,189,248,0.95)]" />
     </span>
+  </div>
+);
 
-    <svg
-      width="36"
-      height="28"
-      viewBox="0 0 36 28"
-      className="absolute left-0 -top-7 overflow-visible"
-      aria-hidden="true"
-    >
-      <polyline
-        points="0,28 16,8 36,8"
-        fill="none"
-        stroke="rgba(56, 189, 248, 0.75)"
-        strokeWidth="1.25"
-      />
-    </svg>
-
-    <div className="ml-9 -mt-12 min-w-[170px] max-w-[240px] rounded-lg border border-sky-400/35 bg-zinc-950/90 px-2.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md">
+const CalloutCardContent: React.FC<{ part: AnatomicalPartInfo }> = ({ part }) => (
+  <div className="pointer-events-none select-none">
+    <div className="min-w-[170px] max-w-[240px] rounded-lg border border-sky-400/45 bg-zinc-950/92 px-2.5 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.85)] backdrop-blur-md">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate font-sans text-xs font-semibold text-white">
           {part.cleanName}
@@ -262,7 +257,7 @@ const CRANIAL_MESH_KEEP_REGEX =
   /\b(?:skull|crani|frontal|parietal|temporal|occipital|sphenoid|ethmoid|zygomatic|maxilla|mandib|nasal|lacrimal|palatine|vomer|concha|malleus|incus|stapes|hyoid|suture|fontanelle|tooth|teeth|incisor|canine|premolar|molar|calvaria|orbit)\b/i;
 
 const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
-  const { gl } = useThree();
+  const { gl, invalidate } = useThree();
   const maxAnisotropy = Math.min(gl.capabilities.getMaxAnisotropy(), 8);
   const resolvedUrl = resolveAssetUrl(url);
   const gltf = useGLTF(resolvedUrl, true, true, registerCustomGlbExtensions);
@@ -287,6 +282,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
@@ -612,6 +608,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
           (Array.isArray(hi) ? hi : [hi]).forEach((m) => m?.dispose());
           mesh.userData.__highlightMaterial = undefined;
         }
+        disposeMeshOpacityClone(mesh);
         if (mesh.userData?.__sharedMaterial) {
           mesh.material = mesh.userData.__sharedMaterial;
         }
@@ -757,8 +754,14 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       const isTranslucentLayer = xrayGhostMode || effectiveOpacity < 0.85;
       const effectiveTransparent = isTranslucentLayer || effectiveOpacity < 1;
 
-      mesh.renderOrder = effectiveTransparent ? 10 : 2;
+      const baseOrder = effectiveTransparent ? 10 : 2;
+      const overrideOpacity = resolveMeshOpacityOverride(
+        mesh,
+        partOpacityOverrides
+      );
+      applyMeshPartOpacityOverride(mesh, overrideOpacity, baseOrder);
     }
+    invalidate();
   }, [
     registeredMeshes,
     sharedMaterials,
@@ -768,6 +771,8 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
     selectedPart,
     hiddenPartIds,
     isolatedPartId,
+    partOpacityOverrides,
+    invalidate,
     xrayGhostMode,
     slicing.enabled,
     slicing.scope,
@@ -832,6 +837,7 @@ const CustomGlbModel: React.FC<{ url: string }> = ({ url }) => {
       )}
       <UniversalLandmarksLayer
         nihCatalog={null}
+        catalogTick={registeredMeshes.length}
         modelContext="explorer-custom"
         customModelHint={customGlbName ?? explorerOpenedModel?.title ?? ''}
         skipCrossHraGlb={isNihOrganModel}
@@ -1388,6 +1394,7 @@ const SketchfabSystemGlbContent: React.FC<{
   entry: SketchfabManifestModel;
   onSceneReady: () => void;
 }> = ({ entry, onSceneReady }) => {
+  const { invalidate } = useThree();
   const gltf = useGLTF(
     resolveAssetUrl(entry.localPath),
     true,
@@ -1405,6 +1412,7 @@ const SketchfabSystemGlbContent: React.FC<{
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
@@ -1802,6 +1810,7 @@ const SketchfabSystemGlbContent: React.FC<{
           (Array.isArray(hi) ? hi : [hi]).forEach((m) => m?.dispose());
           mesh.userData.__highlightMaterial = undefined;
         }
+        disposeMeshOpacityClone(mesh);
         if (mesh.userData?.__sharedMaterial) {
           mesh.material = mesh.userData.__sharedMaterial;
         }
@@ -1949,13 +1958,19 @@ const SketchfabSystemGlbContent: React.FC<{
           ? Math.min(rawMeshOpacity, 0.45)
           : rawMeshOpacity;
 
-      mesh.renderOrder =
+      const baseOrder =
         meshSystem === 'integumentary' && targetOpacity < 0.98
           ? 5
           : xrayGhostMode
             ? 2
             : 0;
+      const overrideOpacity = resolveMeshOpacityOverride(
+        mesh,
+        partOpacityOverrides
+      );
+      applyMeshPartOpacityOverride(mesh, overrideOpacity, baseOrder);
     }
+    invalidate();
   }, [
     registeredMeshes,
     sharedMaterials,
@@ -1968,9 +1983,11 @@ const SketchfabSystemGlbContent: React.FC<{
     selectedPart,
     hiddenPartIds,
     isolatedPartId,
+    partOpacityOverrides,
     xrayGhostMode,
     slicing.enabled,
     slicing.scope,
+    invalidate,
   ]);
 
   // Apply rigid macro-unit explode offsets & female skeletal pelvic dimorphism declaratively
@@ -2053,8 +2070,7 @@ const SketchfabSystemGlbNode: React.FC<{
 );
 
 const ExternalSpatialCalloutPin: React.FC = () => {
-  const pinGroupRef = useRef<THREE.Group>(null);
-  const livePosTempRef = useRef(new THREE.Vector3());
+  const { camera } = useThree();
   const registry = useSceneMeshRegistry();
 
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
@@ -2063,34 +2079,16 @@ const ExternalSpatialCalloutPin: React.FC = () => {
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
+  const showSurgicalLandmarks = useAnatomyStore((s) => s.showSurgicalLandmarks);
+  const activePartLandmarks = useAnatomyStore((s) => s.activePartLandmarks);
 
-  useEffect(() => {
-    if (!pinGroupRef.current || !selectedPart) return;
-    const obj = getRegisteredSceneMesh(
-      selectedPart.meshUuid,
-      selectedPart.rawName,
-      registry
-    );
-    const localCenter = obj?.userData?.__localCenter as
-      | THREE.Vector3
-      | undefined;
-
-    if (obj && localCenter) {
-      obj.updateWorldMatrix(true, false);
-      livePosTempRef.current.copy(localCenter).applyMatrix4(obj.matrixWorld);
-      pinGroupRef.current.position.copy(livePosTempRef.current);
-    } else {
-      pinGroupRef.current.position.set(...selectedPart.worldCenter);
-    }
-  }, [selectedPart, explodeFactor, registry]);
-
-  if (!selectedPart) return null;
-
-  const selectedMeshObj = getRegisteredSceneMesh(
-    selectedPart.meshUuid,
-    selectedPart.rawName,
-    registry
-  );
+  const selectedMeshObj = selectedPart
+    ? getRegisteredSceneMesh(
+        selectedPart.meshUuid,
+        selectedPart.rawName,
+        registry
+      )
+    : null;
   const selectedGroupId = selectedMeshObj?.userData?.organGroupId as
     | string
     | undefined;
@@ -2102,6 +2100,7 @@ const ExternalSpatialCalloutPin: React.FC = () => {
     | undefined;
 
   const isVisible =
+    selectedPart !== null &&
     activeSystems[selectedPart.system] &&
     !hiddenPartIds.includes(selectedPart.meshUuid) &&
     !hiddenPartIds.includes(selectedPart.rawName) &&
@@ -2111,11 +2110,177 @@ const ExternalSpatialCalloutPin: React.FC = () => {
       isolatedPartId === selectedPart.rawName ||
       (Boolean(selectedGroupId) && selectedGroupId === isolatedGroupId));
 
-  if (!isVisible) return null;
+  const calloutGeometry = useMemo(() => {
+    if (!selectedPart || !isVisible) return null;
+
+    const originWorld = new THREE.Vector3(...selectedPart.worldCenter);
+    const localCenter = selectedMeshObj?.userData?.__localCenter as
+      | THREE.Vector3
+      | undefined;
+    if (selectedMeshObj && localCenter) {
+      selectedMeshObj.updateWorldMatrix(true, false);
+      originWorld.copy(localCenter).applyMatrix4(selectedMeshObj.matrixWorld);
+    }
+
+    const partBox = new THREE.Box3();
+    const sceneBandBox = new THREE.Box3();
+    const tmpBox = new THREE.Box3();
+
+    for (const mesh of registry.byUuid.values()) {
+      if (
+        !mesh.visible ||
+        mesh.userData?.isSurgicalLandmark ||
+        mesh.userData?.__isNoiseFiltered ||
+        mesh.userData?.__isNoiseSubmesh ||
+        mesh.userData?.__isStencilHelper
+      ) {
+        continue;
+      }
+      mesh.updateWorldMatrix(true, false);
+      tmpBox.setFromObject(mesh);
+      if (tmpBox.isEmpty()) continue;
+
+      const isSelectedOrGroup =
+        mesh.uuid === selectedPart.meshUuid ||
+        (selectedPart.rawName && mesh.name === selectedPart.rawName) ||
+        (Boolean(selectedGroupId) &&
+          mesh.userData?.organGroupId === selectedGroupId);
+      if (isSelectedOrGroup) {
+        partBox.union(tmpBox);
+      }
+      if (
+        tmpBox.max.y >= originWorld.y - 0.14 &&
+        tmpBox.min.y <= originWorld.y + 0.14
+      ) {
+        sceneBandBox.union(tmpBox);
+      }
+    }
+
+    if (partBox.isEmpty()) {
+      partBox.setFromCenterAndSize(
+        originWorld,
+        new THREE.Vector3(0.08, 0.08, 0.08)
+      );
+    }
+    const refBox = sceneBandBox.isEmpty() ? partBox : sceneBandBox;
+
+    const side: 1 | -1 =
+      Math.abs(originWorld.x) >= 0.03
+        ? originWorld.x >= 0
+          ? 1
+          : -1
+        : camera.position.x >= 0
+        ? -1
+        : 1;
+
+    const outerEdgeX =
+      side > 0
+        ? Math.max(refBox.max.x, partBox.max.x, 0.16)
+        : Math.min(refBox.min.x, partBox.min.x, -0.16);
+
+    const cameraDist = camera.position.distanceTo(originWorld);
+    const baseOutward = THREE.MathUtils.clamp(cameraDist * 0.14, 0.11, 0.22);
+    const landmarkExtra = showSurgicalLandmarks ? 0.08 : 0;
+    const cardX = outerEdgeX + side * (baseOutward + landmarkExtra);
+
+    // Anti-collision vertical slot selection against nearby landmark labels
+    let bestOffsetY = showSurgicalLandmarks ? 0.055 : 0.045;
+    if (showSurgicalLandmarks && activePartLandmarks.length > 0) {
+      const partCenterX = (partBox.min.x + partBox.max.x) * 0.5;
+      const sameSideLandmarkYs = activePartLandmarks
+        .filter((lm) =>
+          side > 0
+            ? lm.worldPosition[0] >= partCenterX
+            : lm.worldPosition[0] < partCenterX
+        )
+        .map((lm) => lm.worldPosition[1]);
+
+      if (sameSideLandmarkYs.length > 0) {
+        const candidateOffsets = [0.055, -0.065, 0.095, -0.105, 0.02];
+        let maxMinDist = -Infinity;
+        for (const off of candidateOffsets) {
+          const candY = originWorld.y + off;
+          let minDist = Infinity;
+          for (const ly of sameSideLandmarkYs) {
+            minDist = Math.min(minDist, Math.abs(candY - ly));
+          }
+          if (minDist > maxMinDist) {
+            maxMinDist = minDist;
+            bestOffsetY = off;
+          }
+        }
+      }
+    }
+
+    const cardY = originWorld.y + bestOffsetY;
+    const cardZ = Math.max(originWorld.z + 0.04, refBox.max.z + 0.02);
+
+    const relCardX = cardX - originWorld.x;
+    const relCardY = cardY - originWorld.y;
+    const relCardZ = cardZ - originWorld.z;
+
+    const elbowGeom = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(0, 0, 0),
+      new THREE.Vector3(side * 0.035, relCardY, relCardZ),
+      new THREE.Vector3(relCardX, relCardY, relCardZ),
+    ]);
+    const elbowMat = new THREE.LineBasicMaterial({
+      color: '#38bdf8',
+      transparent: true,
+      opacity: 0.85,
+    });
+    const elbowLine = new THREE.Line(elbowGeom, elbowMat);
+
+    return {
+      origin: [originWorld.x, originWorld.y, originWorld.z] as [
+        number,
+        number,
+        number
+      ],
+      relCard: [relCardX, relCardY, relCardZ] as [number, number, number],
+      side,
+      elbowLine,
+    };
+  }, [
+    selectedPart,
+    isVisible,
+    selectedMeshObj,
+    selectedGroupId,
+    registry,
+    explodeFactor,
+    showSurgicalLandmarks,
+    activePartLandmarks,
+    camera,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      if (calloutGeometry?.elbowLine) {
+        calloutGeometry.elbowLine.geometry.dispose();
+        (calloutGeometry.elbowLine.material as THREE.Material).dispose();
+      }
+    };
+  }, [calloutGeometry]);
+
+  if (!selectedPart || !isVisible || !calloutGeometry) return null;
 
   return (
-    <group ref={pinGroupRef} position={selectedPart.worldCenter}>
-      <Html zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+    <group position={calloutGeometry.origin}>
+      <primitive object={calloutGeometry.elbowLine} />
+      <Html position={[0, 0, 0]} zIndexRange={[10, 0]} style={{ pointerEvents: 'none' }}>
+        <OriginAnchorDot />
+      </Html>
+      <Html
+        position={calloutGeometry.relCard}
+        zIndexRange={[15, 0]}
+        style={{
+          pointerEvents: 'none',
+          transform:
+            calloutGeometry.side > 0
+              ? 'translate(0%, -50%)'
+              : 'translate(-100%, -50%)',
+        }}
+      >
         <CalloutCardContent part={selectedPart} />
       </Html>
     </group>
@@ -2141,7 +2306,8 @@ function syncPooledHighlightMaterial(
   role: HighlightRole,
   focusOverride: boolean,
   isMeshSliced: boolean,
-  clippingPlanesList: THREE.Plane[]
+  clippingPlanesList: THREE.Plane[],
+  overrideOpacity?: number
 ): void {
   setClinicalHighlightState(target, getHighlightRoleState(role));
 
@@ -2149,6 +2315,10 @@ function syncPooledHighlightMaterial(
     target.opacity = 1.0;
     target.transparent = false;
     target.depthWrite = true;
+  } else if (overrideOpacity !== undefined && overrideOpacity < 0.99) {
+    target.opacity = overrideOpacity;
+    target.transparent = true;
+    target.depthWrite = overrideOpacity >= 0.85;
   } else {
     target.opacity = srcMat.opacity;
     target.transparent = srcMat.transparent;
@@ -2176,6 +2346,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   const systemOpacity = useAnatomyStore((s) => s.systemOpacity);
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const showSurgicalLandmarks = useAnatomyStore(
     (s) => s.showSurgicalLandmarks
@@ -2197,9 +2368,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
   const restoreAllHighlightedMeshes = useCallback(() => {
     if (highlightedMeshesRef.current.size === 0) return;
     for (const mesh of highlightedMeshesRef.current) {
-      if (mesh.userData?.__sharedMaterial) {
-        mesh.material = mesh.userData.__sharedMaterial;
-      }
+      mesh.material = getMeshNonHighlightMaterial(mesh);
       mesh.userData.__highlightMaterial = undefined;
     }
     highlightedMeshesRef.current.clear();
@@ -2298,12 +2467,13 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     }
 
     for (const { mesh, role } of targets) {
-      const shared = mesh.userData?.__sharedMaterial as
-        | THREE.Material
-        | THREE.Material[]
-        | undefined;
+      const shared = getMeshNonHighlightMaterial(mesh);
       if (!shared) continue;
 
+      const overrideOpacity = resolveMeshOpacityOverride(
+        mesh,
+        partOpacityOverrides
+      );
       const isFocusTarget =
         isolatedMesh !== null ? mesh === isolatedMesh : mesh === selectedMesh;
       const focusOverride = Boolean(xrayGhostMode && isFocusTarget);
@@ -2314,7 +2484,11 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           mesh === isolatedMesh);
 
       const getPooledMaterial = (srcMat: THREE.Material): THREE.Material => {
-        const poolKey = `${srcMat.uuid}::${role}::${focusOverride ? 1 : 0}::${isMeshSliced ? 1 : 0}`;
+        const poolKey = `${srcMat.uuid}::${role}::${focusOverride ? 1 : 0}::${isMeshSliced ? 1 : 0}::${
+          overrideOpacity !== undefined && overrideOpacity < 0.99
+            ? overrideOpacity.toFixed(2)
+            : '1.00'
+        }`;
         let pooled = highlightPoolRef.current.get(poolKey);
         if (!pooled) {
           pooled = cloneClinicalHighlightMaterial(srcMat);
@@ -2326,7 +2500,8 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           role,
           focusOverride,
           isMeshSliced,
-          clippingPlanesList
+          clippingPlanesList,
+          overrideOpacity
         );
         return pooled;
       };
@@ -2336,6 +2511,10 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
         : getPooledMaterial(shared);
 
       mesh.material = nextMat;
+      mesh.userData.__highlightMaterial = nextMat;
+      if (overrideOpacity !== undefined && overrideOpacity < 0.99 && !focusOverride) {
+        mesh.renderOrder = 25;
+      }
       highlightedMeshesRef.current.add(mesh);
     }
 
@@ -2348,6 +2527,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
     systemOpacity,
     hiddenPartIds,
     isolatedPartId,
+    partOpacityOverrides,
     xrayGhostMode,
     slicingEnabled,
     slicingScope,

@@ -80,6 +80,9 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   const setShowSurgicalLandmarks = useAnatomyStore(
     (s) => s.setShowSurgicalLandmarks
   );
+  const activePartLandmarks = useAnatomyStore((s) => s.activePartLandmarks);
+  const focusedLandmarkId = useAnatomyStore((s) => s.focusedLandmarkId);
+  const setFocusedLandmarkId = useAnatomyStore((s) => s.setFocusedLandmarkId);
 
   const setLanguage = useAnatomyStore((s) => s.setLanguage);
   const selectPart = useAnatomyStore((s) => s.selectPart);
@@ -731,6 +734,75 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
               : medicalProfile.clinicalNotesEn}
           </div>
         </section>
+
+        {/* Interactive Anatomical Landmarks on This Structure */}
+        {showSurgicalLandmarks && activePartLandmarks.length > 0 && (
+          <section
+            aria-label="Anatomical Landmarks on This Structure"
+            className="rounded-xl border border-amber-400/25 bg-amber-500/[0.06] p-3"
+          >
+            <div className="mb-2 flex items-center justify-between gap-2 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300">
+              <span>
+                🎯{' '}
+                {isArabic
+                  ? 'المعالم التشريحية للعضو'
+                  : 'Anatomical Landmarks on This Structure'}
+              </span>
+              <span className="rounded border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 text-[9px] text-amber-200">
+                {activePartLandmarks.length}
+              </span>
+            </div>
+            <div className="max-h-56 space-y-1.5 overflow-y-auto pr-1">
+              {activePartLandmarks.map((lm) => {
+                const isFocused = focusedLandmarkId === lm.id;
+                const dotColor =
+                  lm.variant === 'rose'
+                    ? 'bg-rose-400'
+                    : lm.variant === 'blue'
+                    ? 'bg-blue-400'
+                    : lm.variant === 'cyan'
+                    ? 'bg-sky-400'
+                    : lm.variant === 'emerald'
+                    ? 'bg-emerald-400'
+                    : 'bg-amber-400';
+                return (
+                  <button
+                    key={lm.id}
+                    type="button"
+                    onClick={() => {
+                      setFocusedLandmarkId(isFocused ? null : lm.id);
+                      focusSelectedPart();
+                    }}
+                    className={cn(
+                      'w-full rounded-lg border px-2.5 py-2 text-left transition-colors',
+                      isFocused
+                        ? 'border-amber-400/70 bg-amber-500/20'
+                        : 'border-white/10 bg-slate-900/70 hover:border-amber-400/40 hover:bg-slate-900'
+                    )}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={cn('h-2 w-2 shrink-0 rounded-full', dotColor)}
+                      />
+                      <span className="text-[11.5px] font-semibold leading-snug text-zinc-100">
+                        {isArabic ? lm.nameAr : lm.nameEn}
+                      </span>
+                    </div>
+                    <p
+                      className={cn(
+                        'mt-1 text-[10.5px] leading-relaxed text-zinc-400',
+                        isArabic && 'text-right'
+                      )}
+                      dir={isArabic ? 'rtl' : 'ltr'}
+                    >
+                      {isArabic ? lm.significanceAr : lm.significanceEn}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* HRA Panel A: Microscopic Histology — Functional Tissue Units (FTU) */}
         {(isLoadingHra ||

@@ -74,6 +74,17 @@ export interface PointerScreenPos {
   y: number;
 }
 
+export interface ActivePartLandmarkItem {
+  id: string;
+  nameEn: string;
+  nameAr: string;
+  latinName: string;
+  variant: 'amber' | 'cyan' | 'emerald' | 'rose' | 'blue';
+  significanceEn: string;
+  significanceAr: string;
+  worldPosition: [number, number, number];
+}
+
 export interface AnatomyState {
   // Phase 1 state
   selectedMeshId: string | null;
@@ -94,8 +105,12 @@ export interface AnatomyState {
   // Phase 3 Dissection & Slicing state
   hiddenPartIds: string[];
   isolatedPartId: string | null;
+  partOpacityOverrides: Record<string, number>;
   xrayGhostMode: boolean;
   showSurgicalLandmarks: boolean;
+  landmarkFilterMode: 'all' | 'selected';
+  activePartLandmarks: ActivePartLandmarkItem[];
+  focusedLandmarkId: string | null;
   explodeFactor: number;
   slicing: SlicingState;
 
@@ -148,9 +163,14 @@ export interface AnatomyState {
   undoLastPeel: () => void;
   restoreAllParts: () => void;
   toggleIsolateSelected: () => void;
+  setPartOpacity: (partId: string, opacity: number) => void;
+  resetPartOpacity: (partId?: string) => void;
   toggleXrayGhost: () => void;
   toggleSurgicalLandmarks: () => void;
   setShowSurgicalLandmarks: (show: boolean) => void;
+  setLandmarkFilterMode: (mode: 'all' | 'selected') => void;
+  setActivePartLandmarks: (items: ActivePartLandmarkItem[]) => void;
+  setFocusedLandmarkId: (id: string | null) => void;
   setExplodeFactor: (val: number) => void;
   updateSlicing: (partial: Partial<SlicingState>) => void;
   resetSlicing: () => void;
@@ -321,6 +341,9 @@ export function createAnatomyViewportStore(
   isolatedPartId: null,
   xrayGhostMode: false,
   showSurgicalLandmarks: false,
+  landmarkFilterMode: 'all',
+  activePartLandmarks: [],
+  focusedLandmarkId: null,
   explodeFactor: 0,
   slicing: { ...DEFAULT_SLICING_STATE },
 
@@ -346,6 +369,7 @@ export function createAnatomyViewportStore(
   explorerCloudUid: null,
   explorerCloudTitle: null,
   pdfReferenceTarget: null,
+  partOpacityOverrides: {},
 
   selectPart: (part) => {
     cancelActiveMedicalFetch();
@@ -539,8 +563,10 @@ export function createAnatomyViewportStore(
     set({
       hiddenPartIds: [],
       isolatedPartId: null,
+      partOpacityOverrides: {},
       xrayGhostMode: false,
       showSurgicalLandmarks: false,
+      landmarkFilterMode: 'all',
       explodeFactor: 0,
     }),
 
@@ -562,6 +588,94 @@ export function createAnatomyViewportStore(
       return state;
     }),
 
+  setPartOpacity: (partId, opacity) =>
+    set((state) => {
+      const clamped = Math.max(0.05, Math.min(1, opacity));
+      const keys = new Set<string>([partId]);
+      const match =
+        (state.selectedPart &&
+        (state.selectedPart.meshUuid === partId ||
+          state.selectedPart.rawName === partId ||
+          state.selectedPart.organGroupId === partId)
+          ? state.selectedPart
+          : null) ??
+        state.anatomicalCatalog.find(
+          (p) =>
+            p.meshUuid === partId ||
+            p.rawName === partId ||
+            p.organGroupId === partId
+        );
+
+      if (match) {
+        if (match.meshUuid) keys.add(match.meshUuid);
+        if (match.rawName) keys.add(match.rawName);
+        if (match.organGroupId) keys.add(match.organGroupId);
+        const matchName = match.cleanName.toLowerCase();
+        for (const p of state.anatomicalCatalog) {
+          const sameGroup =
+            Boolean(match.organGroupId) &&
+            p.organGroupId === match.organGroupId;
+          const sameNamedOrgan =
+            p.cleanName.toLowerCase() === matchName &&
+            p.system === match.system &&
+            p.laterality === match.laterality;
+          if (sameGroup || sameNamedOrgan) {
+            if (p.meshUuid) keys.add(p.meshUuid);
+            if (p.rawName) keys.add(p.rawName);
+          }
+        }
+      }
+
+      const nextOverrides = { ...state.partOpacityOverrides };
+      if (clamped >= 0.995) {
+        for (const k of keys) delete nextOverrides[k];
+      } else {
+        for (const k of keys) nextOverrides[k] = clamped;
+      }
+      return { partOpacityOverrides: nextOverrides };
+    }),
+
+  resetPartOpacity: (partId) =>
+    set((state) => {
+      if (!partId) {
+        return { partOpacityOverrides: {} };
+      }
+      const keys = new Set<string>([partId]);
+      const match =
+        (state.selectedPart &&
+        (state.selectedPart.meshUuid === partId ||
+          state.selectedPart.rawName === partId ||
+          state.selectedPart.organGroupId === partId)
+          ? state.selectedPart
+          : null) ??
+        state.anatomicalCatalog.find(
+          (p) =>
+            p.meshUuid === partId ||
+            p.rawName === partId ||
+            p.organGroupId === partId
+        );
+      if (match) {
+        if (match.meshUuid) keys.add(match.meshUuid);
+        if (match.rawName) keys.add(match.rawName);
+        if (match.organGroupId) keys.add(match.organGroupId);
+        const matchName = match.cleanName.toLowerCase();
+        for (const p of state.anatomicalCatalog) {
+          if (
+            (match.organGroupId && p.organGroupId === match.organGroupId) ||
+            (p.cleanName.toLowerCase() === matchName &&
+              p.system === match.system &&
+              p.laterality === match.laterality)
+          ) {
+            if (p.meshUuid) keys.add(p.meshUuid);
+            if (p.rawName) keys.add(p.rawName);
+          }
+        }
+      }
+      const nextOverrides = { ...state.partOpacityOverrides };
+      for (const k of keys) delete nextOverrides[k];
+      return { partOpacityOverrides: nextOverrides };
+    }),
+
   toggleXrayGhost: () =>
     set((state) => ({
       xrayGhostMode: !state.xrayGhostMode,
@@ -575,6 +689,21 @@ export function createAnatomyViewportStore(
   setShowSurgicalLandmarks: (show) =>
     set({
       showSurgicalLandmarks: show,
+    }),
+
+  setLandmarkFilterMode: (mode) =>
+    set({
+      landmarkFilterMode: mode,
+    }),
+
+  setActivePartLandmarks: (items) =>
+    set({
+      activePartLandmarks: items,
+    }),
+
+  setFocusedLandmarkId: (id) =>
+    set({
+      focusedLandmarkId: id,
     }),
 
   setExplodeFactor: (val) =>
@@ -797,6 +926,7 @@ export function createAnatomyViewportStore(
         isLoadingMedicalData: false,
         hiddenPartIds: [],
         isolatedPartId: null,
+        partOpacityOverrides: {},
         xrayGhostMode: false,
         showSurgicalLandmarks: false,
         explodeFactor: 0,
@@ -843,6 +973,7 @@ export function createAnatomyViewportStore(
         isLoadingMedicalData: false,
         hiddenPartIds: [],
         isolatedPartId: null,
+        partOpacityOverrides: {},
         mobileSheetSnap: 'half',
       };
     });
@@ -870,6 +1001,7 @@ export function createAnatomyViewportStore(
         isLoadingMedicalData: false,
         hiddenPartIds: [],
         isolatedPartId: null,
+        partOpacityOverrides: {},
         mobileSheetSnap: 'half',
         cameraTarget: [...DEFAULT_CAMERA_TARGET] as [number, number, number],
         resetViewCounter: state.resetViewCounter + 1,
@@ -951,6 +1083,7 @@ export function createAnatomyViewportStore(
         isLoadingMedicalData: false,
         hiddenPartIds: [],
         isolatedPartId: null,
+        partOpacityOverrides: {},
         xrayGhostMode: false,
         showSurgicalLandmarks: false,
         explodeFactor: 0,
@@ -977,6 +1110,7 @@ export function createAnatomyViewportStore(
         supplementalCatalogParts: [],
         hiddenPartIds: [],
         isolatedPartId: null,
+        partOpacityOverrides: {},
         xrayGhostMode: false,
         showSurgicalLandmarks: false,
         explodeFactor: 0,

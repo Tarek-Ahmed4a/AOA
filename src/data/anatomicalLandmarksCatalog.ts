@@ -1,8 +1,9 @@
 import type { AnatomicalSystem } from '../store/useAnatomyStore';
 import type { AnatomicalClinicalProfile } from '../types/medicalData';
 import type { AnatomicalPartInfo } from '../utils/anatomyParser';
+import { TOTAL_LANDMARKS_SUPPLEMENT } from './totalLandmarksSupplement';
 
-export type LandmarkVisualVariant = 'amber' | 'cyan';
+export type LandmarkVisualVariant = 'amber' | 'cyan' | 'emerald' | 'rose' | 'blue';
 export type LandmarkSnapDirection =
   | 'anterior'
   | 'posterior'
@@ -33,6 +34,13 @@ export interface AnatomicalFiducialLandmark {
    * where `+X = Left`, `+Y = Superior`, `+Z = Anterior`).
    */
   normalizedOffset: [number, number, number];
+  /**
+   * Anatomical bounding-box ratios `[rx, ry, rz]` in `[0.0 .. 1.0]`:
+   * - `rx`: `0.0 = Medial (toward X=0 midline)`, `1.0 = Lateral (away from X=0)`
+   * - `ry`: `0.0 = Inferior/Distal`, `1.0 = Superior/Proximal`
+   * - `rz`: `0.0 = Posterior`, `1.0 = Anterior`
+   */
+  anatomicalRatio?: [number, number, number];
   /** Optional outward approach vector for surface ray-snapping on mount. */
   snapDirection?: LandmarkSnapDirection;
   localizationEn: string;
@@ -41,7 +49,7 @@ export interface AnatomicalFiducialLandmark {
   significanceAr: string;
 }
 
-export const ANATOMICAL_FIDUCIAL_LANDMARKS: readonly AnatomicalFiducialLandmark[] = [
+const BASE_FIDUCIAL_LANDMARKS: readonly AnatomicalFiducialLandmark[] = [
   // ============================================================================
   // 1. SKELETAL SYSTEM (18 Landmarks)
   // ============================================================================
@@ -1746,6 +1754,11 @@ export const ANATOMICAL_FIDUCIAL_LANDMARKS: readonly AnatomicalFiducialLandmark[
     significanceEn: 'Site of Baker (popliteal) synovial cyst swelling; deep-knee venous thrombosis Doppler window and small saphenous vein termination junction lie underneath.',
     significanceAr: 'موضع ظهور كيسة بيكر المأبضية ونافذة فحص الإيكو دوبلر للخثار الوريدي ومصب الوريد الصافن الصغير.',
   },
+];
+
+export const ANATOMICAL_FIDUCIAL_LANDMARKS: readonly AnatomicalFiducialLandmark[] = [
+  ...BASE_FIDUCIAL_LANDMARKS,
+  ...TOTAL_LANDMARKS_SUPPLEMENT,
 ];
 
 /**

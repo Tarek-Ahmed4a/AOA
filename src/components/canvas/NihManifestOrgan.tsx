@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
+import { useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import {
@@ -26,6 +27,11 @@ import {
   isMaleOnlyMesh,
 } from '../../utils/sexDimorphismFilter';
 import { registerCustomGlbExtensions } from '../../utils/gltfSpecularGlossinessExtension';
+import {
+  applyMeshPartOpacityOverride,
+  disposeMeshOpacityClone,
+  resolveMeshOpacityOverride,
+} from '../../utils/partOpacityUtils';
 import {
   HraLandmarkOverlayList,
   useHraSurgicalLandmarksCatalog,
@@ -310,10 +316,12 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   const selectedPart = useAnatomyStore((s) => s.selectedPart);
   const hiddenPartIds = useAnatomyStore((s) => s.hiddenPartIds);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
+  const partOpacityOverrides = useAnatomyStore((s) => s.partOpacityOverrides);
   const xrayGhostMode = useAnatomyStore((s) => s.xrayGhostMode);
   const showSurgicalLandmarks = useAnatomyStore(
     (s) => s.showSurgicalLandmarks
   );
+  const landmarkFilterMode = useAnatomyStore((s) => s.landmarkFilterMode);
   const landmarksCatalog = useHraSurgicalLandmarksCatalog(
     showSurgicalLandmarks
   );
@@ -343,6 +351,7 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
   const explodeFactor = useAnatomyStore((s) => s.explodeFactor);
   const slicing = useAnatomyStore((s) => s.slicing);
 
+  const { invalidate } = useThree();
   const registry = useSceneMeshRegistry();
   const clippingPlane = useClippingPlane();
   const clippingPlanesList = useMemo(() => [clippingPlane], [clippingPlane]);
@@ -535,6 +544,7 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
           (Array.isArray(hi) ? hi : [hi]).forEach((m) => m?.dispose());
           mesh.userData.__highlightMaterial = undefined;
         }
+        disposeMeshOpacityClone(mesh);
         if (mesh.userData?.__sharedMaterial) {
           mesh.material = mesh.userData.__sharedMaterial;
         }
@@ -663,8 +673,13 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
       } else {
         mesh.layers.disable(0);
       }
-      mesh.renderOrder = targetRenderOrder;
+      const overrideOpacity = resolveMeshOpacityOverride(
+        mesh,
+        partOpacityOverrides
+      );
+      applyMeshPartOpacityOverride(mesh, overrideOpacity, targetRenderOrder);
     }
+    invalidate();
   }, [
     registeredMeshes,
     sharedMaterials,
@@ -678,9 +693,11 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     selectedPart,
     hiddenPartIds,
     isolatedPartId,
+    partOpacityOverrides,
     xrayGhostMode,
     slicing.enabled,
     slicing.scope,
+    invalidate,
   ]);
 
   const isOrganHiddenByDissection = useMemo(() => {
@@ -724,8 +741,21 @@ export const NihManifestOrganGLB: React.FC<NihManifestOrganGLBProps> = ({
     >
       <primitive object={clonedScene} visible={isSystemActive} />
       <HraLandmarkOverlayList
-        visible={showSurgicalLandmarks}
-        hidden={isOrganHiddenByDissection}
+        visible={
+          showSurgicalLandmarks &&
+          isSystemActive &&
+          !isOrganHiddenByDissection &&
+          (landmarkFilterMode !== 'selected' ||
+            (selectedPart !== null &&
+              registeredMeshes.some(
+                (m) =>
+                  m.uuid === selectedPart.meshUuid ||
+                  m.name === selectedPart.rawName ||
+                  (selectedPart.organGroupId &&
+                    m.userData?.organGroupId === selectedPart.organGroupId)
+              )))
+        }
+        hidden={isOrganHiddenByDissection || !isSystemActive}
         landmarks={organLandmarks}
         parentSystem={entry.system}
       />

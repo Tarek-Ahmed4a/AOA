@@ -452,3 +452,188 @@ export function resolveCrossDatasetLandmarkTargets(params: {
 
   return results;
 }
+
+export interface SurfaceSnapResult {
+  anchorMesh: THREE.Mesh;
+  localAnchor: THREE.Vector3;
+  worldPosition: THREE.Vector3;
+}
+
+interface BvhHitTarget {
+  point: THREE.Vector3;
+  distance: number;
+  faceIndex: number;
+}
+
+const _snapLocalPt = new THREE.Vector3();
+const _snapWorldPt = new THREE.Vector3();
+const _snapV0 = new THREE.Vector3();
+const _snapV1 = new THREE.Vector3();
+const _snapV2 = new THREE.Vector3();
+const _snapEdge1 = new THREE.Vector3();
+const _snapEdge2 = new THREE.Vector3();
+const _snapLocalNormal = new THREE.Vector3();
+const _snapWorldNormal = new THREE.Vector3();
+const _snapNormalMatrix = new THREE.Matrix3();
+const _snapInvMatrix = new THREE.Matrix4();
+const _snapBoxCenter = new THREE.Vector3();
+
+function computeFaceOutwardWorldNormal(
+  mesh: THREE.Mesh,
+  geometry: THREE.BufferGeometry,
+  faceIndex: number,
+  localHitPoint: THREE.Vector3,
+  worldHitPoint: THREE.Vector3,
+  targetPointWorld: THREE.Vector3
+): THREE.Vector3 {
+  const posAttr = geometry.attributes.position as THREE.BufferAttribute | undefined;
+  if (!posAttr || faceIndex < 0) {
+    return _snapWorldNormal
+      .subVectors(targetPointWorld, worldHitPoint)
+      .normalize();
+  }
+
+  const indexAttr = geometry.index;
+  const i0 = indexAttr ? indexAttr.getX(faceIndex * 3) : faceIndex * 3;
+  const i1 = indexAttr ? indexAttr.getX(faceIndex * 3 + 1) : faceIndex * 3 + 1;
+  const i2 = indexAttr ? indexAttr.getX(faceIndex * 3 + 2) : faceIndex * 3 + 2;
+
+  if (i0 < posAttr.count && i1 < posAttr.count && i2 < posAttr.count) {
+    _snapV0.fromBufferAttribute(posAttr, i0);
+    _snapV1.fromBufferAttribute(posAttr, i1);
+    _snapV2.fromBufferAttribute(posAttr, i2);
+    _snapEdge1.subVectors(_snapV1, _snapV0);
+    _snapEdge2.subVectors(_snapV2, _snapV0);
+    _snapLocalNormal.crossVectors(_snapEdge1, _snapEdge2);
+
+    if (_snapLocalNormal.lengthSq() > 1e-12) {
+      _snapLocalNormal.normalize();
+      // Ensure normal faces outward from local bounding box center
+      if (!geometry.boundingBox) geometry.computeBoundingBox();
+      if (geometry.boundingBox) {
+        geometry.boundingBox.getCenter(_snapBoxCenter);
+        if (
+          _snapLocalNormal.dot(_snapV0.copy(localHitPoint).sub(_snapBoxCenter)) <
+          0
+        ) {
+          _snapLocalNormal.negate();
+        }
+      }
+      _snapNormalMatrix.getNormalMatrix(mesh.matrixWorld);
+      _snapWorldNormal.copy(_snapLocalNormal).applyMatrix3(_snapNormalMatrix);
+      if (_snapWorldNormal.lengthSq() > 1e-12) {
+        return _snapWorldNormal.normalize();
+      }
+    }
+  }
+
+  _snapWorldNormal.subVectors(targetPointWorld, worldHitPoint);
+  if (_snapWorldNormal.lengthSq() > 1e-12) {
+    return _snapWorldNormal.normalize();
+  }
+  return _snapWorldNormal.set(0, 1, 0);
+}
+
+/**
+ * Snaps a world-space anatomical target point directly onto the closest outer
+ * triangle surface of `candidateMeshes` using `three-mesh-bvh`
+ * (`boundsTree.closestPointToPoint`), adds a +1.8mm outward normal offset so
+ * the beacon rests flush on the surface without Z-fighting, and caches the
+ * local-space anchor on `mesh.userData.__snappedLandmarks` for O(1) Explode
+ * View tracking.
+ */
+export function snapLandmarkToMeshSurface(
+  targetPointWorld: THREE.Vector3,
+  candidateMeshes: THREE.Mesh[],
+  landmarkKey: string,
+  offsetMeters: number = 0.0018
+): SurfaceSnapResult | null {
+  if (candidateMeshes.length === 0) return null;
+
+  // Fast-path: return cached local anchor if already computed for this landmark
+  for (const mesh of candidateMeshes) {
+    const cache = mesh.userData?.__snappedLandmarks as
+      | Record<string, [number, number, number]>
+      | undefined;
+    const cached = cache?.[landmarkKey];
+    if (cached) {
+      mesh.updateWorldMatrix(true, false);
+      const localAnchor = new THREE.Vector3(cached[0], cached[1], cached[2]);
+      const worldPosition = localAnchor.clone().applyMatrix4(mesh.matrixWorld);
+      return { anchorMesh: mesh, localAnchor, worldPosition };
+    }
+  }
+
+  let bestMesh: THREE.Mesh | null = null;
+  let bestDistSq = Infinity;
+  const bestLocalHit = new THREE.Vector3();
+  let bestFaceIndex = -1;
+
+  const hitTarget: BvhHitTarget = {
+    point: new THREE.Vector3(),
+    distance: Infinity,
+    faceIndex: -1,
+  };
+
+  for (const mesh of candidateMeshes) {
+    if (!mesh.visible) continue;
+    const geom = mesh.geometry;
+    if (!geom || !geom.attributes?.position) continue;
+
+    if (!geom.boundsTree && typeof geom.computeBoundsTree === 'function') {
+      try {
+        geom.computeBoundsTree();
+      } catch {
+        // Fallback if geometry is malformed
+      }
+    }
+    if (!geom.boundsTree) continue;
+
+    mesh.updateWorldMatrix(true, false);
+    _snapInvMatrix.copy(mesh.matrixWorld).invert();
+    _snapLocalPt.copy(targetPointWorld).applyMatrix4(_snapInvMatrix);
+
+    const res = geom.boundsTree.closestPointToPoint(_snapLocalPt, hitTarget);
+    if (!res) continue;
+
+    _snapWorldPt.copy(res.point).applyMatrix4(mesh.matrixWorld);
+    const distSq = _snapWorldPt.distanceToSquared(targetPointWorld);
+    if (distSq < bestDistSq) {
+      bestDistSq = distSq;
+      bestMesh = mesh;
+      bestLocalHit.copy(res.point);
+      bestFaceIndex = res.faceIndex;
+    }
+  }
+
+  if (!bestMesh) return null;
+
+  bestMesh.updateWorldMatrix(true, false);
+  const worldHitPoint = bestLocalHit.clone().applyMatrix4(bestMesh.matrixWorld);
+  const outwardNormal = computeFaceOutwardWorldNormal(
+    bestMesh,
+    bestMesh.geometry,
+    bestFaceIndex,
+    bestLocalHit,
+    worldHitPoint,
+    targetPointWorld
+  );
+
+  const worldPosition = worldHitPoint.addScaledVector(
+    outwardNormal,
+    offsetMeters
+  );
+  const localAnchor = bestMesh.worldToLocal(worldPosition.clone());
+
+  if (!bestMesh.userData.__snappedLandmarks) {
+    bestMesh.userData.__snappedLandmarks = {};
+  }
+  (
+    bestMesh.userData.__snappedLandmarks as Record<
+      string,
+      [number, number, number]
+    >
+  )[landmarkKey] = [localAnchor.x, localAnchor.y, localAnchor.z];
+
+  return { anchorMesh: bestMesh, localAnchor, worldPosition };
+}
