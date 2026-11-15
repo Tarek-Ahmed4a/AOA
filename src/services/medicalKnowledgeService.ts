@@ -812,7 +812,7 @@ export async function fetchMedicalProfile(
 
     const primaryTerm = baseCandidates[0] || wikiSearchTerm;
     let { enSummary, entity, langlinkArTitle, rejectedForDisambiguation } =
-      await queryTermSources(primaryTerm, disambig?.qid);
+      await queryTermSources(primaryTerm);
 
     if (controller.signal.aborted) {
       return baseline;
@@ -967,7 +967,6 @@ export async function fetchMedicalProfile(
 
     const verifiedQid =
       entity?.id ??
-      disambig?.qid ??
       (enSummary?.wikibase_item && enSummary.wikibase_item !== 'Q473444'
         ? enSummary.wikibase_item
         : undefined);
