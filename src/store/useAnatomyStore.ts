@@ -38,7 +38,11 @@ export type ClinicalPreset =
   | 'musculoskeletal';
 export type MobileSheetSnap = 'peek' | 'half' | 'full';
 export type ModelSource = 'sketchfab-pack' | 'nih-hra' | 'hybrid';
-export type ActiveTab = 'master-atlas' | 'cloud-explorer' | 'pdf-books';
+export type ActiveTab =
+  | 'master-atlas'
+  | 'cloud-explorer'
+  | 'pdf-books'
+  | 'feedback';
 
 export interface PdfReferenceTarget {
   query: string;
@@ -83,6 +87,7 @@ export interface ActivePartLandmarkItem {
   significanceEn: string;
   significanceAr: string;
   worldPosition: [number, number, number];
+  labelPosition?: [number, number, number];
 }
 
 export interface AnatomyState {
@@ -111,6 +116,8 @@ export interface AnatomyState {
   landmarkFilterMode: 'all' | 'selected';
   activePartLandmarks: ActivePartLandmarkItem[];
   focusedLandmarkId: string | null;
+  cameraFocusPoint: [number, number, number] | null;
+  cameraFocusRadius: number | null;
   explodeFactor: number;
   slicing: SlicingState;
 
@@ -171,6 +178,11 @@ export interface AnatomyState {
   setLandmarkFilterMode: (mode: 'all' | 'selected') => void;
   setActivePartLandmarks: (items: ActivePartLandmarkItem[]) => void;
   setFocusedLandmarkId: (id: string | null) => void;
+  focusLandmarkPoint: (
+    landmarkId: string,
+    worldPos: [number, number, number],
+    radius?: number
+  ) => void;
   setExplodeFactor: (val: number) => void;
   updateSlicing: (partial: Partial<SlicingState>) => void;
   resetSlicing: () => void;
@@ -344,6 +356,8 @@ export function createAnatomyViewportStore(
   landmarkFilterMode: 'all',
   activePartLandmarks: [],
   focusedLandmarkId: null,
+  cameraFocusPoint: null,
+  cameraFocusRadius: null,
   explodeFactor: 0,
   slicing: { ...DEFAULT_SLICING_STATE },
 
@@ -382,6 +396,9 @@ export function createAnatomyViewportStore(
         medicalProfile: null,
         isLoadingMedicalData: false,
         mobileSheetSnap: 'half',
+        focusedLandmarkId: null,
+        cameraFocusPoint: null,
+        cameraFocusRadius: null,
       });
       return;
     }
@@ -398,6 +415,9 @@ export function createAnatomyViewportStore(
         selectedAnatomicalName: part.cleanName,
         medicalProfile: landmarkProfile,
         isLoadingMedicalData: false,
+        focusedLandmarkId: part.rawName || part.landmarkMeta?.id || null,
+        cameraFocusPoint: null,
+        cameraFocusRadius: null,
       });
       return;
     }
@@ -413,6 +433,9 @@ export function createAnatomyViewportStore(
       selectedAnatomicalName: part.cleanName,
       medicalProfile: baselineProfile,
       isLoadingMedicalData: true,
+      focusedLandmarkId: null,
+      cameraFocusPoint: null,
+      cameraFocusRadius: null,
     });
 
     void fetchMedicalProfile(part, controller.signal)
@@ -476,6 +499,8 @@ export function createAnatomyViewportStore(
           number,
           number,
         ],
+        cameraFocusPoint: null,
+        cameraFocusRadius: null,
         cameraFocusTrigger: state.cameraFocusTrigger + 1,
       };
     }),
@@ -567,6 +592,10 @@ export function createAnatomyViewportStore(
       xrayGhostMode: false,
       showSurgicalLandmarks: false,
       landmarkFilterMode: 'all',
+      activePartLandmarks: [],
+      focusedLandmarkId: null,
+      cameraFocusPoint: null,
+      cameraFocusRadius: null,
       explodeFactor: 0,
     }),
 
@@ -705,6 +734,14 @@ export function createAnatomyViewportStore(
     set({
       focusedLandmarkId: id,
     }),
+
+  focusLandmarkPoint: (landmarkId, worldPos, radius = 0.055) =>
+    set((state) => ({
+      focusedLandmarkId: landmarkId,
+      cameraFocusPoint: [...worldPos] as [number, number, number],
+      cameraFocusRadius: radius,
+      cameraFocusTrigger: state.cameraFocusTrigger + 1,
+    })),
 
   setExplodeFactor: (val) =>
     set({

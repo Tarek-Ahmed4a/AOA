@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AnatomyViewport } from './components/canvas/AnatomyViewport';
 import { LiveScientificExplorer } from './components/canvas/LiveScientificExplorer';
 import { AnatomicalInspectorSidebar } from './components/ui/AnatomicalInspectorSidebar';
+import { FeedbackView } from './components/ui/FeedbackView';
 import { MinimalHud } from './components/ui/MinimalHud';
 import { PdfReferenceBooksView } from './components/ui/PdfReferenceBooksView';
 import { SketchfabBrowserModal } from './components/ui/SketchfabBrowserModal';
@@ -76,6 +77,8 @@ export const App: React.FC = () => {
       {hasOpenedBooks && (
         <PdfReferenceBooksView isActive={activeTab === 'pdf-books'} />
       )}
+
+      {activeTab === 'feedback' && <FeedbackView />}
 
       {/* Unified Cockpit HUD & Inspector bound cleanly to the active visible 3D stage */}
       <AnatomyStoreProvider store={activeNativeStore}>

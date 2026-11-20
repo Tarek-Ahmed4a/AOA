@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
-export const SELECTED_EMISSIVE_COLOR = new THREE.Color('#00e5ff');
-export const HOVERED_EMISSIVE_COLOR = new THREE.Color('#00f2fe');
+export const SELECTED_EMISSIVE_COLOR = new THREE.Color('#0ea5e9');
+export const HOVERED_EMISSIVE_COLOR = new THREE.Color('#38bdf8');
 export const GHOST_EMISSIVE_COLOR = new THREE.Color('#1e293b');
 export const ZERO_EMISSIVE_COLOR = new THREE.Color('#000000');
 

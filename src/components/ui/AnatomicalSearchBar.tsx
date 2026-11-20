@@ -14,18 +14,62 @@ import {
   X,
 } from 'lucide-react';
 import { ANATOMICAL_SYSTEMS } from '../../config/anatomicalSystems';
+import {
+  ANATOMICAL_FIDUCIAL_LANDMARKS,
+  type AnatomicalFiducialLandmark,
+} from '../../data/anatomicalLandmarksCatalog';
 import { resolveClinicalBaseline } from '../../data/clinicalBaseline';
 import { cn } from '../../lib/utils';
-import { useAnatomyStore } from '../../store/useAnatomyStore';
+import {
+  useAnatomyStore,
+  useAnatomyStoreApi,
+  type BiologicalSex,
+} from '../../store/useAnatomyStore';
 import type { AnatomicalPartInfo } from '../../utils/anatomyParser';
 
 interface IndexedCatalogEntry {
+  kind: 'part' | 'landmark';
+  uniqueKey: string;
   part: AnatomicalPartInfo;
+  landmark?: AnatomicalFiducialLandmark;
+  cleanNameEn: string;
   cleanNameAr: string;
+  latinName: string;
   searchBlob: string;
   enLower: string;
   arLower: string;
   latinLower: string;
+}
+
+function normalizeMatchText(value: string): string {
+  return value.toLowerCase().replace(/[_]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function matchesSearchToken(textNormalized: string, pattern: string): boolean {
+  const pat = normalizeMatchText(pattern);
+  if (!pat) return false;
+  const escaped = pat.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, 'i').test(
+    textNormalized
+  );
+}
+
+function isLandmarkAllowedForSex(
+  fid: AnatomicalFiducialLandmark,
+  sex: BiologicalSex
+): boolean {
+  const hay = `${fid.id} ${fid.nameEn} ${fid.parentOrganLabel}`.toLowerCase();
+  if (/\b(?:prostate|scrot|testis|testicul|penis|penile|epididym)\b/.test(hay)) {
+    return sex === 'male';
+  }
+  if (
+    /\b(?:uterus|uterine|ovary|ovarian|fallopian|vagina|clitoris|mammary|breast|areola)\b/.test(
+      hay
+    )
+  ) {
+    return sex === 'female';
+  }
+  return true;
 }
 
 function normalizeArabicText(value: string): string {
@@ -49,6 +93,7 @@ export const AnatomicalSearchBar: React.FC = () => {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [glbFeedback, setGlbFeedback] = useState<string | null>(null);
 
+  const storeApi = useAnatomyStoreApi();
   const anatomicalCatalog = useAnatomyStore((s) => s.anatomicalCatalog);
   const biologicalSex = useAnatomyStore((s) => s.biologicalSex);
   const searchQuery = useAnatomyStore((s) => s.searchQuery);
@@ -60,7 +105,7 @@ export const AnatomicalSearchBar: React.FC = () => {
   const selectAndFlyToPart = useAnatomyStore((s) => s.selectAndFlyToPart);
   const loadCustomGlb = useAnatomyStore((s) => s.loadCustomGlb);
 
-  const indexedCatalog = useMemo<IndexedCatalogEntry[]>(() => {
+  const indexedParts = useMemo<IndexedCatalogEntry[]>(() => {
     return anatomicalCatalog.map((part) => {
       const { profile } = resolveClinicalBaseline(part);
       const cleanNameAr = profile.cleanNameAr;
@@ -80,8 +125,12 @@ export const AnatomicalSearchBar: React.FC = () => {
       ].join(' ');
 
       return {
+        kind: 'part',
+        uniqueKey: `part::${part.meshUuid}`,
         part,
+        cleanNameEn: part.cleanName,
         cleanNameAr,
+        latinName: part.latinName,
         searchBlob,
         enLower,
         arLower,
@@ -90,17 +139,84 @@ export const AnatomicalSearchBar: React.FC = () => {
     });
   }, [anatomicalCatalog]);
 
+  const indexedLandmarks = useMemo<IndexedCatalogEntry[]>(() => {
+    if (anatomicalCatalog.length === 0) return [];
+    const normalizedParts = anatomicalCatalog.map((part) => ({
+      part,
+      hay: normalizeMatchText(
+        `${part.cleanName} ${part.rawName} ${part.organGroupId} ${part.latinName}`
+      ),
+    }));
+
+    const out: IndexedCatalogEntry[] = [];
+    for (const fid of ANATOMICAL_FIDUCIAL_LANDMARKS) {
+      if (!isLandmarkAllowedForSex(fid, biologicalSex)) continue;
+
+      const matches = normalizedParts.filter(({ part, hay }) => {
+        if (part.system !== fid.system) return false;
+        if (fid.laterality === 'Left' && part.laterality === 'Right') {
+          return false;
+        }
+        if (fid.laterality === 'Right' && part.laterality === 'Left') {
+          return false;
+        }
+        if (
+          fid.excludePatterns?.some((ex) => matchesSearchToken(hay, ex))
+        ) {
+          return false;
+        }
+        return fid.meshMatchPatterns.some((pat) => matchesSearchToken(hay, pat));
+      });
+
+      if (matches.length === 0) continue;
+      matches.sort((a, b) => b.part.boundingRadius - a.part.boundingRadius);
+      const parentPart = matches[0].part;
+
+      const sysLabel = ANATOMICAL_SYSTEMS[fid.system].label;
+      const enLower = fid.nameEn.toLowerCase();
+      const arLower = normalizeArabicText(fid.nameAr.toLowerCase());
+      const latinLower = fid.latinName.toLowerCase();
+      const searchBlob = [
+        enLower,
+        arLower,
+        fid.nameAr.toLowerCase(),
+        latinLower,
+        fid.region.toLowerCase(),
+        fid.parentOrganLabel.toLowerCase(),
+        normalizeArabicText(fid.parentOrganAr.toLowerCase()),
+        fid.system.toLowerCase(),
+        sysLabel.toLowerCase(),
+        'landmark معلم تشريحي',
+      ].join(' ');
+
+      out.push({
+        kind: 'landmark',
+        uniqueKey: `lmk::${fid.id}`,
+        part: parentPart,
+        landmark: fid,
+        cleanNameEn: fid.nameEn,
+        cleanNameAr: fid.nameAr,
+        latinName: fid.latinName,
+        searchBlob,
+        enLower,
+        arLower,
+        latinLower,
+      });
+    }
+    return out;
+  }, [anatomicalCatalog, biologicalSex]);
+
   const results = useMemo<IndexedCatalogEntry[]>(() => {
     const trimmed = searchQuery.trim();
     if (!trimmed) {
-      return indexedCatalog.slice(0, 8);
+      return indexedParts.slice(0, 8);
     }
 
     const qLower = trimmed.toLowerCase();
     const qAr = normalizeArabicText(qLower);
 
     const scored: { entry: IndexedCatalogEntry; score: number }[] = [];
-    for (const entry of indexedCatalog) {
+    for (const entry of indexedParts) {
       let score = 0;
       if (entry.enLower.startsWith(qLower) || entry.arLower.startsWith(qAr)) {
         score = 100;
@@ -114,8 +230,34 @@ export const AnatomicalSearchBar: React.FC = () => {
         entry.arLower.includes(qAr)
       ) {
         score = 60;
-      } else if (entry.searchBlob.includes(qLower) || entry.searchBlob.includes(qAr)) {
+      } else if (
+        entry.searchBlob.includes(qLower) ||
+        entry.searchBlob.includes(qAr)
+      ) {
         score = 40;
+      }
+
+      if (score > 0) {
+        scored.push({ entry, score });
+      }
+    }
+
+    for (const entry of indexedLandmarks) {
+      let score = 0;
+      if (entry.enLower.startsWith(qLower) || entry.arLower.startsWith(qAr)) {
+        score = 96;
+      } else if (entry.latinLower.startsWith(qLower)) {
+        score = 78;
+      } else if (
+        entry.enLower.includes(qLower) ||
+        entry.arLower.includes(qAr)
+      ) {
+        score = 58;
+      } else if (
+        entry.searchBlob.includes(qLower) ||
+        entry.searchBlob.includes(qAr)
+      ) {
+        score = 38;
       }
 
       if (score > 0) {
@@ -125,11 +267,11 @@ export const AnatomicalSearchBar: React.FC = () => {
 
     scored.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
-      return a.entry.part.cleanName.localeCompare(b.entry.part.cleanName);
+      return a.entry.cleanNameEn.localeCompare(b.entry.cleanNameEn);
     });
 
-    return scored.slice(0, 8).map((s) => s.entry);
-  }, [indexedCatalog, searchQuery]);
+    return scored.slice(0, 10).map((s) => s.entry);
+  }, [indexedParts, indexedLandmarks, searchQuery]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -276,7 +418,33 @@ export const AnatomicalSearchBar: React.FC = () => {
   }, [handleLoadGlbFile]);
 
   const handleSelectEntry = (entry: IndexedCatalogEntry) => {
-    selectAndFlyToPart(entry.part.meshUuid);
+    const store = storeApi.getState();
+    if (entry.kind === 'landmark' && entry.landmark) {
+      const targetLandmark = entry.landmark;
+      if (!store.activeSystems[entry.part.system]) {
+        store.toggleSystem(entry.part.system);
+      }
+      if (!store.showSurgicalLandmarks) {
+        store.setShowSurgicalLandmarks(true);
+      }
+      selectAndFlyToPart(entry.part.meshUuid);
+      store.setFocusedLandmarkId(targetLandmark.id);
+      window.setTimeout(() => {
+        const latest = storeApi.getState();
+        const found = latest.activePartLandmarks.find(
+          (lm) => lm.id === targetLandmark.id
+        );
+        if (found) {
+          latest.focusLandmarkPoint(
+            found.id,
+            found.worldPosition,
+            Math.min(Math.max(entry.part.boundingRadius * 0.45, 0.045), 0.09)
+          );
+        }
+      }, 140);
+    } else {
+      selectAndFlyToPart(entry.part.meshUuid);
+    }
     setIsOpen(false);
     setMobileSearchOpen(false);
     inputRef.current?.blur();
@@ -545,8 +713,9 @@ export const AnatomicalSearchBar: React.FC = () => {
                 {results.map((entry, idx) => {
                   const sys = ANATOMICAL_SYSTEMS[entry.part.system];
                   const isHighlighted = idx === activeIndex;
+                  const isLandmark = entry.kind === 'landmark' && entry.landmark;
                   return (
-                    <li key={entry.part.meshUuid}>
+                    <li key={entry.uniqueKey}>
                       <button
                         type="button"
                         onMouseEnter={() => setActiveIndex(idx)}
@@ -561,12 +730,16 @@ export const AnatomicalSearchBar: React.FC = () => {
                         <div className="flex min-w-0 items-start gap-2.5">
                           <span
                             className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full"
-                            style={{ backgroundColor: sys.accentColor }}
+                            style={{
+                              backgroundColor: isLandmark
+                                ? '#f59e0b'
+                                : sys.accentColor,
+                            }}
                           />
                           <div className="min-w-0">
                             <div className="flex flex-wrap items-baseline gap-x-2">
                               <span className="truncate text-xs font-semibold text-white">
-                                {entry.part.cleanName}
+                                {entry.cleanNameEn}
                               </span>
                               <span
                                 dir="rtl"
@@ -577,21 +750,29 @@ export const AnatomicalSearchBar: React.FC = () => {
                             </div>
                             <div className="mt-0.5 flex items-center gap-1.5">
                               <span className="truncate font-serif text-[11px] italic text-zinc-400">
-                                {entry.part.latinName}
+                                {entry.latinName}
                               </span>
                               <span className="text-[10px] text-zinc-600">
                                 •
                               </span>
                               <span className="font-mono text-[9px] uppercase text-zinc-400">
-                                {sys.label}
+                                {isLandmark
+                                  ? `${entry.landmark!.parentOrganLabel} · ${sys.label}`
+                                  : sys.label}
                               </span>
                             </div>
                           </div>
                         </div>
 
-                        <span className="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-sky-300">
-                          {entry.part.ta98Code}
-                        </span>
+                        {isLandmark ? (
+                          <span className="shrink-0 rounded border border-amber-400/35 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] font-semibold text-amber-300">
+                            🎯 Landmark
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-sky-300">
+                            {entry.part.ta98Code}
+                          </span>
+                        )}
                       </button>
                     </li>
                   );

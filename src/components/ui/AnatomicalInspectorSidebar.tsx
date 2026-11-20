@@ -80,9 +80,13 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   const setShowSurgicalLandmarks = useAnatomyStore(
     (s) => s.setShowSurgicalLandmarks
   );
+  const setLandmarkFilterMode = useAnatomyStore(
+    (s) => s.setLandmarkFilterMode
+  );
   const activePartLandmarks = useAnatomyStore((s) => s.activePartLandmarks);
   const focusedLandmarkId = useAnatomyStore((s) => s.focusedLandmarkId);
   const setFocusedLandmarkId = useAnatomyStore((s) => s.setFocusedLandmarkId);
+  const focusLandmarkPoint = useAnatomyStore((s) => s.focusLandmarkPoint);
 
   const setLanguage = useAnatomyStore((s) => s.setLanguage);
   const selectPart = useAnatomyStore((s) => s.selectPart);
@@ -98,7 +102,7 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
   }, [medicalProfile?.thumbnailUrl, selectedPart?.meshUuid]);
 
   useEffect(() => {
-    if (!selectedPart || activeTab === 'pdf-books') {
+    if (!selectedPart || activeTab === 'pdf-books' || activeTab === 'feedback') {
       setHraEnrichment(null);
       setIsLoadingHra(false);
       return;
@@ -184,7 +188,12 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
     landmarksCatalog,
   ]);
 
-  if (!selectedPart || !medicalProfile || activeTab === 'pdf-books') {
+  if (
+    !selectedPart ||
+    !medicalProfile ||
+    activeTab === 'pdf-books' ||
+    activeTab === 'feedback'
+  ) {
     return null;
   }
 
@@ -735,6 +744,28 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
           </div>
         </section>
 
+        {/* Quick Landmarks Activation Prompt when hidden */}
+        {!showSurgicalLandmarks && !selectedPart.landmarkMeta && (
+          <button
+            type="button"
+            onClick={() => {
+              setLandmarkFilterMode('selected');
+              setShowSurgicalLandmarks(true);
+            }}
+            className="flex w-full items-center justify-between gap-2 rounded-xl border border-amber-400/25 bg-amber-500/[0.06] px-3 py-2 text-left transition-colors hover:border-amber-400/50 hover:bg-amber-500/15"
+          >
+            <span className="font-mono text-[10.5px] font-semibold text-amber-200">
+              🎯{' '}
+              {isArabic
+                ? 'إظهار المعالم التشريحية لهذا العضو'
+                : 'Show Landmarks on This Structure'}
+            </span>
+            <kbd className="rounded border border-amber-400/30 bg-amber-500/15 px-1.5 py-0.5 font-mono text-[9px] text-amber-300">
+              L
+            </kbd>
+          </button>
+        )}
+
         {/* Interactive Anatomical Landmarks on This Structure */}
         {showSurgicalLandmarks && activePartLandmarks.length > 0 && (
           <section
@@ -770,8 +801,11 @@ export const AnatomicalInspectorSidebar: React.FC = () => {
                     key={lm.id}
                     type="button"
                     onClick={() => {
-                      setFocusedLandmarkId(isFocused ? null : lm.id);
-                      focusSelectedPart();
+                      if (isFocused) {
+                        setFocusedLandmarkId(null);
+                      } else {
+                        focusLandmarkPoint(lm.id, lm.worldPosition, 0.055);
+                      }
                     }}
                     className={cn(
                       'w-full rounded-lg border px-2.5 py-2 text-left transition-colors',

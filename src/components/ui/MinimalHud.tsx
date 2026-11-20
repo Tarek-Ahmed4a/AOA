@@ -288,6 +288,8 @@ export const MinimalHud: React.FC = () => {
     explodeFactor > 0 ||
     Object.keys(partOpacityOverrides).length > 0;
 
+  const isNon3DTab = activeTab === 'pdf-books' || activeTab === 'feedback';
+
   return (
     <>
       {/* Single Unified Top Header Bar (horizontally scrollable on mobile phones, zero squish/overflow) */}
@@ -295,13 +297,13 @@ export const MinimalHud: React.FC = () => {
         aria-label="Primary Studio Top Navigation"
         className={cn(
           'pointer-events-auto fixed left-0 right-0 z-50 flex items-center overflow-x-auto overflow-y-hidden flex-nowrap whitespace-nowrap touch-pan-x no-scrollbar scroll-smooth px-2 gap-2 md:left-3 md:right-3 md:px-0 md:overflow-visible',
-          activeTab === 'pdf-books'
+          isNon3DTab
             ? 'top-1.5 h-10 justify-center md:top-2 md:h-11 md:justify-between'
             : 'top-2 h-10 justify-between md:top-3 md:h-12'
         )}
       >
         {/* Top-Left Zone */}
-        {activeTab === 'pdf-books' ? (
+        {isNon3DTab ? (
           <div className="hidden md:block md:flex-1" />
         ) : (
         <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 md:min-w-0 md:flex-1">
@@ -344,7 +346,11 @@ export const MinimalHud: React.FC = () => {
                 </>
               ) : (
                 <div className="hidden md:flex h-9 shrink-0 items-center gap-2 rounded-full border border-white/10 bg-[#0a0a0c]/90 px-3 shadow-2xl backdrop-blur-md">
-                  <span className="inline-block h-2 w-2 shrink-0 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                  <img
+                    src="./icon.png"
+                    alt="Anatomy Atlas 3D"
+                    className="h-5 w-5 shrink-0 rounded-full object-cover ring-1 ring-white/15"
+                  />
                   <span className="whitespace-nowrap font-mono text-[10px] font-semibold tracking-[0.12em] text-zinc-200">
                     ATLAS 3D
                   </span>
@@ -472,6 +478,11 @@ export const MinimalHud: React.FC = () => {
                 mobileLabel: 'Books',
                 label: 'Reference Books (PDF)',
               },
+              {
+                id: 'feedback',
+                mobileLabel: 'Feedback',
+                label: 'Feedback & Problems',
+              },
             ] as const
           ).map((tab) => {
             const isActive = activeTab === tab.id;
@@ -497,7 +508,7 @@ export const MinimalHud: React.FC = () => {
         </nav>
 
         {/* Top-Right Zone */}
-        {activeTab === 'pdf-books' ? (
+        {isNon3DTab ? (
           <div className="hidden md:block md:flex-1" />
         ) : (
           <div className="pointer-events-auto flex shrink-0 items-center justify-end gap-1.5 md:min-w-0 md:flex-1">

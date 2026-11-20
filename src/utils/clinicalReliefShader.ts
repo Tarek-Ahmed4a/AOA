@@ -25,16 +25,17 @@ export function cloneClinicalHighlightMaterial(
  */
 export function setClinicalHighlightState(
   mat: THREE.Material,
-  highlightState: AnatomicalHighlightState
+  highlightState: AnatomicalHighlightState,
+  subtleIsolated: boolean = false
 ): void {
   const stdMat = mat as THREE.MeshStandardMaterial;
   if (stdMat && 'emissive' in stdMat && stdMat.emissive) {
     if (highlightState === 2) {
       stdMat.emissive.copy(SELECTED_EMISSIVE_COLOR);
-      stdMat.emissiveIntensity = 0.42;
+      stdMat.emissiveIntensity = subtleIsolated ? 0.05 : 0.15;
     } else if (highlightState === 1) {
       stdMat.emissive.copy(HOVERED_EMISSIVE_COLOR);
-      stdMat.emissiveIntensity = 0.28;
+      stdMat.emissiveIntensity = 0.09;
     } else {
       stdMat.emissive.copy(ZERO_EMISSIVE_COLOR);
       stdMat.emissiveIntensity = 0;
@@ -49,9 +50,11 @@ export function setClinicalHighlightState(
   }
   const orig = basicMat.userData.__origBasicColor as THREE.Color;
   if (highlightState === 2) {
-    basicMat.color.copy(orig).lerp(SELECTED_EMISSIVE_COLOR, 0.35);
+    basicMat.color
+      .copy(orig)
+      .lerp(SELECTED_EMISSIVE_COLOR, subtleIsolated ? 0.06 : 0.15);
   } else if (highlightState === 1) {
-    basicMat.color.copy(orig).lerp(HOVERED_EMISSIVE_COLOR, 0.22);
+    basicMat.color.copy(orig).lerp(HOVERED_EMISSIVE_COLOR, 0.08);
   } else {
     basicMat.color.copy(orig);
   }

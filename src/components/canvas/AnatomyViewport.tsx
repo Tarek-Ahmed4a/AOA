@@ -72,6 +72,8 @@ const CameraRig: React.FC = () => {
 
   const resetViewCounter = useAnatomyStore((s) => s.resetViewCounter);
   const cameraFocusTrigger = useAnatomyStore((s) => s.cameraFocusTrigger);
+  const cameraFocusPoint = useAnatomyStore((s) => s.cameraFocusPoint);
+  const cameraFocusRadius = useAnatomyStore((s) => s.cameraFocusRadius);
   const cameraPresetView = useAnatomyStore((s) => s.cameraPresetView);
   const cameraPresetTrigger = useAnatomyStore((s) => s.cameraPresetTrigger);
   const isolatedPartId = useAnatomyStore((s) => s.isolatedPartId);
@@ -158,15 +160,18 @@ const CameraRig: React.FC = () => {
     }
   }, [resetViewCounter, cameraTarget, invalidate]);
 
-  // Trigger smooth auto-fly to frame selected anatomical part whenever cameraFocusTrigger increments
+  // Trigger smooth auto-fly to frame selected anatomical part or specific landmark point
   useEffect(() => {
     if (cameraFocusTrigger === prevFocusTriggerRef.current) return;
     prevFocusTriggerRef.current = cameraFocusTrigger;
 
     const controls = controlsRef.current;
-    if (!controls || !selectedPart) return;
+    if (!controls) return;
+    if (!cameraFocusPoint && !selectedPart) return;
 
-    const center = resolveLivePartCenter(scene, selectedPart, registry);
+    const center = cameraFocusPoint
+      ? new THREE.Vector3(...cameraFocusPoint)
+      : resolveLivePartCenter(scene, selectedPart!, registry);
     targetGoalRef.current.copy(center);
 
     const viewDir = viewDirectionTempRef.current
@@ -178,14 +183,25 @@ const CameraRig: React.FC = () => {
     }
     viewDir.normalize();
 
-    const desiredDistance = Math.max(selectedPart.boundingRadius * 3.2, 0.45);
+    const desiredDistance = cameraFocusPoint
+      ? Math.max((cameraFocusRadius ?? 0.055) * 3.0, 0.18)
+      : Math.max((selectedPart?.boundingRadius ?? 0.15) * 3.2, 0.45);
     cameraPosGoalRef.current
       .copy(center)
       .addScaledVector(viewDir, desiredDistance);
 
     flightModeRef.current = 'focus';
     invalidate();
-  }, [cameraFocusTrigger, selectedPart, camera, scene, registry, invalidate]);
+  }, [
+    cameraFocusTrigger,
+    cameraFocusPoint,
+    cameraFocusRadius,
+    selectedPart,
+    camera,
+    scene,
+    registry,
+    invalidate,
+  ]);
 
   // Trigger standard anatomical view presets (Anterior / Posterior / Left / Right / Superior / Inferior)
   useEffect(() => {

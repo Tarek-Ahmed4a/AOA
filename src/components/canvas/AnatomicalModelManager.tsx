@@ -2099,8 +2099,15 @@ const ExternalSpatialCalloutPin: React.FC = () => {
     | string
     | undefined;
 
+  const isLandmarkSelection =
+    selectedPart !== null &&
+    (Boolean(selectedPart.landmarkMeta) ||
+      selectedPart.ta98Code === 'LMK-FID' ||
+      selectedPart.ta98Code === 'HRA-LMK');
+
   const isVisible =
     selectedPart !== null &&
+    !isLandmarkSelection &&
     activeSystems[selectedPart.system] &&
     !hiddenPartIds.includes(selectedPart.meshUuid) &&
     !hiddenPartIds.includes(selectedPart.rawName) &&
@@ -2110,7 +2117,7 @@ const ExternalSpatialCalloutPin: React.FC = () => {
       isolatedPartId === selectedPart.rawName ||
       (Boolean(selectedGroupId) && selectedGroupId === isolatedGroupId));
 
-  const calloutGeometry = useMemo(() => {
+  const spatialBounds = useMemo(() => {
     if (!selectedPart || !isVisible) return null;
 
     const originWorld = new THREE.Vector3(...selectedPart.worldCenter);
@@ -2136,8 +2143,13 @@ const ExternalSpatialCalloutPin: React.FC = () => {
       ) {
         continue;
       }
+      const geom = mesh.geometry;
+      if (!geom) continue;
+      if (!geom.boundingBox) geom.computeBoundingBox();
+      if (!geom.boundingBox || geom.boundingBox.isEmpty()) continue;
+
       mesh.updateWorldMatrix(true, false);
-      tmpBox.setFromObject(mesh);
+      tmpBox.copy(geom.boundingBox).applyMatrix4(mesh.matrixWorld);
       if (tmpBox.isEmpty()) continue;
 
       const isSelectedOrGroup =
@@ -2164,6 +2176,20 @@ const ExternalSpatialCalloutPin: React.FC = () => {
     }
     const refBox = sceneBandBox.isEmpty() ? partBox : sceneBandBox;
 
+    return { originWorld, partBox, refBox };
+  }, [
+    selectedPart,
+    isVisible,
+    selectedMeshObj,
+    selectedGroupId,
+    registry,
+    explodeFactor,
+  ]);
+
+  const calloutGeometry = useMemo(() => {
+    if (!spatialBounds) return null;
+    const { originWorld, partBox, refBox } = spatialBounds;
+
     const side: 1 | -1 =
       Math.abs(originWorld.x) >= 0.03
         ? originWorld.x >= 0
@@ -2180,23 +2206,33 @@ const ExternalSpatialCalloutPin: React.FC = () => {
 
     const cameraDist = camera.position.distanceTo(originWorld);
     const baseOutward = THREE.MathUtils.clamp(cameraDist * 0.14, 0.11, 0.22);
-    const landmarkExtra = showSurgicalLandmarks ? 0.08 : 0;
-    const cardX = outerEdgeX + side * (baseOutward + landmarkExtra);
+    const landmarkExtra = showSurgicalLandmarks ? 0.095 : 0;
+    let cardX = outerEdgeX + side * (baseOutward + landmarkExtra);
 
-    // Anti-collision vertical slot selection against nearby landmark labels
-    let bestOffsetY = showSurgicalLandmarks ? 0.055 : 0.045;
+    // Anti-collision vertical & horizontal slot selection against nearby landmark labels
+    let bestOffsetY = showSurgicalLandmarks ? 0.065 : 0.045;
     if (showSurgicalLandmarks && activePartLandmarks.length > 0) {
       const partCenterX = (partBox.min.x + partBox.max.x) * 0.5;
-      const sameSideLandmarkYs = activePartLandmarks
-        .filter((lm) =>
-          side > 0
-            ? lm.worldPosition[0] >= partCenterX
-            : lm.worldPosition[0] < partCenterX
-        )
-        .map((lm) => lm.worldPosition[1]);
+      const sameSideLandmarks = activePartLandmarks.filter((lm) => {
+        const lx = lm.labelPosition?.[0] ?? lm.worldPosition[0];
+        return side > 0 ? lx >= partCenterX : lx < partCenterX;
+      });
+      const sameSideLandmarkYs = sameSideLandmarks.map(
+        (lm) => lm.labelPosition?.[1] ?? lm.worldPosition[1]
+      );
+
+      for (const lm of sameSideLandmarks) {
+        const lx = lm.labelPosition?.[0];
+        if (typeof lx === 'number') {
+          cardX =
+            side > 0
+              ? Math.max(cardX, lx + 0.075)
+              : Math.min(cardX, lx - 0.075);
+        }
+      }
 
       if (sameSideLandmarkYs.length > 0) {
-        const candidateOffsets = [0.055, -0.065, 0.095, -0.105, 0.02];
+        const candidateOffsets = [0.065, -0.075, 0.11, -0.115, 0.15, -0.15];
         let maxMinDist = -Infinity;
         for (const off of candidateOffsets) {
           const candY = originWorld.y + off;
@@ -2241,17 +2277,7 @@ const ExternalSpatialCalloutPin: React.FC = () => {
       side,
       elbowLine,
     };
-  }, [
-    selectedPart,
-    isVisible,
-    selectedMeshObj,
-    selectedGroupId,
-    registry,
-    explodeFactor,
-    showSurgicalLandmarks,
-    activePartLandmarks,
-    camera,
-  ]);
+  }, [spatialBounds, showSurgicalLandmarks, activePartLandmarks, camera]);
 
   useEffect(() => {
     return () => {
@@ -2304,12 +2330,13 @@ function syncPooledHighlightMaterial(
   target: THREE.Material,
   srcMat: THREE.Material,
   role: HighlightRole,
+  subtleIsolated: boolean,
   focusOverride: boolean,
   isMeshSliced: boolean,
   clippingPlanesList: THREE.Plane[],
   overrideOpacity?: number
 ): void {
-  setClinicalHighlightState(target, getHighlightRoleState(role));
+  setClinicalHighlightState(target, getHighlightRoleState(role), subtleIsolated);
 
   if (focusOverride) {
     target.opacity = 1.0;
@@ -2477,6 +2504,9 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
       const isFocusTarget =
         isolatedMesh !== null ? mesh === isolatedMesh : mesh === selectedMesh;
       const focusOverride = Boolean(xrayGhostMode && isFocusTarget);
+      const subtleIsolated = Boolean(
+        isolatedPartId !== null && !xrayGhostMode && role === 'selected'
+      );
       const isMeshSliced =
         slicingEnabled &&
         (slicingScope === 'all' ||
@@ -2484,7 +2514,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           mesh === isolatedMesh);
 
       const getPooledMaterial = (srcMat: THREE.Material): THREE.Material => {
-        const poolKey = `${srcMat.uuid}::${role}::${focusOverride ? 1 : 0}::${isMeshSliced ? 1 : 0}::${
+        const poolKey = `${srcMat.uuid}::${role}::${subtleIsolated ? 1 : 0}::${focusOverride ? 1 : 0}::${isMeshSliced ? 1 : 0}::${
           overrideOpacity !== undefined && overrideOpacity < 0.99
             ? overrideOpacity.toFixed(2)
             : '1.00'
@@ -2498,6 +2528,7 @@ const MeshHighlightController: React.FC<{ nihCatalogTick: number }> = ({
           pooled,
           srcMat,
           role,
+          subtleIsolated,
           focusOverride,
           isMeshSliced,
           clippingPlanesList,

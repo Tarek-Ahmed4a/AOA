@@ -110,19 +110,19 @@ export const STATIC_HRA_LANDMARK_ROWS: CompactHraLandmarkFallbackRow[] = [
     "u": "eye-male-right-landmarks/v1.0/assets/3d-vh-m-eye-r-landmark.glb",
     "n": [
       [
-        "Right Eye Veins",
+        "Right Eye Arteries",
         "VH_M_eye_R_landmark_arteries"
       ],
       [
-        "Right Eye Muscles",
+        "Right Eye Dura Mater Optic Nerve",
         "VH_M_eye_R_landmark_dura_mater_optic_nerve"
       ],
       [
-        "Right Eye Dura Mater Optic Nerve",
+        "Right Eye Muscles",
         "VH_M_eye_R_landmark_muscles"
       ],
       [
-        "Right Eye Arteries",
+        "Right Eye Veins",
         "VH_M_eye_R_landmark_veins"
       ]
     ]

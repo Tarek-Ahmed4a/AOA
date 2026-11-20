@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { AnatomicalSystem, BiologicalSex, OfficialAtlasPresetId } from '../store/useAnatomyStore';
-import type { SceneMeshRegistry } from '../utils/bvhSetup';
+import { enqueueGeometryBVH, type SceneMeshRegistry } from '../utils/bvhSetup';
 import type { HraSurgicalLandmarkGlb } from '../services/hraLandmarkService';
 import type { NihOrganSceneItem } from '../services/nihSceneService';
 
@@ -59,7 +59,7 @@ const CROSS_ORGAN_RULES: readonly CrossOrganMappingRule[] = [
     side: 'center',
     system: 'visceral',
     includeRegex: /\b(?:lung|pulmo|pulmonary\s+lobe)\b/i,
-    excludeRegex: /\b(?:artery|vein|trunk|lymph|nerve|plexus|ligament|pleura)\b/i,
+    excludeRegex: /\b(?:artery|vein|trunk|lymph|nerve|plexus|ligament|pleura|node|intrapulmonary)\b/i,
   },
   {
     organKey: 'main bronchus',
@@ -94,7 +94,7 @@ const CROSS_ORGAN_RULES: readonly CrossOrganMappingRule[] = [
     side: 'center',
     system: 'visceral',
     includeRegex: /\b(?:large\s+intestine|cecum|caecum|ascending\s+colon|transverse\s+colon|descending\s+colon|sigmoid\s+colon|colon|rectum)\b/i,
-    excludeRegex: /\b(?:artery|vein|nerve|plexus|lymph|mesenter)\b/i,
+    excludeRegex: /\b(?:artery|vein|nerve|plexus|lymph|mesenter|meso-appendix)\b/i,
   },
   {
     organKey: 'urinary bladder',
@@ -114,7 +114,7 @@ const CROSS_ORGAN_RULES: readonly CrossOrganMappingRule[] = [
     organKey: 'larynx',
     side: 'center',
     system: 'visceral',
-    includeRegex: /\b(?:larynx|thyroid\s+cartilage|cricoid|arytenoid|epiglottis)\b/i,
+    includeRegex: /\b(?:larynx|epiglottis|laryngopharynx|thyroid\s+cartilage|cricoid|arytenoid)\b/i,
     excludeRegex: /\b(?:artery|vein|nerve|muscle|gland|lymph)\b/i,
   },
   {
@@ -128,8 +128,8 @@ const CROSS_ORGAN_RULES: readonly CrossOrganMappingRule[] = [
     organKey: 'spinal cord',
     side: 'center',
     system: 'nervous',
-    includeRegex: /\b(?:spinal\s+cord|medulla\s+spinalis|conus\s+medullaris)\b/i,
-    excludeRegex: /\b(?:artery|vein|vertebra)\b/i,
+    includeRegex: /\b(?:white\s+matter\s+of\s+spinal\s+cord|spinal\s+cord|medulla\s+spinalis|conus\s+medullaris)\b/i,
+    excludeRegex: /\b(?:artery|vein|vertebra|dura|ganglion)\b/i,
   },
   {
     organKey: 'eye',
@@ -158,6 +158,34 @@ const CROSS_ORGAN_RULES: readonly CrossOrganMappingRule[] = [
     system: 'skeletal',
     includeRegex: /\b(?:patella)\b/i,
     excludeRegex: /\b(?:ligament|bursa|tendon|artery|vein)\b/i,
+  },
+  {
+    organKey: 'ureter',
+    side: 'left',
+    system: 'visceral',
+    includeRegex: /\bureter\b/i,
+    excludeRegex: /\b(?:artery|vein|nerve|plexus|lymph|node|orifice)\b/i,
+  },
+  {
+    organKey: 'ureter',
+    side: 'right',
+    system: 'visceral',
+    includeRegex: /\bureter\b/i,
+    excludeRegex: /\b(?:artery|vein|nerve|plexus|lymph|node|orifice)\b/i,
+  },
+  {
+    organKey: 'palatine tonsil',
+    side: 'left',
+    system: 'visceral',
+    includeRegex: /\bpalatine\s+tonsil\b/i,
+    excludeRegex: /\b(?:artery|vein|nerve|lymph|node|crypt|fossa)\b/i,
+  },
+  {
+    organKey: 'palatine tonsil',
+    side: 'right',
+    system: 'visceral',
+    includeRegex: /\bpalatine\s+tonsil\b/i,
+    excludeRegex: /\b(?:artery|vein|nerve|lymph|node|crypt|fossa)\b/i,
   },
 ];
 
@@ -264,6 +292,25 @@ export function computeCrossDatasetAlignment(params: {
  * NIH HRA surgical landmark parents and pairs each eligible landmark with a live
  * world-space target box (`zaCenter`, `zaSize`) plus NIH CCF reference dimensions.
  */
+function extractCanonicalOrganKey(lm: HraSurgicalLandmarkGlb): string {
+  const fromSlug = (lm.parentOrganSlug ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/-(?:male|female)(?:-(?:left|right))?$/, '')
+    .replace(/-(?:left|right)$/, '')
+    .replace(/-/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (fromSlug) return fromSlug;
+  return (lm.parentOrganLabel ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^(?:left|right)\s+/, '')
+    .replace(/,\s*(?:left|right)$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function resolveCrossDatasetLandmarkTargets(params: {
   registry: SceneMeshRegistry;
   landmarks: HraSurgicalLandmarkGlb[];
@@ -392,12 +439,13 @@ export function resolveCrossDatasetLandmarkTargets(params: {
 
   for (const lm of landmarks) {
     if (lm.sex !== biologicalSex) continue;
-    if (!includeFemaleSupplementalInline && FEMALE_NATIVE_GROUP_ORGAN_KEYS.has(lm.parentOrganKey)) {
+    const canonicalKey = extractCanonicalOrganKey(lm);
+    if (!includeFemaleSupplementalInline && FEMALE_NATIVE_GROUP_ORGAN_KEYS.has(canonicalKey)) {
       continue;
     }
-    if (lm.parentOrganKey === 'placenta full term') continue;
+    if (canonicalKey === 'placenta full term') continue;
 
-    const bucketKey = `${lm.parentOrganKey}::${lm.side}`;
+    const bucketKey = `${canonicalKey}::${lm.side}`;
     const bucket = boxMap.get(bucketKey);
     if (!bucket) continue;
 
@@ -418,7 +466,7 @@ export function resolveCrossDatasetLandmarkTargets(params: {
 
     const nihMatch = nihList.find(
       (n) =>
-        n.organKey === lm.parentOrganKey &&
+        n.organKey === canonicalKey &&
         (lm.side === 'center' || n.side.toLowerCase() === lm.side)
     );
     const nihSize: [number, number, number] | undefined = nihMatch?.dimensionsMm
@@ -436,7 +484,7 @@ export function resolveCrossDatasetLandmarkTargets(params: {
     results.push({
       landmark: lm,
       target: {
-        organKey: lm.parentOrganKey,
+        organKey: canonicalKey,
         side: lm.side,
         system: bucket.rule.system,
         zaCenter: [zaCenterVec.x, zaCenterVec.y, zaCenterVec.z],
@@ -546,7 +594,8 @@ export function snapLandmarkToMeshSurface(
   targetPointWorld: THREE.Vector3,
   candidateMeshes: THREE.Mesh[],
   landmarkKey: string,
-  offsetMeters: number = 0.0018
+  offsetMeters: number = 0.0018,
+  allowSyncBvhBuild: boolean = true
 ): SurfaceSnapResult | null {
   if (candidateMeshes.length === 0) return null;
 
@@ -581,10 +630,15 @@ export function snapLandmarkToMeshSurface(
     if (!geom || !geom.attributes?.position) continue;
 
     if (!geom.boundsTree && typeof geom.computeBoundsTree === 'function') {
-      try {
-        geom.computeBoundsTree();
-      } catch {
-        // Fallback if geometry is malformed
+      if (allowSyncBvhBuild) {
+        try {
+          geom.computeBoundsTree();
+        } catch {
+          // Fallback if geometry is malformed
+        }
+      } else {
+        enqueueGeometryBVH(geom);
+        continue;
       }
     }
     if (!geom.boundsTree) continue;
