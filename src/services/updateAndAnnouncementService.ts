@@ -166,7 +166,7 @@ export function pickDownloadForTarget(
     if (apkUrl) {
       return {
         downloadUrl: apkUrl,
-        downloadLabelAr: 'تحميل التحديث (APK)',
+        downloadLabelAr: 'Download APK',
         downloadLabelEn: 'Download APK',
       };
     }
@@ -182,7 +182,7 @@ export function pickDownloadForTarget(
     if (exeUrl) {
       return {
         downloadUrl: exeUrl,
-        downloadLabelAr: 'تحميل التحديث (Windows)',
+        downloadLabelAr: 'Download Setup',
         downloadLabelEn: 'Download Setup',
       };
     }
@@ -190,7 +190,7 @@ export function pickDownloadForTarget(
 
   return {
     downloadUrl: releaseUrl,
-    downloadLabelAr: 'عرض الإصدار الجديد',
+    downloadLabelAr: 'View Release',
     downloadLabelEn: 'View Release',
   };
 }

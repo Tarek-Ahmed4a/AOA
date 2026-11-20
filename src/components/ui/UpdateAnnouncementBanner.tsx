@@ -163,10 +163,7 @@ export const UpdateAnnouncementBanner: React.FC = () => {
                   className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-400/50 bg-emerald-500/20 px-3 py-1.5 text-[11px] font-semibold text-emerald-100 transition-colors hover:bg-emerald-500/30"
                 >
                   <Download className="h-3.5 w-3.5 shrink-0" />
-                  <span dir="rtl">{update.downloadLabelAr}</span>
-                  <span className="font-mono text-[10px] text-emerald-200/80">
-                    ({update.downloadLabelEn})
-                  </span>
+                  <span>{update.downloadLabelEn}</span>
                 </a>
 
                 {showSecondaryNotes && (
@@ -176,7 +173,7 @@ export const UpdateAnnouncementBanner: React.FC = () => {
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-zinc-300 transition-colors hover:border-white/20 hover:text-white"
                   >
-                    <span>التفاصيل / Notes</span>
+                    <span>View Release</span>
                     <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 )}
@@ -189,7 +186,7 @@ export const UpdateAnnouncementBanner: React.FC = () => {
                   }}
                   className="ml-auto inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-zinc-400 transition-colors hover:border-white/20 hover:text-white"
                 >
-                  <span dir="rtl">لاحقاً</span>
+                  <span>OK</span>
                 </button>
               </div>
             </div>
@@ -215,9 +212,9 @@ export const UpdateAnnouncementBanner: React.FC = () => {
     const tone = TONE_STYLES[announcement.type];
     const ToneIcon = tone.Icon;
     const actionLabel =
-      announcement.actionLabelAr ||
       announcement.actionLabelEn ||
-      'عرض التفاصيل';
+      announcement.actionLabelAr ||
+      'View Release';
 
     return (
       <div className="pointer-events-none fixed left-1/2 top-14 z-[55] w-[calc(100%-1.5rem)] max-w-md -translate-x-1/2 md:top-[68px]">
@@ -297,7 +294,7 @@ export const UpdateAnnouncementBanner: React.FC = () => {
                   }}
                   className="ml-auto inline-flex items-center gap-1 rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-zinc-300 transition-colors hover:border-white/20 hover:text-white"
                 >
-                  <span dir="rtl">حسناً</span>
+                  <span>OK</span>
                 </button>
               </div>
             </div>

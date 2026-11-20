@@ -1,13 +1,13 @@
 {
   "enabled": true,
-  "id": "welcome-v2",
+  "id": "welcome-v2-en",
   "type": "info",
   "titleAr": "إعلان من مطوّر Anatomy Atlas 3D",
   "titleEn": "Announcement from Anatomy Atlas 3D",
   "messageAr": "اكتب هنا الرسالة التي تريد إظهارها لجميع المستخدمين.",
   "messageEn": "",
-  "actionLabelAr": "عرض التفاصيل",
-  "actionLabelEn": "View Details",
+  "actionLabelAr": "View Release",
+  "actionLabelEn": "View Release",
   "actionUrl": "https://github.com/Tarek-Ahmed4a/Anatomy-Atlas/releases/latest",
   "minVersion": "",
   "maxVersion": ""
