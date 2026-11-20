@@ -125,8 +125,16 @@ function pdfByteRangeSupport(): Plugin {
   };
 }
 
+const packageJson = JSON.parse(
+  fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8')
+) as { version?: string };
+const appVersion = packageJson.version ?? '2.0.1';
+
 export default defineConfig({
   base: './',
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+  },
   plugins: [react(), stripChunkPartsFromDist(), pdfByteRangeSupport()],
   server: {
     host: true,

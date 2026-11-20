@@ -1,3 +1,4 @@
+import { APP_VERSION } from '../config/releaseConfig';
 import {
   explorerAnatomyStore,
   masterAnatomyStore,
@@ -85,7 +86,7 @@ export function buildAutoDiagnosticsSnapshot(): string {
       : 'N/A';
 
   const lines = [
-    `App: AOA v2.0.0 | Platform: ${detectPlatformLabel()} | Viewport: ${viewport}`,
+    `App: AOA v${APP_VERSION} | Platform: ${detectPlatformLabel()} | Viewport: ${viewport}`,
     `Sex: ${state.biologicalSex} | Preset: ${state.activeAtlasPreset} | Explorer: ${nav.explorerOpenedModel?.title ?? 'None'}`,
     `Selected Structure: ${selectedLabel} | Focused Landmark: ${focusedLandmark}`,
     `Modes: Landmarks=${state.showSurgicalLandmarks ? state.landmarkFilterMode : 'off'}, Isolated=${state.isolatedPartId ? 'yes' : 'no'}, XRay=${state.xrayGhostMode ? 'yes' : 'no'}, Slice=${state.slicing.enabled ? state.slicing.plane : 'off'}`,

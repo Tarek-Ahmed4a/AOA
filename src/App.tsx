@@ -7,6 +7,7 @@ import { MinimalHud } from './components/ui/MinimalHud';
 import { PdfReferenceBooksView } from './components/ui/PdfReferenceBooksView';
 import { SketchfabBrowserModal } from './components/ui/SketchfabBrowserModal';
 import { SystemLayerManager } from './components/ui/SystemLayerManager';
+import { UpdateAnnouncementBanner } from './components/ui/UpdateAnnouncementBanner';
 import {
   AnatomyStoreProvider,
   explorerAnatomyStore,
@@ -95,6 +96,8 @@ export const App: React.FC = () => {
           </ClippingPlaneProvider>
         </SceneMeshRegistryProvider>
       </AnatomyStoreProvider>
+
+      <UpdateAnnouncementBanner />
     </main>
   );
 };
